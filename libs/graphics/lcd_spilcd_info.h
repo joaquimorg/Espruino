@@ -70,8 +70,8 @@ static const unsigned char SPILCD_INIT_CODE[] = {
 // CMD,DELAY,DATA_LEN,D0,D1,D2...
 0x11, 100, 0, // SLPOUT Leave sleep mode
 0x36,0,1,/*data*/0, // memory access control
-0x3a,0,1,/*data*/3, // pixel format 12bpp
-//0x3a,0,1,/*data*/5, // pixel format 16bpp
+//0x3a,0,1,/*data*/3, // pixel format 12bpp
+0x3a,0,1,/*data*/5, // pixel format 16bpp
 0x3a,0,0,/*data*/ //
 0x21,0,0,/*data*/ // display invert
 0xe7,0,1,/*data*/0, // disable SPI2
