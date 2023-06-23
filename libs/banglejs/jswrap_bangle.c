@@ -1739,6 +1739,7 @@ void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
   touchX = tx;
   touchY = ty;
   touchPts = pts;
+  JsBangleTasks lastBangleTasks = bangleTasks;
   static int lastGesture = 0;
   if (gesture!=lastGesture) {
     switch (gesture) { // gesture
@@ -1786,8 +1787,10 @@ void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
       bangleTasks |= JSBT_STROKE;
     }
 #endif
-    jshHadEvent();
   }
+  // Ensure we process events if we modified bangleTasks
+  if (lastBangleTasks != bangleTasks)
+    jshHadEvent();
 
   lastGesture = gesture;
 }
@@ -4155,8 +4158,8 @@ bool jswrap_banglejs_idle() {
                             ((bangleTasks & JSBT_TOUCH_RIGHT)?2:0)),
           jsvNewObject()
       };
-      int x = lastTouchX;
-      int y = lastTouchY;
+      int x = touchX;
+      int y = touchY;
       if (x<0) x=0;
       if (y<0) y=0;
       if (x>=LCD_WIDTH) x=LCD_WIDTH-1;
@@ -5674,6 +5677,7 @@ type SetUIArg<Mode> = Mode | {
   mode: Mode,
   back?: () => void,
   remove?: () => void,
+  redraw?: () => void,
 };
 */
 /*JSON{
@@ -5749,10 +5753,11 @@ Bangle.setUI({
   mode : "custom",
   back : function() {}, // optional - add a 'back' icon in top-left widget area and call this function when it is pressed , also call it when the hardware button is clicked (does not override btn if defined)
   remove : function() {}, // optional - add a handler for when the UI should be removed (eg stop any intervals/timers here)
-  touch : function(n,e) {}, // optional - handler for 'touch' events
-  swipe : function(dir) {}, // optional - handler for 'swipe' events
-  drag : function(e) {}, // optional - handler for 'drag' events (Bangle.js 2 only)
-  btn : function(n) {}, // optional - handler for 'button' events (n==1 on Bangle.js 2, n==1/2/3 depending on button for Bangle.js 1)
+  redraw : function() {}, // optional - add a handler to redraw the UI. Not needed but it can allow widgets/etc to provide other functionality that requires the screen to be redrawn
+  touch : function(n,e) {}, // optional - (mode:custom only) handler for 'touch' events
+  swipe : function(dir) {}, // optional - (mode:custom only) handler for 'swipe' events
+  drag : function(e) {}, // optional - (mode:custom only) handler for 'drag' events (Bangle.js 2 only)
+  btn : function(n) {}, // optional - (mode:custom only) handler for 'button' events (n==1 on Bangle.js 2, n==1/2/3 depending on button for Bangle.js 1)
   clock : 0 // optional - if set the behavior of 'clock' mode is added (does not override btn if defined)
 });
 ```
@@ -5761,7 +5766,7 @@ If `remove` is specified, `Bangle.showLauncher`, `Bangle.showClock`, `Bangle.loa
 may choose to just call the `remove` function and then load a new app without resetting Bangle.js.
 As a result, **if you specify 'remove' you should make sure you test that after calling `Bangle.setUI()`
 without arguments your app is completely unloaded**, otherwise you may end up with memory leaks or
-other issues when switching apps.
+other issues when switching apps. Please see http://www.espruino.com/Bangle.js+Fast+Load for more details on this.
 */
 /*JSON{
     "type" : "staticmethod", "class" : "Bangle", "name" : "setUI", "patch":true,
