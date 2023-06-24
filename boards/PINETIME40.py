@@ -17,14 +17,13 @@ import pinutils;
 
 info = {
  'name' : "PineTime40",
- 'link' :  [ "https://www.joaquim.org/pinetime-upgrade-board/" ],
- #'espruino_page_link' : 'Bangle.js2',
- #'default_console' : "EV_TERMINAL",
+ 'link' :  [ "https://www.joaquim.org/pinetime-upgrade-board/" ], 
+ #'default_console' : "EV_SERIAL1",
  'default_console' : "EV_SERIAL1",
  'default_console_tx' : "D25",
  'default_console_rx' : "D14",
  'default_console_baudrate' : "115200",
- 'variables' : 2500, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
+ 'variables' : 5000, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
                       # Currently leaves around 38k of free stack - *loads* more than we need
  #'io_buffer_size' : 512, # How big is the input buffer (in 4 byte words). Default on nRF52 is 256
  'bootloader' : 0,
@@ -35,25 +34,36 @@ info = {
      'BLUETOOTH',
      'TERMINAL',
      'GRAPHICS',
-     'LCD_SPI_UNBUF'
+     'LCD_SPI'
    ],
    'makefile' : [
+     'DEFINES += -DPINETIME40',
     
-     'DEFINES+=-DESPR_USE_SPI3 -DSPISENDMANY_BUFFER_SIZE=240',
+     #'DEFINES+=-DESPR_USE_SPI3 -DSPISENDMANY_BUFFER_SIZE=240',
      'DEFINES+=-DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
      #'DEFINES+=-DBUTTONPRESS_TO_REBOOT_BOOTLOADER',
      'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Espruino PineTime40"\'',
      #'DEFINES+=-DCUSTOM_GETBATTERY=jswrap_banglejs_getBattery',
      'DEFINES+=-DDUMP_IGNORE_VARIABLES=\'"g\\0"\'',
      'DEFINES+=-DESPR_GRAPHICS_INTERNAL=1',
-     'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DGRAPHICS_ANTIALIAS -DESPR_GRAPHICS_3BIT',
+     'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DESPR_GRAPHICS_16BIT -DGRAPHICS_ANTIALIAS',
      'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves 1k of flash 
      'INCLUDE += -I$(ROOT)/libs/pinetime40 -I$(ROOT)/libs/misc',
-     'JSMODULESOURCES += libs/js/graphical_menu.min.js',
-     'WRAPPERSOURCES += libs/pinetime40/jswrap_pinetime40.c',
-     #'JSMODULESOURCES += libs/js/pinetime40/LED1.min.js',
-     #'DEFINES += -DBANGLEJS',
-     #'DEFINES += -DESPR_HWVERSION=2 -DBANGLEJS',
+     #'JSMODULESOURCES += libs/js/graphical_menu.min.js',     
+     'WRAPPERSOURCES += libs/pinetime40/jswrap_pinetime40.c',  
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
+
+     'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
+
+     #'INCLUDE += -I$(ROOT)/libs/banglejs -I$(ROOT)/libs/misc',
+     #'WRAPPERSOURCES += libs/banglejs/jswrap_bangle.c',
+     #'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
+     #'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
+     #'SOURCES += libs/misc/unistroke.c',
+     #'WRAPPERSOURCES += libs/misc/jswrap_unistroke.c',
+     #'DEFINES += -DESPR_BANGLE_UNISTROKE=1',
+
      'NRF_SDK15=1',
      'ESPR_BLUETOOTH_ANCS=1' # Enable ANCS (Apple notifications) support
    ]
@@ -69,7 +79,7 @@ chip = {
   'flash' : 1024,
   'speed' : 64,
   'usart' : 2,
-  'spi' : 3,
+  'spi' : 1,
   'i2c' : 1,
   'adc' : 1,
   'dac' : 0,
@@ -86,7 +96,7 @@ chip = {
 #
 
 devices = {
-  'BTN1' : { 'pin' : 'D34', 'pinstate' : 'IN_PULLUP' }, # Pin negated in software
+  'BTN1' : { 'pin' : 'D34', 'pinstate' : 'IN_PULLUP' }, # Pin negated in software  
   'LED1' : { 'pin' : 'D36', 'novariable':True}, 
   'LCD' : {
             'width' : 240, 'height' : 240, 
