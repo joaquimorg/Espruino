@@ -37,16 +37,18 @@ info = {
      'LCD_SPI'
    ],
    'makefile' : [
-     'DEFINES += -DPINETIME40',
+     'DEFINES+=-DPINETIME40',
      'DEFINES+=-DESPR_USE_SPI3',     
      'DEFINES+=-DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
      #'DEFINES+=-DBUTTONPRESS_TO_REBOOT_BOOTLOADER',
      'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Espruino PineTime40"\'',
-     #'DEFINES+=-DCUSTOM_GETBATTERY=jswrap_banglejs_getBattery',
+     'DEFINES+=-DCUSTOM_GETBATTERY=jswrap_pinetime40_getBattery',
+     'DEFINES+=-DSPIFLASH_READ2X', # Read SPI flash at 2x speed using MISO and MOSI for IO
      'DEFINES+=-DDUMP_IGNORE_VARIABLES=\'"g\\0"\'',
      'DEFINES+=-DESPR_GRAPHICS_INTERNAL=1',
      'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DESPR_GRAPHICS_16BIT -DGRAPHICS_ANTIALIAS',
      'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves 1k of flash 
+     'DEFINES+=-DESPR_NO_LINE_NUMBERS=1', # we execute mainly from flash, so line numbers can be worked out
      'INCLUDE += -I$(ROOT)/libs/pinetime40 -I$(ROOT)/libs/misc',  
      'WRAPPERSOURCES += libs/pinetime40/jswrap_pinetime40.c',  
      #'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
@@ -161,9 +163,8 @@ def get_pins():
   #pinutils.findpin(pins, "PD30", True)["functions"]["ADC1_IN6"]=0;
   pinutils.findpin(pins, "PD31", True)["functions"]["ADC1_IN7"]=0;
   # Make buttons and LEDs negated
-  pinutils.findpin(pins, "PD34", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD15", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD29", True)["functions"]["NEGATED"]=0;
+  #pinutils.findpin(pins, "PD15", True)["functions"]["NEGATED"]=0;
+  #pinutils.findpin(pins, "PD29", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD36", True)["functions"]["NEGATED"]=0;
 
   # everything is non-5v tolerant

@@ -2241,7 +2241,7 @@ bool jswrap_espruino_sendUSBHID(JsVar *arr) {
 
 /*JSON{
   "type" : "staticmethod",
-  "#if" : "defined(PUCKJS) || defined(PIXLJS) || defined(BANGLEJS)",
+  "#if" : "defined(PUCKJS) || defined(PIXLJS) || defined(BANGLEJS) /| defined(PINETIME40)",
   "class" : "E",
   "name" : "getBattery",
   "generate" : "jswrap_espruino_getBattery",

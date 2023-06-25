@@ -8,3 +8,5 @@ bool jswrap_pinetime40_idle();
 
 void jswrap_pinetime40_setLCDOffset(int y);
 
+JsVarInt jswrap_pinetime40_getBattery();
+
