@@ -25,9 +25,9 @@ info = {
  'default_console_baudrate' : "115200",
  'variables' : 5000, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
                       # Currently leaves around 38k of free stack - *loads* more than we need
- #'io_buffer_size' : 512, # How big is the input buffer (in 4 byte words). Default on nRF52 is 256
+ 'io_buffer_size' : 512, # How big is the input buffer (in 4 byte words). Default on nRF52 is 256
  'bootloader' : 0,
- 'binary_name' : 'espruino_%v_pinetime40.hex',
+ 'binary_name' : 'espruino_pinetime40.hex',
  'build' : {
    'optimizeflags' : '-Os',
    'libraries' : [
@@ -38,8 +38,7 @@ info = {
    ],
    'makefile' : [
      'DEFINES += -DPINETIME40',
-    
-     #'DEFINES+=-DESPR_USE_SPI3 -DSPISENDMANY_BUFFER_SIZE=240',
+     'DEFINES+=-DESPR_USE_SPI3',     
      'DEFINES+=-DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
      #'DEFINES+=-DBUTTONPRESS_TO_REBOOT_BOOTLOADER',
      'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Espruino PineTime40"\'',
@@ -48,16 +47,14 @@ info = {
      'DEFINES+=-DESPR_GRAPHICS_INTERNAL=1',
      'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DESPR_GRAPHICS_16BIT -DGRAPHICS_ANTIALIAS',
      'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves 1k of flash 
-     'INCLUDE += -I$(ROOT)/libs/pinetime40 -I$(ROOT)/libs/misc',
-     #'JSMODULESOURCES += libs/js/graphical_menu.min.js',     
+     'INCLUDE += -I$(ROOT)/libs/pinetime40 -I$(ROOT)/libs/misc',  
      'WRAPPERSOURCES += libs/pinetime40/jswrap_pinetime40.c',  
-     'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
-     'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
+     #'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
+     #'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
 
+     'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
 
-     #'INCLUDE += -I$(ROOT)/libs/banglejs -I$(ROOT)/libs/misc',
-     #'WRAPPERSOURCES += libs/banglejs/jswrap_bangle.c',
      #'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
      #'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
      #'SOURCES += libs/misc/unistroke.c',

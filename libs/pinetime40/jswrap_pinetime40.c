@@ -140,6 +140,8 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   jsiConsolePrintf("HWINIT DONE\n");
 }
 
+JsVar *jswrap_pinetime_getLogo();
+
 /*JSON{
   "type" : "init",
   "generate" : "jswrap_pinetime40_init"
@@ -148,11 +150,13 @@ NO_INLINE void jswrap_pinetime40_init() {
 
    IOEventFlags channel;
 
+   static bool firstStart = true;
+
   // Backlight
   jswrap_pinetime40_pwrBacklight(true);
 
   // Reset global graphics instance
-  //graphicsStructResetState(&graphicsInternal);
+  graphicsStructResetState(&graphicsInternal);
 
   // Create backing graphics object for LCD
   JsVar* graphics = jspNewObject(0, "Graphics");
@@ -170,21 +174,31 @@ NO_INLINE void jswrap_pinetime40_init() {
   graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8+1; // 4x6 size is default
   graphicsClear(&graphicsInternal);
 
-  // otherwise render the standard 'Loading...' box
-  int x = LCD_WIDTH / 2;
-  int y = LCD_HEIGHT / 2;
+  JsVar *img = jsfReadFile(jsfNameFromString(".splash"),0,0);
+  int w,h,y;
+  h = 0;
+  if (jsvIsString(img) || jsvGetStringLength(img)) { 
+    w = (int)(unsigned char)jsvGetCharInString(img, 0);
+    h = (int)(unsigned char)jsvGetCharInString(img, 1);
+    y=(LCD_HEIGHT-h)/2;
+    jsvUnLock2(jswrap_graphics_drawImage(graphics,img,(LCD_WIDTH-w)/2,y,NULL),img);    
+  } else {
+    y=LCD_HEIGHT/2;
+  }  
+  if (h > 0) y += h + 10;  
   char addrStr[20];
   JsVar *addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
-
   jsvGetString(addr, addrStr, sizeof(addrStr));
   jsvUnLock(addr);
-  jswrap_graphics_drawCString(&graphicsInternal,8,y,JS_VERSION);
-  jswrap_graphics_drawCString(&graphicsInternal,8,y+10,addrStr);
-  jswrap_graphics_drawCString(&graphicsInternal,8,y+20,"PineTime 40 - joaquim.org");
+  jswrap_graphics_drawCString(&graphicsInternal,60,y,JS_VERSION);
+  jswrap_graphics_drawCString(&graphicsInternal,60,y+10,"Espruino - nRF52840");
+  jswrap_graphics_drawCString(&graphicsInternal,60,y+20,addrStr);
+  jswrap_graphics_drawCString(&graphicsInternal,60,y+30,"PineTime 40 - joaquim.org");
 
   graphicsInternalFlip();
-  //graphicsStructResetState(&graphicsInternal);
+  graphicsStructResetState(&graphicsInternal);
 
+  
   jshEnableWatchDog(5); // 5 second watchdog
 
   pollInterval = DEFAULT_ACCEL_POLL_INTERVAL;
@@ -207,12 +221,16 @@ NO_INLINE void jswrap_pinetime40_init() {
   jsble_check_error(err_code);
 
   jshSetPinShouldStayWatched(BTN1_PININDEX,true);
+
   channel = jshPinWatch(BTN1_PININDEX, true, JSPW_NONE);
   if (channel!=EV_NONE) jshSetEventCallback(channel, btn1Handler);
 
   jsiConsolePrintf("INIT DONE\n");
 
-  //jsvUnLock(jspEvaluate("setTimeout(clock,100)",true));
+
+  firstStart = false;
+
+  //jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,5000);",true));
 
 }
 
@@ -236,7 +254,6 @@ void jswrap_pinetime40_kill() {
   graphicsInternal.graphicsVar = NULL;
 
 }
-
 
 
 /*JSON{
