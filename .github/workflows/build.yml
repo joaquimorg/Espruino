@@ -34,15 +34,15 @@ jobs:
       with:
         fetch-depth: 0
     - name: make ${{ matrix.board }}
-      env:
-        TRAVIS: 1
-        RELEASE: 1
-        BOARD: ${{ matrix.board }} 
-        UPLOADTOKEN: ${{ secrets.UPLOADTOKEN }}  
-      run: |
-        source ./scripts/provision.sh  ${{ matrix.board }}
-        make
-        ./scripts/ci_upload.sh
+      #env:
+      #  TRAVIS: 1
+      #  RELEASE: 1
+      #  BOARD: ${{ matrix.board }} 
+      #  UPLOADTOKEN: ${{ secrets.UPLOADTOKEN }}  
+      #run: |
+      #  source ./scripts/provision.sh  ${{ matrix.board }}
+      #  make
+      #  ./scripts/ci_upload.sh
     - name: Upload ${{ matrix.board }} build artifact
       uses: actions/upload-artifact@v3.1.2
       with:
@@ -69,16 +69,16 @@ jobs:
       with:
         fetch-depth: 0    
     - name: make ${{ matrix.board }}
-      env:
-        TRAVIS: 1
-        RELEASE: 1
-        DFU_UPDATE_BUILD: 1
-        BOARD: ${{ matrix.board }} 
-        UPLOADTOKEN: ${{ secrets.UPLOADTOKEN }}  
-      run: |
-        source ./scripts/provision.sh  ${{ matrix.board }}
-        make
-        ./scripts/ci_upload.sh       
+      #env:
+      #  TRAVIS: 1
+      #  RELEASE: 1
+      #  DFU_UPDATE_BUILD: 1
+      #  BOARD: ${{ matrix.board }} 
+      #  UPLOADTOKEN: ${{ secrets.UPLOADTOKEN }}  
+      #run: |
+      #  source ./scripts/provision.sh  ${{ matrix.board }}
+      #  make
+      #  ./scripts/ci_upload.sh       
     - name: Upload ${{ matrix.board }} build artifact
       uses: actions/upload-artifact@v3.1.2
       with:

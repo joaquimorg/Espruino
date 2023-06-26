@@ -57,11 +57,12 @@ info = {
      'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
 
-     #'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
-     #'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
-     #'SOURCES += libs/misc/unistroke.c',
-     #'WRAPPERSOURCES += libs/misc/jswrap_unistroke.c',
-     #'DEFINES += -DESPR_BANGLE_UNISTROKE=1',
+     'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6',
+     'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key_40.pem',
+     'DEFINES += -DNRF_BOOTLOADER_NO_WRITE_PROTECT=1', # By default the bootloader protects flash. Avoid this (a patch for NRF_BOOTLOADER_NO_WRITE_PROTECT must be applied first)
+     'DEFINES += -DBUTTONPRESS_TO_REBOOT_BOOTLOADER',
+     'BOOTLOADER_SETTINGS_FAMILY=NRF52840',
+     'DEFINES += -DESPR_BOOTLOADER_SPIFLASH', # Allow bootloader to flash direct from SPI flash
 
      'NRF_SDK15=1',
      'ESPR_BLUETOOTH_ANCS=1' # Enable ANCS (Apple notifications) support
