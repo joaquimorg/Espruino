@@ -26,7 +26,7 @@ info = {
  'variables' : 5000, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
                       # Currently leaves around 38k of free stack - *loads* more than we need
  'io_buffer_size' : 512, # How big is the input buffer (in 4 byte words). Default on nRF52 is 256
- 'bootloader' : 0,
+ 'bootloader' : 1,
  'binary_name' : 'espruino_pinetime40.hex',
  'build' : {
    'optimizeflags' : '-Os',
@@ -38,6 +38,7 @@ info = {
    ],
    'makefile' : [
      'DEFINES+=-DPINETIME40',
+     'DEFINES+=-DNRF_DFU_BLE_ADV_NAME=\'"DFU PineTime40"\'',
      'DEFINES+=-DESPR_USE_SPI3',     
      'DEFINES+=-DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
      #'DEFINES+=-DBUTTONPRESS_TO_REBOOT_BOOTLOADER',

@@ -474,23 +474,24 @@ else
 endif
 
 $(PROJ_NAME).hex: $(PROJ_NAME).app_hex
- ifdef USE_BOOTLOADER
-  ifdef BOOTLOADER
+ifdef USE_BOOTLOADER
+ifdef BOOTLOADER
 	@echo Bootloader - leaving hex file as-is
 	@mv $(PROJ_NAME).app_hex $(PROJ_NAME).hex
 	# for testing:
 	#python scripts/hexmerge.py --overlap=replace $(SOFTDEVICE) $(PROJ_NAME).app_hex -o $(PROJ_NAME).hex
-  else
+else
 	@echo Merging SoftDevice and Bootloader
 	@# build a DFU settings file we can merge in... family can be NRF52840 or NRF52
 	nrfutil settings generate --family $(BOOTLOADER_SETTINGS_FAMILY) --application $(PROJ_NAME).app_hex --app-boot-validation VALIDATE_GENERATED_CRC --application-version 0xff --bootloader-version 0xff --bl-settings-version 2 $(OBJDIR)/dfu_settings.hex
 	@echo FIXME - had to set --overlap=replace
-	python scripts/hexmerge.py --overlap=replace $(SOFTDEVICE) $(NRF_BOOTLOADER) $(PROJ_NAME).app_hex $(OBJDIR)/dfu_settings.hex -o $(PROJ_NAME).hex
-  endif
- else
+	#python scripts/hexmerge.py --overlap=replace $(SOFTDEVICE) $(NRF_BOOTLOADER) $(PROJ_NAME).app_hex $(OBJDIR)/dfu_settings.hex -o $(PROJ_NAME).hex
+	python scripts/hexmerge.py --overlap=replace $(PROJ_NAME).app_hex $(OBJDIR)/dfu_settings.hex -o $(PROJ_NAME).hex
+endif
+else
 	@echo Merging SoftDevice
 	python scripts/hexmerge.py $(SOFTDEVICE) $(PROJ_NAME).app_hex -o $(PROJ_NAME).hex
- endif # USE_BOOTLOADER
+endif # USE_BOOTLOADER
 
 
 $(PROJ_NAME).zip: $(PROJ_NAME).app_hex

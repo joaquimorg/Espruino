@@ -391,10 +391,12 @@ void lcd_init() {
   jshDelayMicroseconds(10000);
   lcd_cmd(0x13, 0, NULL); // NORON
   jshDelayMicroseconds(10000);
-  lcd_cmd(0x36, 1, "\xC0"); // MADCTL
-  jshDelayMicroseconds(10000);
+  //lcd_cmd(0x36, 1, "\xC0"); // MADCTL
+  //jshDelayMicroseconds(10000);
+#if !defined(PINETIME40)
   lcd_cmd(0x37, 2, "\0\x50"); // VSCRSADD - vertical scroll
   jshDelayMicroseconds(10000);
+#endif
   lcd_cmd(0x35, 0, NULL); // Tear on
   jshDelayMicroseconds(10000);
   lcd_cmd(0x29, 0, NULL); // DISPON
