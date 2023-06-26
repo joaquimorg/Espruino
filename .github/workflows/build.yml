@@ -25,7 +25,8 @@ jobs:
     strategy:
       # devices to build for
       matrix:
-        board: [LINUX, ESP32, ESP8266_BOARD, ESP8266_4MB, MICROBIT1, MICROBIT2]
+        #board: [LINUX, ESP32, ESP8266_BOARD, ESP8266_4MB, MICROBIT1, MICROBIT2]
+        board: [PINETIME40]
       # try and build for all devices even if one fails
       fail-fast: false 
     steps:
@@ -59,7 +60,8 @@ jobs:
     strategy:
       # devices to build for
       matrix:
-        board: [PUCKJS, PIXLJS, MDBT42Q, BANGLEJS, BANGLEJS2, PUCKJS_MINIMAL]
+        #board: [PUCKJS, PIXLJS, MDBT42Q, BANGLEJS, BANGLEJS2, PUCKJS_MINIMAL]
+        board: [PINETIME40]
       # try and build for all devices even if one fails
       fail-fast: false 
     steps:
