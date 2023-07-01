@@ -212,6 +212,10 @@ JsVar *promiseBuzz;
 unsigned short beepFreq;
 unsigned char buzzAmt;
 
+int twistThreshold = 800;
+int twistMaxY = -800;
+int twistTimeout = 1000;
+
 #define TIMER_MAX 60000 // 60 sec - enough to fit in uint16_t without overflow if we add ACCEL_POLL_INTERVAL
 #define DEFAULT_ACCEL_POLL_INTERVAL 80 // in msec - 12.5 hz to match accelerometer
 #define DEFAULT_BTN_LOAD_TIMEOUT 1500
@@ -654,6 +658,7 @@ type PinetimeOptions<Boolean = boolean> = {
   wakeOnTwist: Boolean;
   twistThreshold: number;
   twistMaxY: number;
+  twistTimeout: number;
   powerSave: boolean;
   lcdPowerTimeout: number;
   backlightTimeout: number;
@@ -694,6 +699,9 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
       {"wakeOnBTN1", JSV_BOOLEAN, &wakeOnBTN1},
       {"wakeOnFaceUp", JSV_BOOLEAN, &wakeOnFaceUp},
       {"wakeOnTouch", JSV_BOOLEAN, &wakeOnTouch},
+      {"twistThreshold", JSV_INTEGER, &twistThreshold},
+      {"twistTimeout", JSV_INTEGER, &twistTimeout},
+      {"twistMaxY", JSV_INTEGER, &twistMaxY},
       {"powerSave", JSV_BOOLEAN, &powerSave},      
       {"lcdPowerTimeout", JSV_INTEGER, &lcdPowerTimeout},
       {"backlightTimeout", JSV_INTEGER, &backlightTimeout},
@@ -854,34 +862,69 @@ NO_INLINE void jswrap_pinetime40_init() {
   JsVar* fn = jsvNewNativeFunction((void (*)(void))lcd_flip, JSWAT_VOID | JSWAT_THIS_ARG | (JSWAT_BOOL << (JSWAT_BITS * 1)));
   jsvObjectSetChildAndUnLock(graphics, "flip", fn);
 
-  graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
-  graphicsClear(&graphicsInternal);
 
-  JsVar* img = jsfReadFile(jsfNameFromString(".splash"), 0, 0);
-  int w, h, y;
-  h = 0;
-  if (jsvIsString(img) || jsvGetStringLength(img)) {
-    w = (int)(unsigned char)jsvGetCharInString(img, 0);
-    h = (int)(unsigned char)jsvGetCharInString(img, 1);
-    y = (LCD_HEIGHT - h) / 2;
-    jsvUnLock2(jswrap_graphics_drawImage(graphics, img, (LCD_WIDTH - w) / 2, y, NULL), img);
-  }
-  else {
-    y = LCD_HEIGHT / 2;
-  }
-  if (h > 0) y += h + 10;
-  char addrStr[20];
-  JsVar* addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
-  jsvGetString(addr, addrStr, sizeof(addrStr));
-  jsvUnLock(addr);
-  jswrap_graphics_drawCString(&graphicsInternal, 60, y, JS_VERSION);
-  jswrap_graphics_drawCString(&graphicsInternal, 60, y + 10, "Espruino - nRF52840");
-  jswrap_graphics_drawCString(&graphicsInternal, 60, y + 20, addrStr);
-  jswrap_graphics_drawCString(&graphicsInternal, 60, y + 30, "PineTime 40 - joaquim.org");
+  if (!firstRun) {
+    // Display a loading screen
+    // Check for a '.loading' file
+    JsVar *img = jsfReadFile(jsfNameFromString(".loading"),0,0);
+    if (jsvIsString(img)) {
+      if (jsvGetStringLength(img)>3) {
+        // if it exists and is big enough to store an image, render the image in the middle of the screen
+        int w,h;
+        w = (int)(unsigned char)jsvGetCharInString(img, 0);
+        h = (int)(unsigned char)jsvGetCharInString(img, 1);
+        jsvUnLock2(jswrap_graphics_drawImage(graphics,img,(LCD_WIDTH-w)/2,(LCD_HEIGHT-h)/2,NULL),img);
+        graphicsInternalFlip();
+      }
+      // else if <3 bytes we don't render anything
+    } else {
+      // otherwise render the standard 'Loading...' box
+      int x = LCD_WIDTH/2;
+      int y = LCD_HEIGHT/2;
+      graphicsFillRect(&graphicsInternal, x-49, y-19, x+49, y+19, graphicsTheme.bg);
+      graphicsInternal.data.fgColor = graphicsTheme.fg;
+      graphicsDrawRect(&graphicsInternal, x-50, y-20, x+50, y+20);
+      y -= 4;
+      x -= 4*6;
+      const char *s = "Loading...";
+      while (*s) {
+        graphicsDrawChar6x8(&graphicsInternal, x, y, *s, 1, 1, false);
+        x+=6;
+        s++;
+      }
+      graphicsInternalFlip();
+    }
+  } else {
+    graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
+    graphicsClear(&graphicsInternal);
 
-  graphicsInternalFlip();
-  graphicsStructResetState(&graphicsInternal);
+    JsVar* img = jsfReadFile(jsfNameFromString(".splash"), 0, 0);
+    int w, h, y;
+    h = 0;
+    if (jsvIsString(img) || jsvGetStringLength(img)) {
+      w = (int)(unsigned char)jsvGetCharInString(img, 0);
+      h = (int)(unsigned char)jsvGetCharInString(img, 1);
+      y = (LCD_HEIGHT - h) / 2;
+      jsvUnLock2(jswrap_graphics_drawImage(graphics, img, (LCD_WIDTH - w) / 2, y, NULL), img);
+    }
+    else {
+      y = LCD_HEIGHT / 2;
+    }
+    if (h > 0) y += h + 10;
+    char addrStr[20];
+    JsVar* addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
+    jsvGetString(addr, addrStr, sizeof(addrStr));
+    jsvUnLock(addr);
+    jswrap_graphics_drawCString(&graphicsInternal, 60, y, JS_VERSION);
+    jswrap_graphics_drawCString(&graphicsInternal, 60, y + 10, "Espruino - nRF52840");
+    jswrap_graphics_drawCString(&graphicsInternal, 60, y + 20, addrStr);
+    jswrap_graphics_drawCString(&graphicsInternal, 60, y + 30, "PineTime 40 - joaquim.org");
 
+    graphicsInternalFlip();
+    graphicsStructResetState(&graphicsInternal);
+  }  
+
+  
   buzzAmt = 0;
   beepFreq = 0;
 
@@ -900,13 +943,13 @@ NO_INLINE void jswrap_pinetime40_init() {
     jsble_check_error(err_code);
     app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);
 
-    jsiConsolePrintf("FIRST INIT DONE\n");
-    jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,1000)", true));
+    //jsiConsolePrintf("FIRST INIT DONE\n");
+    //jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,1000)", true));
   }
-  else
+  /*else
   {
     jsiConsolePrintf("HOT INIT DONE\n");
-  }
+  }*/
 
   //pinetimeFlags |= JSPF_POWER_SAVE; // ensure we turn power-save on by default every restart
   //pinetimeFlags |= JSPF_LCD_BL_ON; // ensure we turn power-save on by default every restart
@@ -916,6 +959,11 @@ NO_INLINE void jswrap_pinetime40_init() {
   backlightTimeout = DEFAULT_BACKLIGHT_TIMEOUT;
   //lockTimeout = DEFAULT_LOCK_TIMEOUT;
   lcdWakeButton = 0;
+
+  // touch
+  touchStatus = TS_NONE;
+  touchLastState = 0;
+  //touchLastState2 = 0;
 
   // If the home button is still pressed when we're restarting, set up
   // lcdWakeButton so the event for button release is 'eaten'
@@ -1040,7 +1088,7 @@ void jswrap_pinetime40_kill() {
 // Convert Touchscreen gesture based on graphics orientation
 TouchGestureType touchSwipeRotate(TouchGestureType g) {
   // gesture is the value that comes straight from the touchscreen
-  if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_INVERT_X) {
+  /*if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_INVERT_X) {
     if (g == TG_SWIPE_LEFT) g = TG_SWIPE_RIGHT;
     else if (g == TG_SWIPE_RIGHT) g = TG_SWIPE_LEFT;
   }
@@ -1053,13 +1101,13 @@ TouchGestureType touchSwipeRotate(TouchGestureType g) {
     else if (g == TG_SWIPE_RIGHT) g = TG_SWIPE_DOWN;
     else if (g == TG_SWIPE_UP) g = TG_SWIPE_LEFT;
     else if (g == TG_SWIPE_DOWN) g = TG_SWIPE_RIGHT;
-  }
+  }*/
   return g;
 }
 
 void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
   // ignore if locked
-  if (pinetimeFlags & JSPF_LOCKED) return;
+  if (pinetimeFlags & JSPF_LOCKED) return;  
   // deal with the case where we rotated the Bangle.js screen
   deviceToGraphicsCoordinates(&graphicsInternal, &tx, &ty);
 
@@ -1069,44 +1117,48 @@ void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
   touchX = tx;
   touchY = ty;
   touchPts = pts;
-  JsPinetimeTasks lastPinetimeTasks = pinetimeTasks;
-  static int lastGesture = 0;
-  if (gesture!=lastGesture) {
+  JsPinetimeTasks lastPinetimeTasks = pinetimeTasks;  
+
+  //static int lastGesture = 0;
+  //if (gesture!=lastGesture) {
+
+    //jsiConsolePrintf("TS = x:%d y:%d pts:%d gest:%d\n", tx,ty,pts,gesture);
+
     switch (gesture) { // gesture
-    case 0:break; // no gesture
-    case 1: // slide down
-      touchGesture = touchSwipeRotate(TG_SWIPE_DOWN);
-      pinetimeTasks |= JSPT_SWIPE;
-      break;
-    case 2: // slide up
-      touchGesture = touchSwipeRotate(TG_SWIPE_UP);
-      pinetimeTasks |= JSPT_SWIPE;
-      break;
-    case 3: // slide left
-      touchGesture = touchSwipeRotate(TG_SWIPE_LEFT);
-      pinetimeTasks |= JSPT_SWIPE;
-      break;
-    case 4: // slide right
-      touchGesture = touchSwipeRotate(TG_SWIPE_RIGHT);
-      pinetimeTasks |= JSPT_SWIPE;
-      break;
-    case 5: // single click
-      if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
-      else pinetimeTasks |= JSPT_TOUCH_RIGHT;
-      touchType = 0;
-      break;
-    case 0x0B:     // double touch
-      if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
-      else pinetimeTasks |= JSPT_TOUCH_RIGHT;
-      touchType = 1;
-      break;
-    case 0x0C:     // long touch
-      if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
-      else pinetimeTasks |= JSPT_TOUCH_RIGHT;
-      touchType = 2;
-      break;
-    }
-  }
+      case 0:break; // no gesture
+      case 1: // slide down
+        touchGesture = touchSwipeRotate(TG_SWIPE_DOWN);
+        pinetimeTasks |= JSPT_SWIPE;
+        break;
+      case 2: // slide up
+        touchGesture = touchSwipeRotate(TG_SWIPE_UP);
+        pinetimeTasks |= JSPT_SWIPE;
+        break;
+      case 3: // slide left
+        touchGesture = touchSwipeRotate(TG_SWIPE_LEFT);
+        pinetimeTasks |= JSPT_SWIPE;
+        break;
+      case 4: // slide right
+        touchGesture = touchSwipeRotate(TG_SWIPE_RIGHT);
+        pinetimeTasks |= JSPT_SWIPE;
+        break;
+      case 5: // single click
+        if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
+        else pinetimeTasks |= JSPT_TOUCH_RIGHT;
+        touchType = 0;
+        break;
+      case 0x0B:     // double touch
+        if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
+        else pinetimeTasks |= JSPT_TOUCH_RIGHT;
+        touchType = 1;
+        break;
+      case 0x0C:     // long touch
+        if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
+        else pinetimeTasks |= JSPT_TOUCH_RIGHT;
+        touchType = 2;
+        break;
+      }
+  //}
 
   if (touchPts!=lastTouchPts || lastTouchX!=touchX || lastTouchY!=touchY) {
     pinetimeTasks |= JSPT_DRAG;
@@ -1118,12 +1170,11 @@ void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
     jshHadEvent();
 
   if (touchPts != lastTouchPts || lastTouchX != touchX || lastTouchY != touchY) {
-
     // ensure we don't sleep if touchscreen is being used
     inactivityTimer = 0;
   }
 
-  lastGesture = gesture;
+  //lastGesture = gesture;
 }
 
 void touchHandler(bool state, IOEventFlags flags) {
@@ -1141,6 +1192,8 @@ void touchHandler(bool state, IOEventFlags flags) {
   // 4: Y hi
   // 5: Y lo (0..160)
 
+  //jsiConsolePrintf("TS = %d:%d:%d:%d:%d:%d\n", buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
+
   int tx = buf[3]/* | ((buf[2] & 0x0F)<<8)*/; // top bits are never used on our touchscreen
   int ty = buf[5]/* | ((buf[4] & 0x0F)<<8)*/;
   if (tx >= 250) tx = 0; // on some devices, 251-255 gets reported for touches right at the top of the screen
@@ -1148,7 +1201,7 @@ void touchHandler(bool state, IOEventFlags flags) {
   touchHandlerInternal(
     (tx - touchMinX) * LCD_WIDTH / (touchMaxX - touchMinX), // touchX
     (ty - touchMinY) * LCD_HEIGHT / (touchMaxY - touchMinY), // touchY
-    buf[1], // touchPts
+    buf[2], // touchPts
     buf[0]); // gesture
 }
 
