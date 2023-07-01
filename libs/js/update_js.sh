@@ -55,6 +55,7 @@ node ../../../EspruinoDocs/bin/minify.js banglejs/Bangle_setUI_Q3.js banglejs/Ba
 node ../../../EspruinoDocs/bin/minify.js banglejs/locale.js banglejs/locale.min.js
 
 #Pinetime 40
+node ../../../EspruinoDocs/bin/minify.js pinetime40/load.js pinetime40/load.min.js
 node ../../../EspruinoDocs/bin/minify.js pinetime40/E_showMessage.js pinetime40/E_showMessage.min.js
 node ../../../EspruinoDocs/bin/minify.js pinetime40/Pinetime_drawWidgets.js pinetime40/Pinetime_drawWidgets.min.js
 node ../../../EspruinoDocs/bin/minify.js pinetime40/Pinetime_setUI.js pinetime40/Pinetime_setUI.min.js

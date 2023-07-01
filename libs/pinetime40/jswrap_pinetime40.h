@@ -25,3 +25,5 @@ JsVar *jswrap_pinetime40_beep(int time, int freq);
 
 void jswrap_pinetime40_setOptions(JsVar *options);
 JsVar *jswrap_pinetime40_getOptions();
+
+bool jswrap_pinetime40_setHRMPower(bool isOn, JsVar *appId);

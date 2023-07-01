@@ -1431,8 +1431,38 @@ void jswrap_pinetime40_setLocked(bool isLocked) {
 /*JSON{
     "type" : "staticmethod",
     "class" : "Pinetime",
+    "name" : "setHRMPower",
+    "generate" : "jswrap_pinetime40_setHRMPower",
+    "params" : [
+      ["isOn","bool","True if the heart rate monitor should be on, false if not"],
+      ["appID","JsVar","A string with the app's name in, used to ensure one app can't turn off something another app is using"]
+    ],
+    "return" : ["bool","Is HRM on?"],
+    "ifdef" : "PINETIME40",
+    "typescript" : "setHRMPower(isOn: ShortBoolean, appID: string): boolean;"
+}
+Set the power to the Heart rate monitor
+
+When on, data is output via the `HRM` event on `Pinetime`:
+
+```
+Bangle.setHRMPower(true, "myapp");
+Bangle.on('HRM',print);
+```
+
+*When on, the Heart rate monitor draws roughly 5mA*
+*/
+bool jswrap_pinetime40_setHRMPower(bool isOn, JsVar *appId) {
+
+  return false;
+
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
     "name" : "load",
-    "generate_js" : "libs/js/pinetime40/load.js",
+    "generate_js" : "libs/js/pinetime40/load.min.js",
     "params" : [
       ["file","JsVar","[optional] A string containing the file name for the app to be loaded"]
     ],
