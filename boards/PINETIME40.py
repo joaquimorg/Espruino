@@ -37,7 +37,7 @@ info = {
      'LCD_SPI'
    ],
    'makefile' : [
-     'DEFINES+=-DPINETIME40',
+     'DEFINES+=-DPINETIME40 -DESPR_HWVERSION=2',
      'DEFINES+=-DNRF_DFU_BLE_ADV_NAME=\'"DFU PineTime40"\'',
      'DEFINES+=-DESPR_USE_SPI3',     
      'DEFINES+=-DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
