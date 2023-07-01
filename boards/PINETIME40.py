@@ -52,8 +52,8 @@ info = {
      'DEFINES+=-DESPR_NO_LINE_NUMBERS=1', # we execute mainly from flash, so line numbers can be worked out
      'INCLUDE += -I$(ROOT)/libs/pinetime40 -I$(ROOT)/libs/misc',  
      'WRAPPERSOURCES += libs/pinetime40/jswrap_pinetime40.c',  
-     #'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
-     #'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
 
      'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',

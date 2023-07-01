@@ -182,6 +182,16 @@ Emitted at midnight (at the point the `day` health info is reset to 0).
 Can be used for housekeeping tasks that don't want to be run during the day.
 */
 
+/*JSON{
+  "type" : "event",
+  "class" : "Pinetime",
+  "name" : "lock",
+  "params" : [["on","bool","`true` if screen is locked, `false` if it is unlocked and touchscreen/buttons will work"]],
+  "ifdef" : "PINETIME40"
+}
+Has the screen been locked? Also see `Pinetime.isLocked()`
+*/
+
 #define HOME_BTN 1
 #define HOME_BTN_PININDEX    BTN1_PININDEX
 
@@ -197,8 +207,18 @@ volatile uint16_t chargeTimer; // in ms
 volatile bool wasCharging;
 
 
+JsVar *promiseBeep;
+JsVar *promiseBuzz;
+unsigned short beepFreq;
+unsigned char buzzAmt;
+
 #define TIMER_MAX 60000 // 60 sec - enough to fit in uint16_t without overflow if we add ACCEL_POLL_INTERVAL
 #define DEFAULT_ACCEL_POLL_INTERVAL 80 // in msec - 12.5 hz to match accelerometer
+#define DEFAULT_BTN_LOAD_TIMEOUT 1500
+#define DEFAULT_LCD_POWER_TIMEOUT 30000
+#define DEFAULT_BACKLIGHT_TIMEOUT DEFAULT_LCD_POWER_TIMEOUT
+#define DEFAULT_LOCK_TIMEOUT 30000
+
 
 JshI2CInfo i2cTouch;
 #define TOUCH_I2C &i2cTouch
@@ -246,6 +266,8 @@ typedef enum {
   JSPF_LCD_BL_ON = 1 << 8,
   JSPF_LOCKED = 1 << 9,
   JSPF_HRM_INSTANT_LISTENER = 1 << 10,
+  JSPF_ENABLE_BEEP = 1 << 11,
+  JSPF_ENABLE_BUZZ = 1 << 12,
 
   JSPF_DEFAULT = ///< default at power-on
   JSPF_WAKEON_BTN1 | JSPF_WAKEON_FACEUP
@@ -289,16 +311,9 @@ static void jswrap_pinetime40_setLCDPowerBacklight(bool isOn);
 APP_TIMER_DEF(m_peripheral_poll_timer_id);
 volatile uint16_t pollInterval; // in ms
 
-// Nordic app timer to handle backlight PWM
-APP_TIMER_DEF(m_backlight_on_timer_id);
-APP_TIMER_DEF(m_backlight_off_timer_id);
-#define BACKLIGHT_PWM_INTERVAL 15 // in msec - 67Hz PWM
 
 /// LCD Brightness - 255=full
 uint8_t lcdBrightness;
-/// Actual LCD brightness (if we fade to a new brightness level)
-uint8_t realLcdBrightness;
-bool lcdFadeHandlerActive;
 
 void graphicsInternalFlip() {
   lcdFlip_SPILCD(&graphicsInternal);
@@ -359,16 +374,19 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
   if (lcdPowerTimeout || backlightTimeout) {
     if ((pinetimeFlags&JSPF_WAKEON_BTN1)&&(button==1)) {
       // if a 'hard' button, turn LCD on
+      //jsiConsolePrintf("BT\n");
       inactivityTimer = 0;
       if (state) {
         bool ignoreBtnUp = false;
         if (lcdPowerTimeout && !(pinetimeFlags&JSPF_LCD_ON) && state) {
           pinetimeTasks |= JSPT_LCD_ON;
           ignoreBtnUp = true;
+          //jsiConsolePrintf("LCD on BT\n");
         }
         if (backlightTimeout && !(pinetimeFlags&JSPF_LCD_BL_ON) && state) {
           pinetimeTasks |= JSPT_LCD_BL_ON;
           ignoreBtnUp = true;
+          //jsiConsolePrintf("BL on BT\n");
         }
         if (ignoreBtnUp) {
           // This allows us to ignore subsequent button
@@ -416,14 +434,14 @@ void peripheralPollHandler() {
 
   JsSysTime time = jshGetSystemTime();
   // Handle watchdog
-  if ((jshPinGetValue(BTN1_PININDEX)))
+  if (jshPinGetValue(BTN1_PININDEX))
     jshKickWatchDog();
 
   // power on display if a button is pressed
   if (inactivityTimer < TIMER_MAX)
     inactivityTimer += pollInterval;
   // If button is held down, trigger a soft reset so we go back to the clock
-  if (jshPinGetValue(HOME_BTN_PININDEX)) {
+  if (!jshPinGetValue(HOME_BTN_PININDEX)) {
     if (homeBtnTimer < TIMER_MAX) {
       homeBtnTimer += pollInterval;
       if (btnLoadTimeout && (homeBtnTimer >= btnLoadTimeout)) {
@@ -461,6 +479,7 @@ void peripheralPollHandler() {
     // 10 seconds of inactivity, turn off display
     pinetimeTasks |= JSPT_LCD_BL_OFF;
     jshHadEvent();
+    //jsiConsolePrintf("JSPT_LCD_BL_OFF\n");
   }
 
   // check charge status
@@ -484,17 +503,6 @@ void jswrap_pinetime40_pwrBacklight(bool on) {
   jshPinOutput(LCD_BL, on);
 }
 
-void backlightOnHandler() {
-  //if (i2cBusy) return;
-  jswrap_pinetime40_pwrBacklight(true); // backlight on
-  app_timer_start(m_backlight_off_timer_id, APP_TIMER_TICKS(BACKLIGHT_PWM_INTERVAL) * lcdBrightness >> 8, NULL);
-}
-void backlightOffHandler() {
-  //if (i2cBusy) return;
-  jswrap_pinetime40_pwrBacklight(false); // backlight off
-}
-
-
 static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
 
   if (isOn) { // wake
@@ -511,38 +519,15 @@ static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
 #endif
 }
 
-static void backlightFadeHandler() {
-  int target = (pinetimeFlags & JSPF_LCD_ON) ? lcdBrightness : 0;
-  int brightness = realLcdBrightness;
-  int step = brightness >> 3; // to make this more linear
-  if (step < 4) step = 4;
-  if (target > brightness) {
-    brightness += step;
-    if (brightness > target)
-      brightness = target;
-  }
-  else if (target < brightness) {
-    brightness -= step;
-    if (brightness < target)
-      brightness = target;
-  }
-  realLcdBrightness = brightness;
-  if (brightness == 0) jswrap_pinetime40_pwrBacklight(0);
-  else if (realLcdBrightness == 255) jswrap_pinetime40_pwrBacklight(1);
-  else {
-    jshPinAnalogOutput(LCD_BL, realLcdBrightness / 256.0, 200, JSAOF_NONE);
-  }
-}
-
 /// Turn just the backlight on or off (or adjust brightness)
 static void jswrap_pinetime40_setLCDPowerBacklight(bool isOn) {
   if (isOn) pinetimeFlags |= JSPF_LCD_BL_ON;
   else pinetimeFlags &= ~JSPF_LCD_BL_ON;
-  if (!lcdFadeHandlerActive) {
-    JsSysTime t = jshGetTimeFromMilliseconds(10);
-    jstExecuteFn(backlightFadeHandler, NULL, t, t, NULL);
-    lcdFadeHandlerActive = true;
-    backlightFadeHandler();
+
+  jswrap_pinetime40_pwrBacklight(isOn && (lcdBrightness>0));
+  
+  if (isOn && lcdBrightness > 0 && lcdBrightness < 255) {
+    jshPinAnalogOutput(LCD_BL, lcdBrightness/256.0, 200, JSAOF_NONE);
   }
 }
 
@@ -574,9 +559,10 @@ Pinetime.setLCDPower(1); // keep screen on
 using `Pinetime.setLCDBrightness`.
 */
 void jswrap_pinetime40_setLCDPower(bool isOn) {
-  if (isOn) jswrap_pinetime40_setLCDPowerController(1);
-  else jswrap_pinetime40_setLCDPowerBacklight(0); // RB: don't turn on the backlight here if fading is enabled
+  
+  jswrap_pinetime40_setLCDPowerController(isOn);
   jswrap_pinetime40_setLCDPowerBacklight(isOn);
+  
   if (((pinetimeFlags & JSPF_LCD_ON) != 0) != isOn) {
     JsVar* pinetime = jsvObjectGetChildIfExists(execInfo.root, "Pinetime");
     if (pinetime) {
@@ -626,6 +612,155 @@ void jswrap_pinetime40_setLCDBrightness(JsVarFloat v) {
     jswrap_pinetime40_setLCDPowerBacklight(1);
 }
 
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "setLCDTimeout",
+    "generate" : "jswrap_pinetime40_setLCDTimeout",
+    "params" : [
+      ["isOn","float","The timeout of the display in seconds, or `0`/`undefined` to turn power saving off. Default is 10 seconds."]
+    ],
+    "ifdef" : "PINETIME40"
+}
+This function can be used to turn pinetime40's LCD power saving on or off.
+
+With power saving off, the display will remain in the state you set it with
+`Pinetime.setLCDPower`.
+
+With power saving on, the display will turn on if a button is pressed, the watch
+is turned face up, or the screen is updated (see `Pinetime.setOptions` for
+configuration). It'll turn off automatically after the given timeout.
+
+**Note:** This function also sets the Backlight and Lock timeout (the time at
+which the touchscreen/buttons start being ignored). To set both separately, use
+`Pinetime.setOptions`
+*/
+void jswrap_pinetime40_setLCDTimeout(JsVarFloat timeout) {
+  if (!isfinite(timeout))
+    timeout=0;
+  else if (timeout<0) timeout=0;
+
+  backlightTimeout = timeout*1000;
+  //lockTimeout = timeout*1000;
+}
+
+
+/*TYPESCRIPT
+type PinetimeOptions<Boolean = boolean> = {
+  wakeOnBTN1: Boolean;
+  wakeOnFaceUp: Boolean;
+  wakeOnTouch: Boolean;
+  wakeOnTwist: Boolean;
+  twistThreshold: number;
+  twistMaxY: number;
+  powerSave: boolean;
+  lcdPowerTimeout: number;
+  backlightTimeout: number;
+  btnLoadTimeout: number;
+};
+*/
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "setOptions",
+    "generate" : "jswrap_pinetime40_setOptions",
+    "params" : [
+      ["options","JsVar",""]
+    ],
+    "ifdef" : "PINETIME40",
+    "typescript" : "setOptions(options: { [key in keyof PinetimeOptions]?: PinetimeOptions<ShortBoolean>[key] }): void;"
+}
+Set internal options used for gestures, etc...
+
+*/
+JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
+  bool wakeOnBTN1 = pinetimeFlags&JSPF_WAKEON_BTN1;
+  bool wakeOnFaceUp = pinetimeFlags&JSPF_WAKEON_FACEUP;
+  bool wakeOnTouch = pinetimeFlags&JSPF_WAKEON_TOUCH;
+  bool wakeOnTwist = false;//pinetimeFlags&JSPF_WAKEON_TWIST;
+  bool powerSave = pinetimeFlags&JSPF_POWER_SAVE;
+  int stepCounterThresholdLow, stepCounterThresholdHigh; // ignore these with new step counter
+
+#ifdef TOUCH_DEVICE
+  int touchX1 = touchMinX;
+  int touchY1 = touchMinY;
+  int touchX2 = touchMaxX;
+  int touchY2 = touchMaxY;
+#endif
+  jsvConfigObject configs[] = {
+      {"stepCounterThresholdLow", JSV_INTEGER, &stepCounterThresholdLow},
+      {"stepCounterThresholdHigh", JSV_INTEGER, &stepCounterThresholdHigh},
+      {"wakeOnBTN1", JSV_BOOLEAN, &wakeOnBTN1},
+      {"wakeOnFaceUp", JSV_BOOLEAN, &wakeOnFaceUp},
+      {"wakeOnTouch", JSV_BOOLEAN, &wakeOnTouch},
+      {"powerSave", JSV_BOOLEAN, &powerSave},      
+      {"lcdPowerTimeout", JSV_INTEGER, &lcdPowerTimeout},
+      {"backlightTimeout", JSV_INTEGER, &backlightTimeout},
+      {"btnLoadTimeout", JSV_INTEGER, &btnLoadTimeout},
+#ifdef TOUCH_DEVICE
+      {"touchX1", JSV_INTEGER, &touchX1},
+      {"touchY1", JSV_INTEGER, &touchY1},
+      {"touchX2", JSV_INTEGER, &touchX2},
+      {"touchY2", JSV_INTEGER, &touchY2},
+#endif
+  };
+  if (createObject) {
+    return jsvCreateConfigObject(configs, sizeof(configs) / sizeof(jsvConfigObject));
+  }
+  if (jsvReadConfigObject(options, configs, sizeof(configs) / sizeof(jsvConfigObject))) {
+    pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_BTN1) | (wakeOnBTN1?JSPF_WAKEON_BTN1:0);
+    pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_FACEUP) | (wakeOnFaceUp?JSPF_WAKEON_FACEUP:0);
+    pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_TOUCH) | (wakeOnTouch?JSPF_WAKEON_TOUCH:0);
+    //pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_TWIST) | (wakeOnTwist?JSPF_WAKEON_TWIST:0);
+    pinetimeFlags = (pinetimeFlags&~JSPF_POWER_SAVE) | (powerSave?JSPF_POWER_SAVE:0);
+    if (lcdPowerTimeout<0) lcdPowerTimeout=0;
+    if (backlightTimeout<0) backlightTimeout=0;
+
+#ifdef TOUCH_DEVICE
+    touchMinX = touchX1;
+    touchMinY = touchY1;
+    touchMaxX = touchX2;
+    touchMaxY = touchY2;
+#endif
+  }
+  return 0;
+}
+void jswrap_pinetime40_setOptions(JsVar *options) {
+  _jswrap_pinetime40_setOptions(options, false);
+}
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "getOptions",
+    "generate" : "jswrap_pinetime40_getOptions",
+    "return" : ["JsVar","The current state of all options"],
+    "ifdef" : "PINETIME40",
+    "typescript" : "getOptions(): PinetimeOptions;"
+}
+Return the current state of options as set by `Pinetime.setOptions`
+*/
+JsVar *jswrap_pinetime40_getOptions() {
+  return _jswrap_pinetime40_setOptions(NULL, true);
+}
+
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "isLCDOn",
+    "generate" : "jswrap_pinetime40_isLCDOn",
+    "return" : ["bool","Is the display on or not?"],
+    "ifdef" : "PINETIME40"
+}
+Also see the `Pinetime.lcdPower` event
+*/
+// emscripten bug means we can't use 'bool' as return value here!
+int jswrap_pinetime40_isLCDOn() {
+  return (pinetimeFlags&JSPF_LCD_ON)!=0;
+}
+
+
 /*JSON{
   "type" : "hwinit",
   "generate" : "jswrap_pinetime40_hwinit"
@@ -639,9 +774,35 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   jsi2cSetup(&i2cTouch);
 
   // Touch init
+  jshPinOutput(TOUCH_PIN_RST, 1);
+  jshDelayMicroseconds(1000);
   jshPinOutput(TOUCH_PIN_RST, 0);
   jshDelayMicroseconds(1000);
   jshPinOutput(TOUCH_PIN_RST, 1);
+
+  unsigned char buf[2];
+  // 0xEE - CST816_REG_NOR_SCAN_PER - 0x01
+  buf[0]=0xEE;
+  buf[1]=0x01;
+  jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
+  // 0xFA - CST816_REG_IRQ_CTL - 0x60
+  buf[0]=0xFA;
+  buf[1]=0x60;
+  jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
+  // 0xFB - CST816_REG_AUTO_RESET - 0x0
+  buf[0]=0xFB;
+  buf[1]=0x0;
+  jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
+  // 0xFC - CST816_REG_LONG_PRESS_TIME - 0x10
+  buf[0]=0xFC;
+  buf[1]=0x10;
+  jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
+  // 0xED - CST816_REG_IRQ_PLUSE_WIDTH - 0x02  
+  buf[0]=0xED;
+  buf[1]=0x02;
+  jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
+
+  //
 
   graphicsStructInit(&graphicsInternal, LCD_WIDTH, LCD_HEIGHT, LCD_BPP);
   graphicsInternal.data.type = JSGRAPHICSTYPE_SPILCD;
@@ -667,10 +828,7 @@ NO_INLINE void jswrap_pinetime40_init() {
 
   IOEventFlags channel;
 
-  static bool firstStart = true;
-
-  // Backlight
-  jswrap_pinetime40_pwrBacklight(true);
+  bool firstRun = jsiStatus & JSIS_FIRST_BOOT; // is this the first time jswrap_pinetime40_init was called?
 
   jshSetPinShouldStayWatched(BTN1_PININDEX, true);
   channel = jshPinWatch(BTN1_PININDEX, true, JSPW_NONE);
@@ -724,7 +882,14 @@ NO_INLINE void jswrap_pinetime40_init() {
   graphicsInternalFlip();
   graphicsStructResetState(&graphicsInternal);
 
-  if (firstStart) {
+  buzzAmt = 0;
+  beepFreq = 0;
+
+  if (firstRun) {
+
+    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON | JSPF_LCD_BL_ON; // includes pinetimeFlags
+    lcdBrightness = 128;
+
     jshEnableWatchDog(10); // 5 second watchdog
 
     pollInterval = DEFAULT_ACCEL_POLL_INTERVAL;
@@ -735,18 +900,6 @@ NO_INLINE void jswrap_pinetime40_init() {
     jsble_check_error(err_code);
     app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);
 
-    // Backlight PWM
-    err_code = app_timer_create(&m_backlight_on_timer_id,
-      APP_TIMER_MODE_REPEATED,
-      backlightOnHandler);
-    jsble_check_error(err_code);
-
-    err_code = app_timer_create(&m_backlight_off_timer_id,
-      APP_TIMER_MODE_SINGLE_SHOT,
-      backlightOffHandler);
-    jsble_check_error(err_code);
-
-
     jsiConsolePrintf("FIRST INIT DONE\n");
     jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,1000)", true));
   }
@@ -755,11 +908,22 @@ NO_INLINE void jswrap_pinetime40_init() {
     jsiConsolePrintf("HOT INIT DONE\n");
   }
 
+  //pinetimeFlags |= JSPF_POWER_SAVE; // ensure we turn power-save on by default every restart
+  //pinetimeFlags |= JSPF_LCD_BL_ON; // ensure we turn power-save on by default every restart
+  inactivityTimer = 0; // reset the LCD timeout timer
+  btnLoadTimeout = DEFAULT_BTN_LOAD_TIMEOUT;
+  lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;
+  backlightTimeout = DEFAULT_BACKLIGHT_TIMEOUT;
+  //lockTimeout = DEFAULT_LOCK_TIMEOUT;
+  lcdWakeButton = 0;
 
-  firstStart = false;
+  // If the home button is still pressed when we're restarting, set up
+  // lcdWakeButton so the event for button release is 'eaten'
+  if (jshPinGetValue(HOME_BTN_PININDEX))
+    lcdWakeButton = HOME_BTN;
 
-  //jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,5000);",true));
 
+  //jsiConsolePrintf("pinetimeFlags %d\n",pinetimeFlags);
 }
 
 /*JSON{
@@ -767,6 +931,92 @@ NO_INLINE void jswrap_pinetime40_init() {
   "generate" : "jswrap_pinetime40_idle"
 }*/
 bool jswrap_pinetime40_idle() {
+  JsVar *pinetime =jsvObjectGetChildIfExists(execInfo.root, "Pinetime");
+
+  if (!pinetime) {
+    pinetimeTasks = JSPT_NONE;
+  }
+  if (pinetimeTasks != JSPT_NONE) {
+    if (pinetimeTasks & JSPT_LCD_OFF) jswrap_pinetime40_setLCDPower(0);
+    if (pinetimeTasks & JSPT_LCD_ON) jswrap_pinetime40_setLCDPower(1);
+    if (pinetimeTasks & JSPT_LCD_BL_OFF) jswrap_pinetime40_setLCDPowerBacklight(0);
+    if (pinetimeTasks & JSPT_LCD_BL_ON) jswrap_pinetime40_setLCDPowerBacklight(1);
+    if (pinetimeTasks & JSPT_LOCK) jswrap_pinetime40_setLocked(1);
+    if (pinetimeTasks & JSPT_UNLOCK) jswrap_pinetime40_setLocked(0);
+    if (pinetimeTasks & JSPT_RESET) jsiStatus |= JSIS_TODO_FLASH_LOAD;
+
+
+    if (pinetimeTasks & JSPT_MIDNIGHT) {
+      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"midnight", NULL, 0);
+    }
+  
+    if (pinetimeTasks & JSPT_CHARGE_EVENT) {
+      JsVar *charging = jsvNewFromBool(wasCharging);
+      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"charging", &charging, 1);
+      jsvUnLock(charging);
+    }
+
+    if (pinetimeTasks & JSPT_SWIPE) {
+      JsVar *o[2] = {
+          jsvNewFromInteger((touchGesture==TG_SWIPE_LEFT)?-1:((touchGesture==TG_SWIPE_RIGHT)?1:0)),
+          jsvNewFromInteger((touchGesture==TG_SWIPE_UP)?-1:((touchGesture==TG_SWIPE_DOWN)?1:0)),
+      };
+      touchGesture = TG_SWIPE_NONE;
+      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"swipe", o, 2);
+      jsvUnLockMany(2,o);
+    }
+    if (pinetimeTasks & JSPT_TOUCH_MASK) {
+      JsVar *o[2] = {
+          jsvNewFromInteger(((pinetimeTasks & JSPT_TOUCH_LEFT)?1:0) |
+                            ((pinetimeTasks & JSPT_TOUCH_RIGHT)?2:0)),
+          jsvNewObject()
+      };
+      int x = touchX;
+      int y = touchY;
+      if (x<0) x=0;
+      if (y<0) y=0;
+      if (x>=LCD_WIDTH) x=LCD_WIDTH-1;
+      if (y>=LCD_HEIGHT) y=LCD_HEIGHT-1;
+      jsvObjectSetChildAndUnLock(o[1], "x", jsvNewFromInteger(x));
+      jsvObjectSetChildAndUnLock(o[1], "y", jsvNewFromInteger(y));
+      jsvObjectSetChildAndUnLock(o[1], "type", jsvNewFromInteger(touchType));
+      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"touch", o, 2);
+      jsvUnLockMany(2,o);
+    }
+  }
+  if (pinetimeTasks & JSPT_DRAG) {
+    JsVar *o = jsvNewObject();
+    jsvObjectSetChildAndUnLock(o, "x", jsvNewFromInteger(touchX));
+    jsvObjectSetChildAndUnLock(o, "y", jsvNewFromInteger(touchY));
+    jsvObjectSetChildAndUnLock(o, "b", jsvNewFromInteger(touchPts));
+    jsvObjectSetChildAndUnLock(o, "dx", jsvNewFromInteger(lastTouchPts ? touchX-lastTouchX : 0));
+    jsvObjectSetChildAndUnLock(o, "dy", jsvNewFromInteger(lastTouchPts ? touchY-lastTouchY : 0));
+    jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"drag", &o, 1);
+    jsvUnLock(o);
+    lastTouchX = touchX;
+    lastTouchY = touchY;
+    lastTouchPts = touchPts;
+  }
+
+  jsvUnLock(pinetime);
+  pinetimeTasks = JSPT_NONE;
+  // Automatically flip!
+  if (graphicsInternal.data.modMaxX >= graphicsInternal.data.modMinX) {
+    graphicsInternalFlip();
+  }
+
+  // resolve any beep/buzz promises
+  if (promiseBuzz && !buzzAmt) {
+    jspromise_resolve(promiseBuzz, 0);
+    jsvUnLock(promiseBuzz);
+    promiseBuzz = 0;
+  }
+  if (promiseBeep && !beepFreq) {
+    jspromise_resolve(promiseBeep, 0);
+    jsvUnLock(promiseBeep);
+    promiseBeep = 0;
+  }
+
   return false;
 }
 
@@ -809,7 +1059,7 @@ TouchGestureType touchSwipeRotate(TouchGestureType g) {
 
 void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
   // ignore if locked
-  //if (pinetimeFlags & JSPF_LOCKED) return;
+  if (pinetimeFlags & JSPF_LOCKED) return;
   // deal with the case where we rotated the Bangle.js screen
   deviceToGraphicsCoordinates(&graphicsInternal, &tx, &ty);
 
@@ -872,9 +1122,6 @@ void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
     // ensure we don't sleep if touchscreen is being used
     inactivityTimer = 0;
   }
-  // Ensure we process events if we modified pinetimeTasks
-  /*if (lastpinetimeTasks != pinetimeTasks)
-    jshHadEvent();*/
 
   lastGesture = gesture;
 }
@@ -956,7 +1203,177 @@ JsVar* jswrap_pinetime40_appRect() {
   return o;
 }
 
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "isLocked",
+    "generate" : "jswrap_pinetime40_isLocked",
+    "return" : ["bool","Is the screen locked or not?"],
+    "ifdef" : "PINETIME40"
+}
+*/
+// emscripten bug means we can't use 'bool' as return value here!
+int jswrap_pinetime40_isLocked() {
+  return (pinetimeFlags&JSPF_LOCKED)!=0;
+}
 
+
+static NO_INLINE void _jswrap_pinetime40_setVibration() {
+  int beep = 0;
+  if (pinetimeFlags & JSPF_BEEP_VIBRATE)
+    beep = beepFreq;
+
+  if (buzzAmt==0 && beep==0)
+    jshPinOutput(VIBRATE_PIN,0); // vibrate off
+  else if (beep==0) { // vibrate only
+    jshPinAnalogOutput(VIBRATE_PIN, 0.4 + buzzAmt*0.6/255, 1000, JSAOF_NONE);
+  } else { // beep and vibrate
+    jshPinAnalogOutput(VIBRATE_PIN, 0.2 + buzzAmt*0.6/255, beep, JSAOF_NONE);
+  }
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "beep",
+    "generate" : "jswrap_pinetime40_beep",
+    "params" : [
+      ["time","int","[optional] Time in ms (default 200)"],
+      ["freq","int","[optional] Frequency in hz (default 4000)"]
+    ],
+    "return" : ["JsVar","A promise, completed when beep is finished"],
+    "return_object":"Promise",
+    "ifdef" : "PINETIME40"
+}
+Use the piezo speaker to Beep for a certain time period and frequency
+*/
+void jswrap_pinetime40_beep_callback() {
+  beepFreq = 0;
+  if (pinetimeFlags & JSPF_BEEP_VIBRATE) {
+    _jswrap_pinetime40_setVibration();
+  }
+  jshHadEvent();
+}
+
+JsVar *jswrap_pinetime40_beep(int time, int freq) {
+  if (freq<=0) freq=4000;
+  if (freq>60000) freq=60000;
+  if (time<=0) time=200;
+  if (time>5000) time=5000;
+  if (promiseBeep) {
+    JsVar *fn = jsvNewNativeFunction((void (*)(void))jswrap_pinetime40_beep, JSWAT_JSVAR|(JSWAT_INT32<<JSWAT_BITS)|(JSWAT_INT32<<(JSWAT_BITS*2)));
+    JsVar *v;
+    v=jsvNewFromInteger(time);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 1
+    v=jsvNewFromInteger(freq);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 2
+    JsVar *promise = jswrap_promise_then(promiseBeep, fn, NULL);
+    jsvUnLock(fn);
+    return promise;
+  }
+  promiseBeep = jspromise_create();
+  if (!promiseBeep) return 0;
+
+  if (pinetimeFlags & JSPF_ENABLE_BEEP) {
+    beepFreq = freq;
+    if (pinetimeFlags & JSPF_BEEP_VIBRATE) {
+      _jswrap_pinetime40_setVibration();
+    }
+  }
+  jstExecuteFn(jswrap_pinetime40_beep_callback, NULL, jshGetTimeFromMilliseconds(time), 0, NULL);
+  return jsvLockAgain(promiseBeep);
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "buzz",
+    "generate" : "jswrap_pinetime40_buzz",
+    "params" : [
+      ["time","int","[optional] Time in ms (default 200)"],
+      ["strength","float","[optional] Power of vibration from 0 to 1 (Default 1)"]
+    ],
+    "return" : ["JsVar","A promise, completed when vibration is finished"],
+    "return_object":"Promise",
+    "ifdef" : "PINETIME40"
+}
+Use the vibration motor to buzz for a certain time period
+*/
+void jswrap_pinetime40_buzz_callback() {
+  buzzAmt = 0;
+  _jswrap_pinetime40_setVibration();
+  jshHadEvent();
+}
+
+JsVar *jswrap_pinetime40_buzz(int time, JsVarFloat amt) {
+  if (!isfinite(amt)|| amt>1) amt=1;
+  if (amt<0) amt=0;
+  if (time<=0) time=200;
+  if (time>5000) time=5000;
+  if (promiseBuzz) {
+    JsVar *fn = jsvNewNativeFunction((void (*)(void))jswrap_pinetime40_buzz, JSWAT_JSVAR|(JSWAT_INT32<<JSWAT_BITS)|(JSWAT_JSVARFLOAT<<(JSWAT_BITS*2)));
+    JsVar *v;
+    v=jsvNewFromInteger(time);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 1
+    v=jsvNewFromFloat(amt);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 2
+    JsVar *promise = jswrap_promise_then(promiseBuzz, fn, NULL);
+    jsvUnLock(fn);
+    return promise;
+  }
+  promiseBuzz = jspromise_create();
+  if (!promiseBuzz) return 0;
+
+  buzzAmt = (unsigned char)(amt*255);
+  if (jstExecuteFn(jswrap_pinetime40_buzz_callback, NULL, jshGetTimeFromMilliseconds(time), 0, NULL)) {
+    // task schedule succeeded - start buzz
+    if (pinetimeFlags & JSPF_ENABLE_BUZZ) {
+      _jswrap_pinetime40_setVibration();
+    }
+  } else
+    buzzAmt = 0;
+
+  return jsvLockAgain(promiseBuzz);
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "setLocked",
+    "generate" : "jswrap_pinetime40_setLocked",
+    "params" : [
+      ["isLocked","bool","`true` if the Bangle is locked (no user input allowed)"]
+    ],
+    "ifdef" : "PINETIME40"
+}
+This function can be used to lock or unlock Bangle.js (e.g. whether buttons and
+touchscreen work or not)
+*/
+void jswrap_pinetime40_setLocked(bool isLocked) {
+  if (isLocked) {
+    unsigned char buf[2];
+    buf[0]=0xE5;
+    buf[1]=0x03;
+    jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
+  } else { // best way to wake up is to reset
+    jshPinOutput(TOUCH_PIN_RST, 1);
+    jshDelayMicroseconds(1000);
+    jshPinOutput(TOUCH_PIN_RST, 0);
+    jshDelayMicroseconds(1000);
+    jshPinOutput(TOUCH_PIN_RST, 1);
+    jshDelayMicroseconds(1000);
+  }
+
+  if ((pinetimeFlags&JSPF_LOCKED) != isLocked) {
+    JsVar *pinetime =jsvObjectGetChildIfExists(execInfo.root, "Pinetime");
+    if (pinetime) {
+      JsVar *v = jsvNewFromBool(isLocked);
+      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"lock", &v, 1);
+      jsvUnLock(v);
+    }
+    jsvUnLock(pinetime);
+  }
+  if (isLocked) pinetimeFlags |= JSPF_LOCKED;
+  else pinetimeFlags &= ~JSPF_LOCKED;
+  // Reset inactivity timer so we will lock ourselves after a delay
+  inactivityTimer = 0;
+}
 
 /*JSON{
     "type" : "staticmethod",
@@ -1068,3 +1485,317 @@ call drawWidgets if you decide to clear the entire screen with `g.clear()`.
 */
 
 
+/*TYPESCRIPT
+type SetUIArg<Mode> = Mode | {
+  mode: Mode,
+  back?: () => void,
+  remove?: () => void,
+  redraw?: () => void,
+};
+*/
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "setUI",
+    "generate_js" : "libs/js/pinetime40/Pinetime_setUI.min.js",
+    "params" : [
+      ["type","JsVar","The type of UI input: 'updown', 'leftright', 'clock', 'clockupdown' or undefined to cancel. Can also be an object (see below)"],
+      ["callback","JsVar","A function with one argument which is the direction"]
+    ],
+    "ifdef" : "PINETIME40",
+    "typescript" : [
+      "setUI(type?: undefined): void;",
+      "setUI(type: SetUIArg<\"updown\" | \"leftright\">, callback: (direction?: -1 | 1) => void): void;",
+      "setUI(type: SetUIArg<\"clock\">): void;",
+      "setUI(type: SetUIArg<\"clockupdown\">, callback?: (direction: -1 | 1) => void): void;",
+      "setUI(type: SetUIArg<\"custom\"> & { touch?: TouchCallback; swipe?: SwipeCallback; drag?: DragCallback; btn?: (n: 1 | 2 | 3) => void; clock?: boolean | 0 | 1 }): void;"
+    ]
+}
+This puts Pinetime into the specified UI input mode, and calls the callback
+provided when there is user input.
+
+Currently supported interface types are:
+
+* 'updown' - UI input with upwards motion `cb(-1)`, downwards motion `cb(1)`,
+  and select `cb()`
+  * Pinetime uses touchscreen swipe up/down and tap
+* 'leftright' - UI input with left motion `cb(-1)`, right motion `cb(1)`, and
+  select `cb()`
+  * Pinetime uses touchscreen swipe left/right and tap/BTN1 for select
+* 'clock' - called for clocks. Sets `Pinetime.CLOCK=1` and allows a button to
+  start the launcher
+  * Pinetime BTN1 starts the launcher
+* 'clockupdown' - called for clocks. Sets `Pinetime.CLOCK=1`, allows a button to
+  start the launcher, but also provides up/down functionality
+  * Pinetime BTN1 starts the launcher, touchscreen tap in top/bottom right
+    hand side calls `cb(-1)` and `cb(1)`
+* `{mode:"custom", ...}` allows you to specify custom handlers for different
+  interactions. See below.
+* `undefined` removes all user interaction code
+
+While you could use setWatch/etc manually, the benefit here is that you don't
+end up with multiple `setWatch` instances, and the actual input method (touch,
+or buttons) is implemented dependent on the watch (Pinetime 1 or 2)
+
+**Note:** You can override this function in boot code to change the interaction
+mode with the watch. For instance you could make all clocks start the launcher
+with a swipe by using:
+
+```
+(function() {
+  var sui = Pinetime.setUI;
+  Pinetime.setUI = function(mode, cb) {
+    if (mode!="clock") return sui(mode,cb);
+    sui(); // clear
+    Pinetime.CLOCK=1;
+    Pinetime.swipeHandler = Pinetime.showLauncher;
+    Pinetime.on("swipe", Pinetime.swipeHandler);
+  };
+})();
+```
+
+The first argument can also be an object, in which case more options can be
+specified:
+
+```
+Pinetime.setUI({
+  mode : "custom",
+  back : function() {}, // optional - add a 'back' icon in top-left widget area and call this function when it is pressed , also call it when the hardware button is clicked (does not override btn if defined)
+  remove : function() {}, // optional - add a handler for when the UI should be removed (eg stop any intervals/timers here)
+  redraw : function() {}, // optional - add a handler to redraw the UI. Not needed but it can allow widgets/etc to provide other functionality that requires the screen to be redrawn
+  touch : function(n,e) {}, // optional - (mode:custom only) handler for 'touch' events
+  swipe : function(dir) {}, // optional - (mode:custom only) handler for 'swipe' events
+  drag : function(e) {}, // optional - (mode:custom only) handler for 'drag' events (Pinetime 2 only)
+  btn : function(n) {}, // optional - (mode:custom only) handler for 'button' events (n==1 on Pinetime 2, n==1/2/3 depending on button for Pinetime 1)
+  clock : 0 // optional - if set the behavior of 'clock' mode is added (does not override btn if defined)
+});
+```
+
+If `remove` is specified, `Pinetime.showLauncher`, `Pinetime.showClock`, `Pinetime.load` and some apps
+may choose to just call the `remove` function and then load a new app without resetting Pinetime.
+As a result, **if you specify 'remove' you should make sure you test that after calling `Pinetime.setUI()`
+without arguments your app is completely unloaded**, otherwise you may end up with memory leaks or
+other issues when switching apps. Please see http://www.espruino.com/Pinetime+Fast+Load for more details on this.
+*/
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "showLauncher",
+    "generate_js" : "libs/js/pinetime40/Pinetime_showLauncher.min.js",
+    "ifdef" : "PINETIME40"
+}
+Load the Pinetime app launcher, which will allow the user to select an
+application to launch.
+*/
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "showClock",
+    "generate_js" : "libs/js/banglejs/Bangle_showClock.min.js",
+    "ifdef" : "PINETIME40"
+}
+Load the Pinetime clock - this has the same effect as calling `Pinetime.load()`.
+*/
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "E",
+    "name" : "showScroller",
+    "generate_js" : "libs/js/pinetime40/E_showScroller.min.js",
+    "params" : [
+      ["options","JsVar","An object containing `{ h, c, draw, select, back, remove }` (see below) "]
+    ],
+    "return" : ["JsVar", "A menu object with `draw()` and `drawItem(itemNo)` functions" ],
+    "ifdef" : "PINETIME40",
+    "typescript" : [
+      "showScroller(options?: { h: number, c: number, draw: (idx: number, rect: { x: number, y: number, w: number, h: number }) => void, select: (idx: number, touch?: {x: number, y: number}) => void, back?: () => void, remove?: () => void }): { draw: () => void, drawItem: (itemNo: number) => void };",
+      "showScroller(): void;"
+    ]
+}
+Display a scrollable menu on the screen, and set up the buttons/touchscreen to
+navigate through it and select items.
+
+Supply an object containing:
+
+```
+{
+  h : 24, // height of each menu item in pixels
+  c : 10, // number of menu items
+  // a function to draw a menu item
+  draw : function(idx, rect) { ... }
+  // a function to call when the item is selected, touch parameter is only relevant
+  // for Pinetime and contains the coordinates touched inside the selected item
+  select : function(idx, touch) { ... }
+  // optional function to be called when 'back' is tapped
+  back : function() { ...}
+  // Pinetime: optional function to be called when the scroller should be removed
+  remove : function() {}
+}
+```
+
+For example to display a list of numbers:
+
+```
+E.showScroller({
+  h : 40, c : 8,
+  draw : (idx, r) => {
+    g.setBgColor((idx&1)?"#666":"#999").clearRect(r.x,r.y,r.x+r.w-1,r.y+r.h-1);
+    g.setFont("6x8:2").drawString("Item Number\n"+idx,r.x+10,r.y+4);
+  },
+  select : (idx) => console.log("You selected ", idx)
+});
+```
+
+To remove the scroller, just call `E.showScroller()`
+*/
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "E",
+    "name" : "showPrompt",
+    "generate_js" : "libs/js/pinetime40/E_showPrompt.min.js",
+    "params" : [
+      ["message","JsVar","A message to display. Can include newlines"],
+      ["options","JsVar","[optional] an object of options (see below)"]
+    ],
+    "return" : ["JsVar","A promise that is resolved when 'Ok' is pressed"],
+    "ifdef" : "PINETIME40",
+    "typescript" : [
+      "showPrompt<T = boolean>(message: string, options?: { title?: string, buttons?: { [key: string]: T }, image?: string, remove?: () => void }): Promise<T>;",
+      "showPrompt(): void;"
+    ]
+}
+
+Displays a full screen prompt on the screen, with the buttons requested (or
+`Yes` and `No` for defaults).
+
+When the button is pressed the promise is resolved with the requested values
+(for the `Yes` and `No` defaults, `true` and `false` are returned).
+
+```
+E.showPrompt("Do you like fish?").then(function(v) {
+  if (v) print("'Yes' chosen");
+  else print("'No' chosen");
+});
+// Or
+E.showPrompt("How many fish\ndo you like?",{
+  title:"Fish",
+  buttons : {"One":1,"Two":2,"Three":3}
+}).then(function(v) {
+  print("You like "+v+" fish");
+});
+// Or
+E.showPrompt("Continue?", {
+  title:"Alert",
+  img:atob("FBQBAfgAf+Af/4P//D+fx/n+f5/v+f//n//5//+f//n////3//5/n+P//D//wf/4B/4AH4A=")}).then(function(v) {
+  if (v) print("'Yes' chosen");
+  else print("'No' chosen");
+});
+```
+
+To remove the prompt, call `E.showPrompt()` with no arguments.
+
+The second `options` argument can contain:
+
+```
+{
+  title: "Hello",                       // optional Title
+  buttons : {"Ok":true,"Cancel":false}, // optional list of button text & return value
+  img: "image_string"                   // optional image string to draw
+  remove: function() { }                // Pinetime: optional function to be called when the prompt is removed
+}
+```
+*/
+
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "E",
+    "name" : "showMenu",
+    "generate_js" : "libs/js/pinetime40/E_showMenu.min.js",
+    "params" : [
+      ["menu","JsVar","An object containing name->function mappings to to be used in a menu"]
+    ],
+    "return" : ["JsVar", "A menu object with `draw`, `move` and `select` functions" ],
+    "ifdef" : "PINETIME40",
+    "typescript": [
+      "showMenu(menu: Menu): MenuInstance;",
+      "showMenu(): void;"
+    ]
+}
+Display a menu on the screen, and set up the buttons to navigate through it.
+
+Supply an object containing menu items. When an item is selected, the function
+it references will be executed. For example:
+
+```
+var boolean = false;
+var number = 50;
+// First menu
+var mainmenu = {
+  "" : { title : "-- Main Menu --" }, // options
+  "LED On" : function() { LED1.set(); },
+  "LED Off" : function() { LED1.reset(); },
+  "Submenu" : function() { E.showMenu(submenu); },
+  "A Boolean" : {
+    value : boolean,
+    format : v => v?"On":"Off",
+    onchange : v => { boolean=v; }
+  },
+  "A Number" : {
+    value : number,
+    min:0,max:100,step:10,
+    onchange : v => { number=v; }
+  },
+  "Exit" : function() { E.showMenu(); }, // remove the menu
+};
+// Submenu
+var submenu = {
+  "" : { title : "-- SubMenu --",
+         back : function() { E.showMenu(mainmenu); } },
+  "One" : undefined, // do nothing
+  "Two" : undefined // do nothing
+};
+// Actually display the menu
+E.showMenu(mainmenu);
+```
+
+The menu will stay onscreen and active until explicitly removed, which you can
+do by calling `E.showMenu()` without arguments.
+
+See http://www.espruino.com/graphical_menu for more detailed information.
+
+On Pinetime there are a few additions over the standard `graphical_menu`:
+
+* The options object can contain:
+  * `back : function() { }` - add a 'back' button, with the function called when
+    it is pressed
+  * `remove : function() { }` - add a handler function to be called when the
+    menu is removed
+  * (Pinetime) `scroll : int` - an integer specifying how much the initial
+    menu should be scrolled by
+* The object returned by `E.showMenu` contains:
+  * (Pinetime) `scroller` - the object returned by `E.showScroller` -
+    `scroller.scroll` returns the amount the menu is currently scrolled by
+* In the object specified for editable numbers:
+  * (Pinetime) the `format` function is called with `format(value)` in the
+    main menu, `format(value,1)` when in a scrollable list, or `format(value,2)`
+    when in a popup window.
+
+You can also specify menu items as an array (rather than an Object). This can be
+useful if you have menu items with the same title, or you want to `push` menu
+items onto an array:
+
+```
+var menu = [
+  { title:"Something", onchange:function() { print("selected"); } },
+  { title:"On or Off", value:false, onchange: v => print(v) },
+  { title:"A Value", value:3, min:0, max:10, onchange: v => print(v) },
+];
+menu[""] = { title:"Hello" };
+E.showMenu(menu);
+```
+*/
