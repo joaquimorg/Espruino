@@ -18,11 +18,13 @@ import pinutils;
 info = {
  'name' : "PineTime40",
  'link' :  [ "https://www.joaquim.org/pinetime-upgrade-board/" ], 
- #'default_console' : "EV_SERIAL1",
- 'default_console' : "EV_SERIAL1",
+ 'default_console' : "EV_SERIAL1", 
+ #'default_console' : "EV_TERMINAL", 
  'default_console_tx' : "D25",
  'default_console_rx' : "D14",
  'default_console_baudrate' : "115200",
+ #'default_console' : "EV_BLUETOOTH",
+  
  'variables' : 8000, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
                       # Currently leaves around 38k of free stack - *loads* more than we need
  'io_buffer_size' : 512, # How big is the input buffer (in 4 byte words). Default on nRF52 is 256
@@ -32,7 +34,7 @@ info = {
    'optimizeflags' : '-Os',
    'libraries' : [
      'BLUETOOTH',
-     'TERMINAL',
+#     'TERMINAL',
      'GRAPHICS',
      'LCD_SPI'
    ],
@@ -42,6 +44,8 @@ info = {
      'DEFINES+=-DESPR_USE_SPI3',     
      'DEFINES+=-DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
      'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Espruino PineTime40"\'',
+     'DEFINES+=-DNRF_SDH_BLE_GATT_MAX_MTU_SIZE=131', # 23+x*27 rule as per https://devzone.nordicsemi.com/f/nordic-q-a/44825/ios-mtu-size-why-only-185-bytes
+     'LDFLAGS+=-Xlinker --defsym=LD_APP_RAM_BASE=0x2ec0', # set RAM base to match MTU
      'DEFINES+=-DCUSTOM_GETBATTERY=jswrap_pinetime40_getBattery',
      'DEFINES+=-DSPIFLASH_READ2X', # Read SPI flash at 2x speed using MISO and MOSI for IO
      'DEFINES+=-DDUMP_IGNORE_VARIABLES=\'"g\\0"\'',
@@ -57,7 +61,7 @@ info = {
      'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
 
-     'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6',
+     'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6,0xb7',
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key_40.pem',
      'DEFINES += -DNRF_BOOTLOADER_NO_WRITE_PROTECT=1', # By default the bootloader protects flash. Avoid this (a patch for NRF_BOOTLOADER_NO_WRITE_PROTECT must be applied first)
      'DEFINES += -DBUTTONPRESS_TO_REBOOT_BOOTLOADER',

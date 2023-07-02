@@ -774,7 +774,7 @@ int jswrap_pinetime40_isLCDOn() {
   "generate" : "jswrap_pinetime40_hwinit"
 }*/
 NO_INLINE void jswrap_pinetime40_hwinit() {
-
+  
   jshI2CInitInfo(&i2cTouch);
   i2cTouch.bitrate = 0x7FFFFFFF; // make it as fast as we can go
   i2cTouch.pinSDA = TOUCH_PIN_SDA;
@@ -833,7 +833,7 @@ JsVar* jswrap_pinetime_getLogo();
   "generate" : "jswrap_pinetime40_init"
 }*/
 NO_INLINE void jswrap_pinetime40_init() {
-
+  
   IOEventFlags channel;
 
   bool firstRun = jsiStatus & JSIS_FIRST_BOOT; // is this the first time jswrap_pinetime40_init was called?
@@ -898,9 +898,9 @@ NO_INLINE void jswrap_pinetime40_init() {
     graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
     graphicsClear(&graphicsInternal);
 
-    JsVar* img = jsfReadFile(jsfNameFromString(".splash"), 0, 0);
     int w, h, y;
     h = 0;
+    JsVar* img = jsfReadFile(jsfNameFromString(".splash"), 0, 0);
     if (jsvIsString(img) || jsvGetStringLength(img)) {
       w = (int)(unsigned char)jsvGetCharInString(img, 0);
       h = (int)(unsigned char)jsvGetCharInString(img, 1);
@@ -924,7 +924,7 @@ NO_INLINE void jswrap_pinetime40_init() {
     graphicsStructResetState(&graphicsInternal);
   }  
 
-  
+
   buzzAmt = 0;
   beepFreq = 0;
 
@@ -1426,6 +1426,26 @@ void jswrap_pinetime40_setLocked(bool isLocked) {
   else pinetimeFlags &= ~JSPF_LOCKED;
   // Reset inactivity timer so we will lock ourselves after a delay
   inactivityTimer = 0;
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "setLCDOffset",
+    "generate" : "jswrap_pinetime40_setLCDOffset",
+    "params" : [
+      ["y","int","The amount of pixels to shift the LCD up or down"]
+    ],
+    "ifdef" : "PINETIME40"
+}
+This can be used to move the displayed memory area up or down temporarily. It's
+used for displaying notifications while keeping the main display contents
+intact.
+*/
+void jswrap_pinetime40_setLCDOffset(int y) {
+//#ifdef LCD_CONTROLLER_ST7789_8BIT
+  //lcdST7789_setYOffset(y);
+//#endif
 }
 
 /*JSON{

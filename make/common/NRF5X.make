@@ -493,7 +493,8 @@ else
 endif
 else
 	@echo Merging SoftDevice
-	python scripts/hexmerge.py $(SOFTDEVICE) $(PROJ_NAME).app_hex -o $(PROJ_NAME).hex
+	#python scripts/hexmerge.py $(SOFTDEVICE) $(PROJ_NAME).app_hex -o $(PROJ_NAME).hex
+	python scripts/hexmerge.py $(PROJ_NAME).app_hex -o $(PROJ_NAME).hex  
 endif # USE_BOOTLOADER
 
 

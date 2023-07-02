@@ -172,6 +172,21 @@ void lcdBlit_SPILCD(struct JsGraphics *gfx, int x1, int y1, int w, int h, int x2
 }
 #endif
 
+
+void lcdScroll_SPILCD(JsGraphics *gfx, int xdir, int ydir, int x1, int y1, int x2, int y2) {
+  // No way this is going to work double buffered!
+  //if (lcdMode != LCDST7789_MODE_UNBUFFERED) return;
+  // we can't scroll a window either
+  if (x1!=0 || y1!=0 || x2!=LCD_HEIGHT-1 || y2!=LCD_HEIGHT-1) return;
+  /* We can't read data back, so we can't do left/right scrolling!
+  However we can change our index in the memory buffer window
+  which allows us to use the LCD itself for scrolling */
+  //lcdScrollY-=ydir;
+  //while (lcdScrollY<0) lcdScrollY+=LCD_BUFFER_HEIGHT;
+  //while (lcdScrollY>=LCD_BUFFER_HEIGHT) lcdScrollY-=LCD_BUFFER_HEIGHT;
+  //lcdST7789_scrollCmd();
+}
+
 void lcdFlip_SPILCD_callback() {
   // just an empty stub for SPIsend - we'll just push data as fast as we can
 }
@@ -350,6 +365,7 @@ void lcdSetCallbacks_SPILCD(JsGraphics *gfx) {
   gfx->blit = lcdBlit_SPILCD;
 #endif
   gfx->getPixel = lcdGetPixel_SPILCD;
+  gfx->scroll = lcdScroll_SPILCD;
   //gfx->idle = lcdIdle_PCD8544;
 }
 
