@@ -58,7 +58,7 @@ static void __attribute__((noinline)) nrf_gpio_pin_write_output(uint32_t pin, bo
 
 static void set_led_state(bool btn, bool progress)
 {
-#if defined(PIXLJS) || defined(BANGLEJS)
+#if defined(PIXLJS) || defined(BANGLEJS) || defined(PINETIME40)
   // LED1 is backlight/HRM - don't use it!
 #elif defined(PUCKJS_LITE)
   jshPinOutput(LED1_PININDEX, progress);
@@ -73,7 +73,11 @@ static void set_led_state(bool btn, bool progress)
 
 #ifdef BTN1_PININDEX
 static bool get_btn1_state() {
+#if defined(PINETIME40)
+return jshPinGetValue(BTN1_PININDEX)!=BTN1_ONSTATE;
+#else
   return jshPinGetValue(BTN1_PININDEX)==BTN1_ONSTATE;
+#endif
 }
 #endif
 #ifdef BTN2_PININDEX
@@ -91,10 +95,16 @@ static void hardware_init(void) {
 #ifdef BTN1_PININDEX
   bool polarity;
   uint32_t pin;
+
+#if defined(PINETIME40)
+  polarity = BTN1_ONSTATE==0;
+#else
   if (pinInfo[BTN1_PININDEX].port&JSH_PIN_NEGATED)
     polarity = BTN1_ONSTATE!=1;
   else
     polarity = BTN1_ONSTATE==1;
+#endif
+
   pin = pinInfo[BTN1_PININDEX].pin;
   nrf_gpio_cfg_input(pin,
           polarity ? NRF_GPIO_PIN_PULLDOWN : NRF_GPIO_PIN_PULLUP);

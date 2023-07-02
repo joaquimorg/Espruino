@@ -41,7 +41,6 @@ info = {
      'DEFINES+=-DNRF_DFU_BLE_ADV_NAME=\'"DFU PineTime40"\'',
      'DEFINES+=-DESPR_USE_SPI3',     
      'DEFINES+=-DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
-     #'DEFINES+=-DBUTTONPRESS_TO_REBOOT_BOOTLOADER',
      'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Espruino PineTime40"\'',
      'DEFINES+=-DCUSTOM_GETBATTERY=jswrap_pinetime40_getBattery',
      'DEFINES+=-DSPIFLASH_READ2X', # Read SPI flash at 2x speed using MISO and MOSI for IO
@@ -167,6 +166,7 @@ def get_pins():
   # Make buttons and LEDs negated
   #pinutils.findpin(pins, "PD15", True)["functions"]["NEGATED"]=0;
   #pinutils.findpin(pins, "PD29", True)["functions"]["NEGATED"]=0;
+  #pinutils.findpin(pins, "PD34", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD36", True)["functions"]["NEGATED"]=0;
 
   # everything is non-5v tolerant
