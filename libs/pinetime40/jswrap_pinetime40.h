@@ -19,6 +19,8 @@ int jswrap_pinetime40_isCharging();
 int jswrap_pinetime40_isLCDOn();
 void jswrap_pinetime40_setLocked(bool isLocked);
 
+void jswrap_pinetime40_setLCDPowerBacklight(bool isOn);
+
 int jswrap_pinetime40_isLocked();
 JsVar *jswrap_pinetime40_buzz(int time, JsVarFloat amt);
 JsVar *jswrap_pinetime40_beep(int time, int freq);

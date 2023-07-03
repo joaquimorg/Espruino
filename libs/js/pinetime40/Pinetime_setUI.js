@@ -35,7 +35,7 @@
   g.reset();// reset graphics state, just in case
   if (!mode) return;
   function b() {
-    //try{Pinetime.buzz(30);}catch(e){}
+    try{Pinetime.buzz(30);}catch(e){}
   }
   if (mode=="updown") {
     var dy = 0;
@@ -45,11 +45,33 @@
       while (Math.abs(dy)>32) {
         if (dy>0) { dy-=32; cb(1) }
         else { dy+=32; cb(-1) }
-        //Pinetime.buzz(20);
+        Pinetime.buzz(20);
       }
     };
     Pinetime.on('drag',Pinetime.dragHandler);
     Pinetime.touchHandler = d => {b();cb();};
+    Pinetime.btnWatches = [
+      setWatch(function() { b();cb(); }, BTN1, {repeat:1, edge:"falling"}),
+    ];
+  } else if (mode=="supdown") {
+    Pinetime.swipeHandler = (_, sud) =>{
+      cb(sud);
+    };
+    Pinetime.on('swipe',Pinetime.swipeHandler);
+    Pinetime.touchHandler = d => {
+      b(); cb();
+    };
+    Pinetime.btnWatches = [
+      setWatch(function() { b();cb(); }, BTN1, {repeat:1, edge:"falling"}),
+    ];
+  } else if (mode=="sleftright") {
+    Pinetime.swipeHandler = (slr, _) =>{
+      cb(slr);
+    };
+    Pinetime.on('swipe',Pinetime.swipeHandler);
+    Pinetime.touchHandler = d => {
+      b(); cb();
+    };
     Pinetime.btnWatches = [
       setWatch(function() { b();cb(); }, BTN1, {repeat:1, edge:"falling"}),
     ];
@@ -61,7 +83,7 @@
       while (Math.abs(dx)>32) {
         if (dx>0) { dx-=32; cb(1) }
         else { dx+=32; cb(-1) }
-        //Pinetime.buzz(20);
+        Pinetime.buzz(20);
       }
     };
     Pinetime.on('drag',Pinetime.dragHandler);

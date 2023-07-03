@@ -310,7 +310,7 @@ typedef enum {
 } JsPinetimeTasks;
 JsPinetimeTasks pinetimeTasks;
 
-static void jswrap_pinetime40_setLCDPowerBacklight(bool isOn);
+void jswrap_pinetime40_setLCDPowerBacklight(bool isOn);
 
 APP_TIMER_DEF(m_peripheral_poll_timer_id);
 volatile uint16_t pollInterval; // in ms
@@ -523,8 +523,36 @@ static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
 #endif
 }
 
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "setBacklight",
+    "generate" : "jswrap_pinetime40_setLCDPowerBacklight",
+    "params" : [
+      ["isOn","bool","True if the LCD backlight should be on, false if not"]
+    ],
+    "ifdef" : "PINETIME40"
+}
+This function can be used to turn Pinetime LCD backlight off or on.
+
+This function resets the Pinetime 'activity timer' (like pressing a button or
+the screen would) so after a time period of inactivity set by
+`Pinetime.setOptions({backlightTimeout: X});` the backlight will turn off.
+
+If you want to keep the backlight on permanently (until apps are changed) you can
+do:
+
+```
+Pinetime.setOptions({backlightTimeout: 0}) // turn off the timeout
+Pinetime.setBacklight(1); // keep screen on
+```
+
+Of course, the backlight depends on `Pinetime.setLCDPower` too, so any lcdPowerTimeout/setLCDTimeout will
+also turn the backlight off. The use case is when you require the backlight timeout
+to be shorter than the power timeout. 
+*/
 /// Turn just the backlight on or off (or adjust brightness)
-static void jswrap_pinetime40_setLCDPowerBacklight(bool isOn) {
+void jswrap_pinetime40_setLCDPowerBacklight(bool isOn) {
   if (isOn) pinetimeFlags |= JSPF_LCD_BL_ON;
   else pinetimeFlags &= ~JSPF_LCD_BL_ON;
 
@@ -846,6 +874,26 @@ NO_INLINE void jswrap_pinetime40_init() {
   channel = jshPinWatch(TOUCH_PIN_IRQ, true, JSPW_NONE);
   if (channel != EV_NONE) jshSetEventCallback(channel, touchHandler);
 
+  JsVar *settingsFN = jsvNewFromString("setting.json");
+  JsVar *settings = jswrap_storage_readJSON(settingsFN,true);
+  jsvUnLock(settingsFN);
+  JsVar *v;
+
+  // Load themes from the settings.json file
+  jswrap_pinetime40_setTheme();
+  v = jsvIsObject(settings) ? jsvObjectGetChildIfExists(settings,"theme") : 0;
+  if (jsvIsObject(v)) {
+    graphicsTheme.fg = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fg"));
+    graphicsTheme.bg = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bg"));
+    graphicsTheme.fg2 = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fg2"));
+    graphicsTheme.bg2 = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bg2"));
+    graphicsTheme.fgH = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fgH"));
+    graphicsTheme.bgH = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bgH"));
+    graphicsTheme.dark = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(v,"dark"));
+  }
+  jsvUnLock(v);
+
+  jsvUnLock(settings);
   // Reset global graphics instance
   graphicsStructResetState(&graphicsInternal);
 

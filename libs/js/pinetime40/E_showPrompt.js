@@ -7,7 +7,7 @@
   if (!options.selected)
     options.selected = 0;
   function draw() {
-    g.reset().setFont("6x8",2).setFontAlign(0,-1);
+    g.reset().setFont24().setFontAlign(0,-1);
     var Y = Pinetime.appRect.y;
     var W = g.getWidth(), H = g.getHeight()-Y, FH=g.getFontHeight();
     var titleLines = g.wrapString(options.title, W-2);
@@ -27,11 +27,11 @@
     y += msgLines.length*FH+32;
 
     var buttonWidths = 0;
-    var buttonPadding = 16;
+    var buttonPadding = 32;
     g.setFontAlign(0,0);
     btns.forEach(btn=>buttonWidths += buttonPadding+g.stringWidth(loc.translate(btn)));
     if (buttonWidths>W) { // if they don't fit, use smaller font
-      g.setFont("6x8");
+      g.setFont24();
       buttonWidths = 0;
       btns.forEach(btn=>buttonWidths += buttonPadding+g.stringWidth(loc.translate(btn)));
     }
@@ -40,17 +40,19 @@
       btn = loc.translate(btn);
       var w = g.stringWidth(btn);
       x += (buttonPadding+w)/2;
-      var bw = 2+w/2;
-      var poly = [x-bw,y-12,
-                  x+bw,y-12,
-                  x+bw+4,y-8,
-                  x+bw+4,y+8,
-                  x+bw,y+12,
-                  x-bw,y+12,
-                  x-bw-4,y+8,
-                  x-bw-4,y-8,
-                  x-bw,y-12];
-      g.setColor(idx==options.selected ? g.theme.bgH : g.theme.bg).fillPoly(poly).setColor(idx==options.selected ? g.theme.fgH : g.theme.fg).drawPoly(poly).drawString(btn,x,y+1);
+      var bw = 8+w/2;
+      var btw = 22;
+      var bth = 24;
+      var poly = [x-bw,y-bth,
+                  x+bw,y-bth,
+                  x+bw+4,y-btw,
+                  x+bw+4,y+btw,
+                  x+bw,y+bth,
+                  x-bw,y+bth,
+                  x-bw-4,y+btw,
+                  x-bw-4,y-btw,
+                  x-bw,y-bth];
+      g.setColor(idx==options.selected ? g.theme.bgH : g.theme.bg).fillPoly(poly).setColor(idx==options.selected ? g.theme.fgH : g.theme.fg).drawPoly(poly).drawString(btn,x,y+2);
       x += (buttonPadding+w)/2;
     });
     Pinetime.setLCDPower(1); // ensure screen is on

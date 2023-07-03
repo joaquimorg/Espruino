@@ -33,27 +33,25 @@ Pinetime.setUI({
   back : options.back,
   remove : options.remove,
   redraw : draw,
-  swipe : (_,UD)=>{
-    var pixels = R.h;
-    var dy = UD*pixels;
+  drag : e=>{
+    var dy = e.dy;
     if (s.scroll - dy > menuScrollMax)
-      dy = s.scroll - menuScrollMax; // Makes it so the last 'page' has the same position as previous pages. This should be done dynamically (change the static 8 to be a variable) so the offset is correct even when no widget field or title field is present.
+      dy = s.scroll - menuScrollMax;
     if (s.scroll - dy < menuScrollMin)
       dy = s.scroll - menuScrollMin;
     s.scroll -= dy;
     var oldScroll = rScroll;
     rScroll = s.scroll &~1;
     dy = oldScroll-rScroll;
-    if (!dy || options.c<=3) return; //options.c<=3 should maybe be dynamic, so 3 would be replaced by a variable dependent on R=Pinetime.appRect. It's here so we don't try to scroll if all entries fit in the app rectangle.
+    if (!dy) return;
     g.reset().setClipRect(R.x,R.y,R.x2,R.y2).scroll(0,dy);
-    var d = UD*pixels;
+    var d = e.dy;
     if (d < 0) {
       let y = Math.max(R.y2-(1-d), R.y);
       g.setClipRect(R.x,y,R.x2,R.y2);
       let i = YtoIdx(y);
       y = idxToY(i);
-      //print(i, options.c, options.c-i); //debugging info
-      while (y < R.y2 - (options.h*((options.c-i)<=0)) ) { //- (options.h*((options.c-i)<=0)) makes sure we don't go beyond the menu entries in the menu object "options". This has to do with "dy = s.scroll - menuScrollMax-8" above.
+      while (y < R.y2) {
         options.draw(i, {x:R.x,y:y,w:R.w,h:options.h});
         i++;
         y += options.h;
