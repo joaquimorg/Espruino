@@ -214,6 +214,8 @@ void         graphicsFillRect(JsGraphics *gfx, int x1, int y1, int x2, int y2, u
 void graphicsFallbackFillRect(JsGraphics *gfx, int x1, int y1, int x2, int y2, unsigned int col); // Simple fillrect - doesn't call device-specific FR
 void graphicsFillRectDevice(JsGraphics *gfx, int x1, int y1, int x2, int y2, unsigned int col); // fillrect using device coordinates
 void graphicsFallbackScroll(JsGraphics *gfx, int xdir, int ydir, int x1, int y1, int x2, int y2);
+void graphicsDrawRoundFrame(JsGraphics* gfx, int x1, int y1, int x2, int y2, int r);
+void graphicsFillRoundFrame(JsGraphics* gfx, int x1, int y1, int x2, int y2, int r);
 void graphicsDrawRect(JsGraphics *gfx, int x1, int y1, int x2, int y2);
 void graphicsDrawEllipse(JsGraphics *gfx, int x, int y, int x2, int y2);
 void graphicsFillEllipse(JsGraphics *gfx, int x, int y, int x2, int y2);

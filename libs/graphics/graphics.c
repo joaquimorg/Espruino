@@ -497,6 +497,99 @@ void graphicsClear(JsGraphics *gfx) {
 
 // ----------------------------------------------------------------------------------------------
 
+void drawCircleHelper(JsGraphics* gfx, int16_t x0, int16_t y0, int16_t r, uint8_t cornername) {
+  int16_t f     = 1 - r;
+  int16_t ddF_x = 1;
+  int16_t ddF_y = -2 * r;
+  int16_t x     = 0;
+  int16_t y     = r;
+
+  while (x<y) {
+    if (f >= 0) {
+      y--;
+      ddF_y += 2;
+      f     += ddF_y;
+    }
+    x++;
+    ddF_x += 2;
+    f     += ddF_x;
+    if (cornername & 0x4) {
+      graphicsSetPixelDevice(gfx, x0 + x, y0 + y, gfx->data.fgColor);
+      graphicsSetPixelDevice(gfx, x0 + y, y0 + x, gfx->data.fgColor);
+    }
+    if (cornername & 0x2) {
+      graphicsSetPixelDevice(gfx, x0 + x, y0 - y, gfx->data.fgColor);
+      graphicsSetPixelDevice(gfx, x0 + y, y0 - x, gfx->data.fgColor);
+    }
+    if (cornername & 0x8) {
+      graphicsSetPixelDevice(gfx, x0 - y, y0 + x, gfx->data.fgColor);
+      graphicsSetPixelDevice(gfx, x0 - x, y0 + y, gfx->data.fgColor);
+    }
+    if (cornername & 0x1) {
+      graphicsSetPixelDevice(gfx, x0 - y, y0 - x, gfx->data.fgColor);
+      graphicsSetPixelDevice(gfx, x0 - x, y0 - y, gfx->data.fgColor);
+    }
+  }
+}
+
+
+void drawFastVLine(JsGraphics* gfx, int16_t x, int16_t y, int16_t h) {
+  graphicsFillRectDevice(gfx, x, y, x, y+h-1, gfx->data.fgColor);
+}
+
+void fillCircleHelper(JsGraphics* gfx, int16_t x0, int16_t y0, int16_t r, uint8_t cornername, int16_t delta) {
+
+  int16_t f     = 1 - r;
+  int16_t ddF_x = 1;
+  int16_t ddF_y = -2 * r;
+  int16_t x     = 0;
+  int16_t y     = r;
+
+  while (x<y) {
+    if (f >= 0) {
+      y--;
+      ddF_y += 2;
+      f     += ddF_y;
+    }
+    x++;
+    ddF_x += 2;
+    f     += ddF_x;
+
+    if (cornername & 0x1) {      
+      drawFastVLine(gfx, x0+x, y0-y, 2*y+1+delta);
+      drawFastVLine(gfx, x0+y, y0-x, 2*x+1+delta);
+    }
+    if (cornername & 0x2) {
+      drawFastVLine(gfx, x0-x, y0-y, 2*y+1+delta);
+      drawFastVLine(gfx, x0-y, y0-x, 2*x+1+delta);
+    }
+  }
+}
+
+void graphicsDrawRoundFrame(JsGraphics* gfx, int x1, int y1, int x2, int y2, int r) {
+  graphicsToDeviceCoordinates(gfx, &x1, &y1);
+  graphicsToDeviceCoordinates(gfx, &x2, &y2);
+
+  graphicsFillRectDevice(gfx, x1+r   , y1     , x1+x2-r , y1     , gfx->data.fgColor);
+  graphicsFillRectDevice(gfx, x1+r   , y1+y2-1, x1+x2-r , y1+y2-1, gfx->data.fgColor);
+  graphicsFillRectDevice(gfx, x1     , y1+r   , x1     , y1+y2-r , gfx->data.fgColor);
+  graphicsFillRectDevice(gfx, x1+x2-1, y1+r   , x1+x2-1, y1+y2-r , gfx->data.fgColor);
+
+  drawCircleHelper(gfx, x1+r     , y1+r     , r, 1);
+  drawCircleHelper(gfx, x1+x2-r-1, y1+r     , r, 2);
+  drawCircleHelper(gfx, x1+x2-r-1, y1+y2-r-1, r, 4);
+  drawCircleHelper(gfx, x1+r     , y1+y2-r-1, r, 8);
+}
+
+void graphicsFillRoundFrame(JsGraphics* gfx, int x1, int y1, int x2, int y2, int r) {
+  graphicsToDeviceCoordinates(gfx, &x1, &y1);
+  graphicsToDeviceCoordinates(gfx, &x2, &y2);
+
+  graphicsFillRectDevice(gfx, x1 + r, y1, x1 + x2 - r, y1 + y2, gfx->data.fgColor);
+
+  fillCircleHelper(gfx, x1+x2-r-1, y1+r, r, 1, y2-2*r-1);
+  fillCircleHelper(gfx, x1+r     , y1+r, r, 2, y2-2*r-1);
+}
 
 void graphicsDrawRect(JsGraphics *gfx, int x1, int y1, int x2, int y2) {
   graphicsToDeviceCoordinates(gfx, &x1, &y1);

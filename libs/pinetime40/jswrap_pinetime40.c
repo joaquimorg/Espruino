@@ -15,7 +15,7 @@
 #include "jswrap_arraybuffer.h"
 #include "jswrap_heatshrink.h"
 #include "jswrap_espruino.h"
-#include "jswrap_terminal.h"
+//#include "jswrap_terminal.h"
 #include "jsflash.h"
 #include "graphics.h"
 #include "bitmap_font_6x8.h"

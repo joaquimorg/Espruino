@@ -1092,6 +1092,61 @@ JsVar *jswrap_graphics_drawRect(JsVar *parent, JsVar *opt, int y1, int x2, int y
 /*JSON{
   "type" : "method",
   "class" : "Graphics",
+  "name" : "drawRoundFrame",
+  "ifndef" : "SAVE_ON_FLASH",
+  "generate" : "jswrap_graphics_drawRoundFrame",
+  "params" : [
+    ["r","JsVar","The object containing `{x,y,w,h}`"],    
+    ["rad","int32","The corner radius"]
+  ],
+  "return" : ["JsVar","The instance of Graphics this was called on, to allow call chaining"],
+  "return_object" : "Graphics",
+  "typescript" : [
+    "drawRoundFrame(rect: { x: number, y: number, w: number, h: number }, rad: number): Graphics;"    
+  ]
+}
+Draw an unfilled Round Frame 1px wide in the Foreground Color
+*/
+JsVar *jswrap_graphics_drawRoundFrame(JsVar *parent, JsVar *opt, int rad) {
+  int x, y, w, h, r;
+  _jswrap_graphics_getRect(opt, &x, &y, &w, &h, &r);
+  JsGraphics gfx; if (!graphicsGetFromVar(&gfx, parent)) return 0;
+  graphicsDrawRoundFrame(&gfx, x, y, w, h, rad);
+  graphicsSetVar(&gfx); // gfx data changed because modified area
+  return jsvLockAgain(parent);  
+}
+
+/*JSON{
+  "type" : "method",
+  "class" : "Graphics",
+  "name" : "fillRoundFrame",
+  "ifndef" : "SAVE_ON_FLASH",
+  "generate" : "jswrap_graphics_fillRoundFrame",
+  "params" : [
+    ["r","JsVar","The object containing `{x,y,w,h}`"],    
+    ["rad","int32","The corner radius"]
+  ],
+  "return" : ["JsVar","The instance of Graphics this was called on, to allow call chaining"],
+  "return_object" : "Graphics",
+  "typescript" : [
+    "fillRoundFrame(rect: { x: number, y: number, w: number, h: number }, rad: number): Graphics;"    
+  ]
+}
+Draw an filled Round Frame 1px wide in the Foreground Color
+*/
+JsVar *jswrap_graphics_fillRoundFrame(JsVar *parent, JsVar *opt, int rad) {
+  int x, y, w, h, r;
+  _jswrap_graphics_getRect(opt, &x, &y, &w, &h, &r);
+  JsGraphics gfx; if (!graphicsGetFromVar(&gfx, parent)) return 0;
+  graphicsFillRoundFrame(&gfx, x, y, w, h, rad);
+  graphicsSetVar(&gfx); // gfx data changed because modified area
+  return jsvLockAgain(parent);  
+}
+
+
+/*JSON{
+  "type" : "method",
+  "class" : "Graphics",
   "name" : "fillCircle",
   "ifndef" : "SAVE_ON_FLASH",
   "generate" : "jswrap_graphics_fillCircle",

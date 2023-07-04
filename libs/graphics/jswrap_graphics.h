@@ -42,6 +42,8 @@ JsVar *jswrap_graphics_clear(JsVar *parent, bool resetState);
 JsVar *jswrap_graphics_fillRect(JsVar *parent, JsVar *opt, int y1, int x2, int y2);
 JsVar *jswrap_graphics_clearRect(JsVar *parent, JsVar *opt, int y1, int x2, int y2);
 JsVar *jswrap_graphics_drawRect(JsVar *parent, JsVar *opt, int y1, int x2, int y2);
+JsVar *jswrap_graphics_drawRoundFrame(JsVar *parent, JsVar *opt, int rad);
+JsVar *jswrap_graphics_fillRoundFrame(JsVar *parent, JsVar *opt, int rad);
 JsVar *jswrap_graphics_drawCircle(JsVar *parent, int x, int y, int rad);
 JsVar *jswrap_graphics_drawCircleAA(JsVar *parent, int x, int y, int r);
 JsVar *jswrap_graphics_fillCircle(JsVar *parent, int x, int y, int rad);

@@ -31,7 +31,7 @@ info = {
  'bootloader' : 1,
  'binary_name' : 'espruino_pinetime40.hex',
  'build' : {
-   'optimizeflags' : '-Os',
+   'optimizeflags' : '-Os -s -z noseparate-code',
    'libraries' : [
      'BLUETOOTH',
 #     'TERMINAL',
