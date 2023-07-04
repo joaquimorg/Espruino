@@ -19,15 +19,15 @@
 #
 # See common.py -> get_jsondata for command line options
 
-import subprocess;
-import re;
-import json;
-import sys;
-import os;
 import common
-import urllib2
+import subprocess
+import re
+import json
+import sys
+import os
+import urllib.request
 import markdown
-import htmlentitydefs
+import html.entities as htmlentitydefs
 
 sys.path.append(".");
 scriptdir = os.path.dirname(os.path.realpath(__file__))
@@ -75,10 +75,11 @@ if os.path.isfile(mdnURLFile):
 htmlFile = open('functions.html', 'w')
 def html(s):
   print(s);
-  htmlFile.write(s.encode('utf-8')+"\n");
+  htmlFile.write(s.encode('utf-8').decode('utf-8') + "\n");
 
 def htmlify(d,current):
-  d = markdown.markdown(d, extensions=['mdx_urlize'], tab_length=2)
+  #d = markdown.markdown(d, extensions=['mdx_urlize'], tab_length=2)  
+  d = markdown.markdown(d, tab_length=2)  
   # replace <code> with newlines with pre
   idx = d.find("<code>")
   end = d.find("</code>", idx)
@@ -182,10 +183,10 @@ def insert_mdn_link(jsondata):
     else:
       print("Checking URL "+url)
       try:
-        connection = urllib2.urlopen(url)
+        connection = urllib.request.urlopen(url)
         code = connection.getcode()
         connection.close()
-      except urllib2.HTTPError, e:
+      except urllib.error.HTTPError as e:
         code = e.getcode()
       if code==200: valid_mdn_urls['valid'].append(url)
       else: valid_mdn_urls['invalid'].append(url)
@@ -359,7 +360,7 @@ for jsondata in detail:
   if "githublink" in jsondata:
     html('<a class="githublink" title="Link to source code on GitHub" href="'+jsondata["githublink"]+'">&rArr;</a>');
   html("</h3>")
-  insert_mdn_link(jsondata);
+  #insert_mdn_link(jsondata);
   html("  <p class=\"top\"><a href=\"javascript:toppos();\">(top)</a></p>")
   if jsondata["type"]!="object":
     html("  <h4>Call type:</h4>")
