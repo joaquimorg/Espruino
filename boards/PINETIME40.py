@@ -35,8 +35,8 @@ info = {
    'libraries' : [
      'BLUETOOTH',
 #     'TERMINAL',
-     'GRAPHICS',
-     'LCD_SPI'
+#     'GRAPHICS',
+#     'LCD_SPI'
    ],
    'makefile' : [
      'DEFINES+=-DPINETIME40 -DESPR_HWVERSION=2',
@@ -49,15 +49,15 @@ info = {
      'DEFINES+=-DCUSTOM_GETBATTERY=jswrap_pinetime40_getBattery',
      'DEFINES+=-DSPIFLASH_READ2X', # Read SPI flash at 2x speed using MISO and MOSI for IO
      'DEFINES+=-DDUMP_IGNORE_VARIABLES=\'"g\\0"\'',
-     'DEFINES+=-DESPR_GRAPHICS_INTERNAL=1',
-     'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DESPR_GRAPHICS_16BIT -DGRAPHICS_ANTIALIAS',
+#     'DEFINES+=-DESPR_GRAPHICS_INTERNAL=1',
+#     'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DESPR_GRAPHICS_16BIT -DGRAPHICS_ANTIALIAS',
      'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves 1k of flash 
      'DEFINES+=-DESPR_NO_LINE_NUMBERS=1', # we execute mainly from flash, so line numbers can be worked out
      'INCLUDE += -I$(ROOT)/libs/pinetime40 -I$(ROOT)/libs/misc',  
      'WRAPPERSOURCES += libs/pinetime40/jswrap_pinetime40.c',  
      #'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
-     'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
-     'WRAPPERSOURCES += libs/pinetime40/jswrap_font_24.c',
+#     'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
+#     'WRAPPERSOURCES += libs/pinetime40/jswrap_font_24.c',
 
      'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',

@@ -17,8 +17,8 @@
 #include "jswrap_espruino.h"
 //#include "jswrap_terminal.h"
 #include "jsflash.h"
-#include "graphics.h"
-#include "bitmap_font_6x8.h"
+//#include "graphics.h"
+//#include "bitmap_font_6x8.h"
 #include "jswrap_bluetooth.h"
 #include "app_timer.h"
 #include "nrf_gpio.h"
@@ -30,8 +30,8 @@
 #include "bluetooth.h" // for self-test
 #include "jsi2c.h" // accelerometer/etc
 
-#include "lcd_spilcd.h"
-#include "jswrap_graphics.h"
+//#include "lcd_spilcd.h"
+//#include "jswrap_graphics.h"
 
 /*TYPESCRIPT
 declare const BTN1: Pin;
@@ -320,7 +320,7 @@ volatile uint16_t pollInterval; // in ms
 uint8_t lcdBrightness;
 
 void graphicsInternalFlip() {
-  lcdFlip_SPILCD(&graphicsInternal);
+  //lcdFlip_SPILCD(&graphicsInternal);
 }
 
 /// Flip buffer contents with the screen.
@@ -330,13 +330,13 @@ void lcd_flip(JsVar* parent, bool all) {
 
 
 NO_INLINE void jswrap_pinetime40_setTheme() {
-  graphicsTheme.fg = GRAPHICS_COL_RGB_TO_16(255, 255, 255);
+  /*graphicsTheme.fg = GRAPHICS_COL_RGB_TO_16(255, 255, 255);
   graphicsTheme.bg = GRAPHICS_COL_RGB_TO_16(0, 0, 0);
   graphicsTheme.fg2 = GRAPHICS_COL_RGB_TO_16(255, 255, 255);
   graphicsTheme.bg2 = GRAPHICS_COL_RGB_TO_16(0, 0, 63);
   graphicsTheme.fgH = GRAPHICS_COL_RGB_TO_16(255, 255, 255);
   graphicsTheme.bgH = GRAPHICS_COL_RGB_TO_16(0, 95, 190);
-  graphicsTheme.dark = true;
+  graphicsTheme.dark = true;*/
 }
 
 
@@ -508,7 +508,7 @@ void jswrap_pinetime40_pwrBacklight(bool on) {
 }
 
 static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
-
+/*
   if (isOn) { // wake
     lcdCmd_SPILCD(0x11, 0, NULL); // SLPOUT
     jshDelayMicroseconds(20);
@@ -521,6 +521,7 @@ static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
 #ifdef LCD_EN
   jshPinOutput(LCD_EN, isOn); // enable off
 #endif
+*/
 }
 
 /*JSON{
@@ -838,9 +839,8 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   buf[1]=0x02;
   jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
 
-  //
 
-  graphicsStructInit(&graphicsInternal, LCD_WIDTH, LCD_HEIGHT, LCD_BPP);
+  /*graphicsStructInit(&graphicsInternal, LCD_WIDTH, LCD_HEIGHT, LCD_BPP);
   graphicsInternal.data.type = JSGRAPHICSTYPE_SPILCD;
   graphicsInternal.data.flags = 0;
   graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
@@ -850,7 +850,7 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   // set default graphics themes - before we even start to load settings.json
   jswrap_pinetime40_setTheme();
   graphicsFillRect(&graphicsInternal, 0, 0, LCD_WIDTH - 1, LCD_HEIGHT - 1, graphicsTheme.bg2);
-
+  */
   jsiConsolePrintf("HWINIT DONE\n");
 }
 
@@ -877,7 +877,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   JsVar *settingsFN = jsvNewFromString("setting.json");
   JsVar *settings = jswrap_storage_readJSON(settingsFN,true);
   jsvUnLock(settingsFN);
-  JsVar *v;
+  /*JsVar *v;
 
   // Load themes from the settings.json file
   jswrap_pinetime40_setTheme();
@@ -891,9 +891,11 @@ NO_INLINE void jswrap_pinetime40_init() {
     graphicsTheme.bgH = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bgH"));
     graphicsTheme.dark = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(v,"dark"));
   }
-  jsvUnLock(v);
+  jsvUnLock(v);*/
 
   jsvUnLock(settings);
+
+  /*
   // Reset global graphics instance
   graphicsStructResetState(&graphicsInternal);
 
@@ -910,7 +912,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   JsVar* fn = jsvNewNativeFunction((void (*)(void))lcd_flip, JSWAT_VOID | JSWAT_THIS_ARG | (JSWAT_BOOL << (JSWAT_BITS * 1)));
   jsvObjectSetChildAndUnLock(graphics, "flip", fn);
 
-
+  
   if (!firstRun) {
     // Display a loading screen
     // Check for a '.loading' file
@@ -971,7 +973,7 @@ NO_INLINE void jswrap_pinetime40_init() {
     graphicsInternalFlip();
     graphicsStructResetState(&graphicsInternal);
   }  
-
+  */
 
   buzzAmt = 0;
   beepFreq = 0;
@@ -1096,11 +1098,12 @@ bool jswrap_pinetime40_idle() {
 
   jsvUnLock(pinetime);
   pinetimeTasks = JSPT_NONE;
+  /*
   // Automatically flip!
   if (graphicsInternal.data.modMaxX >= graphicsInternal.data.modMinX) {
     graphicsInternalFlip();
   }
-
+  */
   // resolve any beep/buzz promises
   if (promiseBuzz && !buzzAmt) {
     jspromise_resolve(promiseBuzz, 0);
@@ -1124,8 +1127,8 @@ bool jswrap_pinetime40_idle() {
 void jswrap_pinetime40_kill() {
 
   // Graphics var is getting removed, so set this to null.
-  jsvUnLock(graphicsInternal.graphicsVar);
-  graphicsInternal.graphicsVar = NULL;
+  /*jsvUnLock(graphicsInternal.graphicsVar);
+  graphicsInternal.graphicsVar = NULL;*/
 
 }
 
@@ -1157,7 +1160,7 @@ void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
   // ignore if locked
   if (pinetimeFlags & JSPF_LOCKED) return;  
   // deal with the case where we rotated the Bangle.js screen
-  deviceToGraphicsCoordinates(&graphicsInternal, &tx, &ty);
+  //deviceToGraphicsCoordinates(&graphicsInternal, &tx, &ty);
 
   int dx = tx-touchX;
   int dy = ty-touchY;
@@ -1270,7 +1273,7 @@ Returns the rectangle on the screen that is currently reserved for the app.
 */
 JsVar* jswrap_pinetime40_appRect() {
   JsVar* o = jsvNewObject();
-  if (!o) return 0;
+  /*if (!o) return 0;
   JsVar* widgetsVar = jsvObjectGetChildIfExists(execInfo.root, "WIDGETS");
   int top = 0, btm = 0; // size of various widget areas
   // check all widgets and see if any are in the top or bottom areas,
@@ -1300,7 +1303,7 @@ JsVar* jswrap_pinetime40_appRect() {
   jsvObjectSetChildAndUnLock(o, "h", jsvNewFromInteger(graphicsInternal.data.height - (top + btm)));
   jsvObjectSetChildAndUnLock(o, "x2", jsvNewFromInteger(graphicsInternal.data.width - 1));
   jsvObjectSetChildAndUnLock(o, "y2", jsvNewFromInteger(graphicsInternal.data.height - (1 + btm)));
-
+  */
   return o;
 }
 
