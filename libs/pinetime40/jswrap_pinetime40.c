@@ -32,6 +32,12 @@
 
 //#include "lcd_spilcd.h"
 //#include "jswrap_graphics.h"
+#include "lcd_spi_nrf.h"
+#include "lvgl.h"
+
+static lv_disp_draw_buf_t draw_buf;
+static lv_color_t buf1[LCD_WIDTH * LCD_HEIGHT / 10];                        /*Declare a buffer for 1/10 screen size*/
+
 
 /*TYPESCRIPT
 declare const BTN1: Pin;
@@ -797,6 +803,47 @@ int jswrap_pinetime40_isLCDOn() {
   return (pinetimeFlags&JSPF_LCD_ON)!=0;
 }
 
+void disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color_p) {
+  uint32_t width = (area->x2 - area->x1) + 1;
+  uint32_t height = (area->y2 - area->y1) + 1;  
+
+  lcdFlip_SPINRF(area->x1, area->y1, width, height, (uint8_t *)color_p);
+
+  lv_disp_flush_ready(disp);         /* Indicate you are ready with the flushing*/
+}
+
+void touchpad_read(lv_indev_t * indev, lv_indev_data_t * data) {
+    /*`touchpad_is_pressed` and `touchpad_get_xy` needs to be implemented by you*/
+    /*if(touchpad_is_pressed()) {
+      data->state = LV_INDEV_STATE_PRESSED;
+      touchpad_get_xy(&data->point.x, &data->point.y);
+    } else {
+      data->state = LV_INDEV_STATE_RELEASED;
+    }*/
+}
+
+void jswrap_pinetime40_lvglinit() {
+
+  static lv_disp_drv_t disp_drv;        /*Descriptor of a display driver*/
+
+  lv_init();
+
+  //Initialize the display
+  lv_disp_draw_buf_init(&draw_buf, buf1, NULL, LCD_WIDTH * LCD_HEIGHT / 10);  /*Initialize the display buffer.*/
+
+  lv_disp_drv_init(&disp_drv);        /*Basic initialization*/
+  disp_drv.flush_cb = disp_flush;     /*Set your driver function*/
+  disp_drv.draw_buf = &draw_buf;      /*Assign the buffer to the display*/
+  disp_drv.hor_res = LCD_WIDTH;       /*Set the horizontal resolution of the display*/
+  disp_drv.ver_res = LCD_HEIGHT;      /*Set the vertical resolution of the display*/
+  lv_disp_drv_register(&disp_drv);    /*Finally register the driver*/
+
+  static lv_indev_drv_t indev_drv;    /*Descriptor of a input device driver*/
+  lv_indev_drv_init(&indev_drv);      /*Basic initialization*/
+  indev_drv.type = LV_INDEV_TYPE_POINTER;    /*Touch pad is a pointer-like device*/
+  indev_drv.read_cb = touchpad_read;  /*Set your driver function*/
+  lv_indev_drv_register(&indev_drv);  /*Finally register the driver*/
+}
 
 /*JSON{
   "type" : "hwinit",
@@ -839,6 +886,9 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   buf[1]=0x02;
   jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
 
+  lcdInit_SPINRF();
+
+  jswrap_pinetime40_lvglinit();
 
   /*graphicsStructInit(&graphicsInternal, LCD_WIDTH, LCD_HEIGHT, LCD_BPP);
   graphicsInternal.data.type = JSGRAPHICSTYPE_SPILCD;
@@ -895,9 +945,9 @@ NO_INLINE void jswrap_pinetime40_init() {
 
   jsvUnLock(settings);
 
-  /*
+  
   // Reset global graphics instance
-  graphicsStructResetState(&graphicsInternal);
+  //graphicsStructResetState(&graphicsInternal);
 
   // Create backing graphics object for LCD
   JsVar* graphics = jspNewObject(0, "Graphics");
@@ -906,15 +956,16 @@ NO_INLINE void jswrap_pinetime40_init() {
   // add it as a global var
   jsvObjectSetChild(execInfo.root, "g", graphics);
   jsvObjectSetChild(execInfo.hiddenRoot, JS_GRAPHICS_VAR, graphics);
-  graphicsInternal.graphicsVar = graphics;
+  //graphicsInternal.graphicsVar = graphics;
 
+  /*
   // Create 'flip' fn
   JsVar* fn = jsvNewNativeFunction((void (*)(void))lcd_flip, JSWAT_VOID | JSWAT_THIS_ARG | (JSWAT_BOOL << (JSWAT_BITS * 1)));
   jsvObjectSetChildAndUnLock(graphics, "flip", fn);
-
+  */
   
   if (!firstRun) {
-    // Display a loading screen
+    /*// Display a loading screen
     // Check for a '.loading' file
     JsVar *img = jsfReadFile(jsfNameFromString(".loading"),0,0);
     if (jsvIsString(img)) {
@@ -943,9 +994,15 @@ NO_INLINE void jswrap_pinetime40_init() {
         s++;
       }
       graphicsInternalFlip();
-    }
+    }*/
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_t *label = lv_label_create( lv_scr_act() );
+    lv_label_set_text( label, "Loading..." );
+    lv_obj_align( label, LV_ALIGN_CENTER, 0, 0 );    
+    lv_timer_handler();
+    lv_obj_del(label);
   } else {
-    graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
+    /*graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
     graphicsClear(&graphicsInternal);
 
     int w, h, y;
@@ -971,9 +1028,17 @@ NO_INLINE void jswrap_pinetime40_init() {
     jswrap_graphics_drawCString(&graphicsInternal, 60, y + 30, "PineTime 40 - joaquim.org");
 
     graphicsInternalFlip();
-    graphicsStructResetState(&graphicsInternal);
+    graphicsStructResetState(&graphicsInternal);*/
+
+    /* Create simple label */
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000055), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_t *label = lv_label_create( lv_scr_act() );
+    lv_label_set_text( label, "Pinetime 40 - LVGL" );
+    lv_obj_align( label, LV_ALIGN_CENTER, 0, 0 );    
+    lv_timer_handler();
+    lv_obj_del(label);
   }  
-  */
+  
 
   buzzAmt = 0;
   beepFreq = 0;
@@ -1115,6 +1180,8 @@ bool jswrap_pinetime40_idle() {
     jsvUnLock(promiseBeep);
     promiseBeep = 0;
   }
+
+  lv_tick_inc(5);
 
   return false;
 }

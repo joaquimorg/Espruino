@@ -85,10 +85,16 @@ INCLUDE?=-I$(ROOT) -I$(ROOT)/targets -I$(ROOT)/src -I$(GENDIR)
 LIBS?=
 DEFINES?=
 CFLAGS?=-Wall -Wextra -Wconversion -Werror=implicit-function-declaration -fno-strict-aliasing -g
+
+## CLEAN BUILD OUTPUT....
+CFLAGS+=-Wno-pointer-sign -Wno-discarded-qualifiers -Wno-unused-variable
+
 CFLAGS+=-Wno-packed-bitfield-compat # remove warnings from packed var usage
 
-CCFLAGS?= # specific flags when compiling cc files
-LDFLAGS?=-Winline -g
+CCFLAGS?=  # specific flags when compiling cc files
+#LDFLAGS?=-Winline -g
+## CLEAN BUILD OUTPUT....
+LDFLAGS?=-g
 OPTIMIZEFLAGS?=
 #-fdiagnostics-show-option - shows which flags can be used with -Werror
 DEFINES+=-DGIT_COMMIT=$(shell git log -1 --format="%h")
@@ -402,6 +408,26 @@ endif #USE_FLASHFS
 endif #USE_FILESYSTEM_SDIO
 endif #!LINUX
 endif #USE_FILESYSTEM
+
+ifeq ($(USE_LVGL),1)
+DEFINES += -DUSE_LVGL -DLV_CONF_INCLUDE_SIMPLE
+
+INCLUDE += -I$(ROOT)/libs/graphics
+#WRAPPERSOURCES += libs/lvgl/jswrap_lvgl.c
+
+SOURCES += \
+libs/lvgl/lcd_spi_nrf.c
+
+##
+INCLUDE += -I$(ROOT)/libs/lvgl
+INCLUDE += -I$(ROOT)/libs/lvgl/lvgl
+LVGL_DIR = libs/lvgl
+LVGL_DIR_NAME = lvgl
+include $(ROOT)/libs/lvgl/lvgl/lvgl.mk
+##
+SOURCES += $(CSRCS)
+##
+endif
 
 ifeq ($(USE_GRAPHICS),1)
 DEFINES += -DUSE_GRAPHICS
