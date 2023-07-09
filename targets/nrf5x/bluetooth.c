@@ -864,9 +864,15 @@ void nrf_log_frontend_std_6(uint32_t           severity_mid,
 #endif
 }
 
+#ifdef NRF5X_SDK_15_3
+const nrf_log_module_const_data_t m_nrf_log_app_logs_data_const = {
+    .p_module_name = ""
+};
+#else
 nrf_log_module_dynamic_data_t NRF_LOG_MODULE_DATA_DYNAMIC = {
     .module_id = 0
 };
+#endif
 #endif
 
 /// Function for handling an event from the Connection Parameters Module.
@@ -1171,7 +1177,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context) {
           // if we were on bluetooth and we disconnected, clear the input line so we're fresh next time (#2219)
           if (jsiGetConsoleDevice()==EV_BLUETOOTH) {
             jsiClearInputLine(false);
-            if (!jsiIsConsoleDeviceForced()) 
+            if (!jsiIsConsoleDeviceForced())
               jsiSetConsoleDevice(jsiGetPreferredConsoleDevice(), 0);
           }
           // by calling nus_transmit_string here without a connection, we clear the Bluetooth output buffer
@@ -1192,7 +1198,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context) {
         if (centralIdx) {
           jsble_queue_pending(BLEP_RSSI_CENTRAL, (p_ble_evt->evt.gap_evt.params.rssi_changed.rssi&255) | (centralIdx<<8));
         }
-#endif    
+#endif
         if (centralIdx < 0) {
           jsble_queue_pending(BLEP_RSSI_PERIPH, p_ble_evt->evt.gap_evt.params.rssi_changed.rssi);
         }
@@ -2084,7 +2090,11 @@ static void peer_manager_init(bool erase_bonds) {
   bleStatus |= BLE_PM_INITIALISED;
 
   /* If ALL buttons are pressed at boot, clear out flash
-   * pages as well. Nice easy way to reset! */
+   pages as well. Nice easy way to reset!
+
+   We know this only happens at boot because of the
+   BLE_PM_INITIALISED check above.
+  */
   bool buttonPressed = false;
 #ifdef BTN1_PININDEX
   buttonPressed = jshPinGetValue(BTN1_PININDEX) == BTN1_ONSTATE;
@@ -2101,7 +2111,6 @@ static void peer_manager_init(bool erase_bonds) {
   if (buttonPressed) {
     peer_manager_erase_pages();
   }
-
 
   ret_code_t           err_code;
 
@@ -2175,7 +2184,7 @@ static void hids_init(uint8_t *reportPtr, size_t reportLen) {
     p_input_report->rep_ref.report_id   = HID_INPUT_REP_REF_ID;
     p_input_report->rep_ref.report_type = BLE_HIDS_REP_TYPE_INPUT;
 
-#if NRF_SD_BLE_API_VERSION>=7
+#if NRF_SD_BLE_API_VERSION>=7 || NRF5X_SDK_15_3
     p_input_report->sec.cccd_wr = SEC_JUST_WORKS;
     p_input_report->sec.wr      = SEC_JUST_WORKS;
     p_input_report->sec.rd      = SEC_JUST_WORKS;
@@ -2190,7 +2199,7 @@ static void hids_init(uint8_t *reportPtr, size_t reportLen) {
     p_output_report->rep_ref.report_id   = HID_OUTPUT_REP_REF_ID;
     p_output_report->rep_ref.report_type = BLE_HIDS_REP_TYPE_OUTPUT;
 
-#if NRF_SD_BLE_API_VERSION>=7
+#if NRF_SD_BLE_API_VERSION>=7 || NRF5X_SDK_15_3
     p_output_report->sec.wr      = SEC_JUST_WORKS;
     p_output_report->sec.rd      = SEC_JUST_WORKS;
 #else
@@ -2220,7 +2229,7 @@ static void hids_init(uint8_t *reportPtr, size_t reportLen) {
     hids_init_obj.included_services_count        = 0;
     hids_init_obj.p_included_services_array      = NULL;
 
-#if NRF_SD_BLE_API_VERSION>=7
+#if NRF_SD_BLE_API_VERSION>=7 || NRF5X_SDK_15_3
     hids_init_obj.rep_map.rd_sec         = SEC_JUST_WORKS;
     hids_init_obj.hid_information.rd_sec = SEC_JUST_WORKS;
 
@@ -2463,7 +2472,7 @@ void jsble_setup_advdata(ble_advdata_t *advdata) {
 
 #if NRF_SD_BLE_API_VERSION>5
 static ble_gap_adv_data_t m_ble_gap_adv_data;
-// SoftDevice >= 6.1.0 needs this as static buffers 
+// SoftDevice >= 6.1.0 needs this as static buffers
 static uint8_t m_adv_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX];
 static uint8_t m_scan_rsp_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX]; // 31
 #endif
@@ -2518,12 +2527,12 @@ uint32_t jsble_advertising_update(uint8_t *advPtr, unsigned int advLen, uint8_t 
 uint32_t jsble_advertising_start() {
   // try not to call from IRQ as we might want to allocate JsVars
   if (bleStatus & BLE_IS_ADVERTISING) return 0;
-  
+
 #ifndef SAVE_ON_FLASH
   /* If we're not allowed to advertise because we are connected, just return */
-  if (!(bleStatus & BLE_ADVERTISE_WHEN_CONNECTED) && jsble_has_peripheral_connection()) 
+  if (!(bleStatus & BLE_ADVERTISE_WHEN_CONNECTED) && jsble_has_peripheral_connection())
     return 0;
-#endif  
+#endif
 
   ble_advdata_t scanrsp;
 
@@ -2650,7 +2659,8 @@ uint32_t jsble_advertising_start() {
 #endif
   bleStatus |= BLE_IS_ADVERTISING;
   jsvUnLock(advDataVar);
-  bleQueueEventAndUnLock(JS_EVENT_PREFIX"advertising", jsvNewFromBool(true));
+  if (execInfo.root) // JS interpreter may not be initialised yet!
+    bleQueueEventAndUnLock(JS_EVENT_PREFIX"advertising", jsvNewFromBool(true));
   return err_code;
 }
 
@@ -2746,7 +2756,9 @@ bool jsble_kill() {
 #if NRF_SD_BLE_API_VERSION < 5
   err_code = sd_softdevice_disable();
 #else
+#ifndef NRF5X_SDK_15_3
   nrf_drv_clock_lfclk_request(NULL); // https://devzone.nordicsemi.com/f/nordic-q-a/56256/disabling-the-softdevice-hangs-when-using-lfrc-with-an-active-watchdog
+#endif
   err_code = nrf_sdh_disable_request();
 #endif
   return !jsble_check_error(err_code);
@@ -3071,7 +3083,7 @@ void jsble_send_hid_input_report(uint8_t *data, int length) {
   if (bleStatus & BLE_IS_SENDING_HID) {
     jsExceptionHere(JSET_ERROR, "BLE HID already sending");
     return;
-  }  
+  }
   if (length > HID_KEYS_MAX_LEN) {
     jsExceptionHere(JSET_ERROR, "BLE HID report too long - max length = %d\n", HID_KEYS_MAX_LEN);
     return;
@@ -3471,6 +3483,11 @@ void jsble_central_setWhitelist(bool whitelist) {
 #endif
 }
 
+void jsble_central_eraseBonds() {
+#if PEER_MANAGER_ENABLED
+  jsble_check_error(pm_peers_delete());
+#endif
+}
 
 #endif // BLUETOOTH
 
