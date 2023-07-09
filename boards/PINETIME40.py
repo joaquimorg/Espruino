@@ -71,7 +71,7 @@ info = {
      'BOOTLOADER_SETTINGS_FAMILY=NRF52840',
      'DEFINES += -DESPR_BOOTLOADER_SPIFLASH', # Allow bootloader to flash direct from SPI flash
 
-     'NRF_SDK15=1',
+     'NRF_SDK15_3=1',
      'ESPR_BLUETOOTH_ANCS=1' # Enable ANCS (Apple notifications) support
    ]
  }
