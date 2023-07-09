@@ -32,6 +32,7 @@
 
 //#include "lcd_spilcd.h"
 //#include "jswrap_graphics.h"
+#include "jswrap_lvgl.h"
 #include "lcd_spi_nrf.h"
 #include "lvgl.h"
 
@@ -321,7 +322,6 @@ void jswrap_pinetime40_setLCDPowerBacklight(bool isOn);
 APP_TIMER_DEF(m_peripheral_poll_timer_id);
 volatile uint16_t pollInterval; // in ms
 
-
 /// LCD Brightness - 255=full
 uint8_t lcdBrightness;
 
@@ -503,6 +503,8 @@ void peripheralPollHandler() {
     jshHadEvent();
   }
 
+  //lv_timer_handler();
+  //lv_tick_inc(5);
 }
 
 void btn1Handler(bool state, IOEventFlags flags) {
@@ -949,14 +951,19 @@ NO_INLINE void jswrap_pinetime40_init() {
   // Reset global graphics instance
   //graphicsStructResetState(&graphicsInternal);
 
+  /*
   // Create backing graphics object for LCD
-  JsVar* graphics = jspNewObject(0, "Graphics");
+  JsVar* graphics = jspNewObject(0, "LVGL");
   // if there's nothing in the Graphics object, we assume it's for the built-in graphics
   if (!graphics) return; // low memory
   // add it as a global var
-  jsvObjectSetChild(execInfo.root, "g", graphics);
+  jsvObjectSetChild(execInfo.root, "lv", graphics);
   jsvObjectSetChild(execInfo.hiddenRoot, JS_GRAPHICS_VAR, graphics);
   //graphicsInternal.graphicsVar = graphics;
+  */
+
+  //jsvObjectSetChildAndUnLock(graphics, "scr_act", jsvNewNativeFunction(lv_scr_act, JSWAT_JSVAR | JSWAT_VOID));
+  //jsvObjectSetChildAndUnLock(graphics, "obj_clean", jsvNewNativeFunction(lv_obj_clean, JSWAT_VOID | JSWAT_JSVAR));
 
   /*
   // Create 'flip' fn
@@ -995,12 +1002,16 @@ NO_INLINE void jswrap_pinetime40_init() {
       }
       graphicsInternalFlip();
     }*/
+    lv_obj_clean(lv_scr_act());
     lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_t *label = lv_label_create( lv_scr_act() );
     lv_label_set_text( label, "Loading..." );
-    lv_obj_align( label, LV_ALIGN_CENTER, 0, 0 );    
+    lv_obj_center(label);
+
+    /*lv_obj_t * spinner = lv_spinner_create(lv_scr_act(), 1000, 60);
+    lv_obj_set_size(spinner, 200, 200);
+    lv_obj_center(spinner);*/
     lv_timer_handler();
-    lv_obj_del(label);
   } else {
     /*graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
     graphicsClear(&graphicsInternal);
@@ -1031,12 +1042,12 @@ NO_INLINE void jswrap_pinetime40_init() {
     graphicsStructResetState(&graphicsInternal);*/
 
     /* Create simple label */
+    //lv_obj_clean(lv_scr_act());
     lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000055), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_t *label = lv_label_create( lv_scr_act() );
     lv_label_set_text( label, "Pinetime 40 - LVGL" );
-    lv_obj_align( label, LV_ALIGN_CENTER, 0, 0 );    
+    lv_obj_center(label);
     lv_timer_handler();
-    lv_obj_del(label);
   }  
   
 
@@ -1059,12 +1070,21 @@ NO_INLINE void jswrap_pinetime40_init() {
     app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);
 
     //jsiConsolePrintf("FIRST INIT DONE\n");
-    //jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,1000)", true));
+
+    // hack for lvgl update...
+    //jsvUnLock(jspEvaluate("setInterval(lvgl.timerHandler,100)", true));
+
+    jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,1000)", true));    
+
   }
   /*else
   {
     jsiConsolePrintf("HOT INIT DONE\n");
   }*/
+
+  //JsSysTime period = jshGetTimeFromMilliseconds(100);
+  //jstExecuteFn(jswrap_graphics_timerHandler, 0, period, (uint32_t)period, NULL);
+  //jsvUnLock(jspEvaluate("setInterval(lv.timerHandler,100)", true));
 
   //pinetimeFlags |= JSPF_POWER_SAVE; // ensure we turn power-save on by default every restart
   //pinetimeFlags |= JSPF_LCD_BL_ON; // ensure we turn power-save on by default every restart
@@ -1084,8 +1104,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   // lcdWakeButton so the event for button release is 'eaten'
   if (jshPinGetValue(HOME_BTN_PININDEX))
     lcdWakeButton = HOME_BTN;
-
-
+  
   //jsiConsolePrintf("pinetimeFlags %d\n",pinetimeFlags);
 }
 
@@ -1163,6 +1182,9 @@ bool jswrap_pinetime40_idle() {
 
   jsvUnLock(pinetime);
   pinetimeTasks = JSPT_NONE;
+
+  //lv_timer_handler();
+
   /*
   // Automatically flip!
   if (graphicsInternal.data.modMaxX >= graphicsInternal.data.modMinX) {
@@ -1179,9 +1201,7 @@ bool jswrap_pinetime40_idle() {
     jspromise_resolve(promiseBeep, 0);
     jsvUnLock(promiseBeep);
     promiseBeep = 0;
-  }
-
-  lv_tick_inc(5);
+  }  
 
   return false;
 }
@@ -1326,53 +1346,6 @@ void touchHandler(bool state, IOEventFlags flags) {
 
 /*******************************************************************/
 
-
-/*JSON{
-    "type" : "staticproperty",
-    "class" : "Pinetime",
-    "name" : "appRect",
-    "generate" : "jswrap_pinetime40_appRect",
-    "return" : ["JsVar","An object of the form `{x,y,w,h,x2,y2}`"],
-    "ifdef" : "PINETIME40",
-    "typescript" : "appRect: { x: number, y: number, w: number, h: number, x2: number, y2: number };"
-}
-Returns the rectangle on the screen that is currently reserved for the app.
-*/
-JsVar* jswrap_pinetime40_appRect() {
-  JsVar* o = jsvNewObject();
-  /*if (!o) return 0;
-  JsVar* widgetsVar = jsvObjectGetChildIfExists(execInfo.root, "WIDGETS");
-  int top = 0, btm = 0; // size of various widget areas
-  // check all widgets and see if any are in the top or bottom areas,
-  // set top/btm accordingly
-  if (jsvIsObject(widgetsVar)) {
-    JsvObjectIterator it;
-    jsvObjectIteratorNew(&it, widgetsVar);
-    while (jsvObjectIteratorHasValue(&it)) {
-      JsVar* widget = jsvObjectIteratorGetValue(&it);
-      JsVar* area = jsvObjectGetChildIfExists(widget, "area");
-      JsVar* width = jsvObjectGetChildIfExists(widget, "width");
-      if (jsvIsString(area) && jsvIsNumeric(width)) {
-        char a = jsvGetCharInString(area, 0);
-        int w = jsvGetIntegerAndUnLock(width);
-        if (a == 't' && w > 0) top = 24;
-        if (a == 'b' && w > 0) btm = 24;
-      }
-      jsvUnLock2(area, widget);
-      jsvObjectIteratorNext(&it);
-    }
-    jsvObjectIteratorFree(&it);
-  }
-  jsvUnLock(widgetsVar);
-  jsvObjectSetChildAndUnLock(o, "x", jsvNewFromInteger(0));
-  jsvObjectSetChildAndUnLock(o, "y", jsvNewFromInteger(top));
-  jsvObjectSetChildAndUnLock(o, "w", jsvNewFromInteger(graphicsInternal.data.width));
-  jsvObjectSetChildAndUnLock(o, "h", jsvNewFromInteger(graphicsInternal.data.height - (top + btm)));
-  jsvObjectSetChildAndUnLock(o, "x2", jsvNewFromInteger(graphicsInternal.data.width - 1));
-  jsvObjectSetChildAndUnLock(o, "y2", jsvNewFromInteger(graphicsInternal.data.height - (1 + btm)));
-  */
-  return o;
-}
 
 /*JSON{
     "type" : "staticmethod",
@@ -1610,413 +1583,4 @@ bool jswrap_pinetime40_setHRMPower(bool isOn, JsVar *appId) {
       "load(): void;"
     ]
 }
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "E",
-    "name" : "showAlert",
-    "generate_js" : "libs/js/banglejs/E_showAlert.min.js",
-    "params" : [
-      ["message","JsVar","A message to display. Can include newlines"],
-      ["options","JsVar","[optional] a title for the message or an object containing options"]
-    ],
-    "return" : ["JsVar","A promise that is resolved when 'Ok' is pressed"],
-    "ifdef" : "PINETIME40",
-    "typescript" : [
-      "showAlert(message?: string, options?: string): Promise<void>;",
-      "showAlert(message?: string, options?: { title?: string, remove?: () => void }): Promise<void>;"
-    ]
-}
-
-Displays a full screen prompt on the screen, with a single 'Ok' button.
-
-When the button is pressed the promise is resolved.
-
-```
-E.showAlert("Hello").then(function() {
-  print("Ok pressed");
-});
-// or
-E.showAlert("These are\nLots of\nLines","My Title").then(function() {
-  print("Ok pressed");
-});
-```
-
-To remove the window, call `E.showAlert()` with no arguments.
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "E",
-    "name" : "showMessage",
-    "generate_js" : "libs/js/pinetime40/E_showMessage.min.js",
-    "params" : [
-      ["message","JsVar","A message to display. Can include newlines"],
-      ["options","JsVar","[optional] a title for the message, or an object of options `{title:string, img:image_string}`"]
-    ],
-    "ifdef" : "PINETIME40",
-    "typescript" : "showMessage(message: string, title?: string | { title?: string, img?: string }): void;"
-}
-
-A utility function for displaying a full screen message on the screen.
-
-Draws to the screen and returns immediately.
-
-```
-E.showMessage("These are\nLots of\nLines","My Title")
-```
-
-or to display an image as well as text:
-
-```
-E.showMessage("Lots of text will wrap automatically",{
-  title:"Warning",
-  img:atob("FBQBAfgAf+Af/4P//D+fx/n+f5/v+f//n//5//+f//n////3//5/n+P//D//wf/4B/4AH4A=")
-})
-```
-
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
-    "name" : "loadWidgets",
-    "generate_js" : "libs/js/banglejs/Bangle_loadWidgets.min.js",
-    "ifdef" : "PINETIME40"
-}
-Load all widgets from flash Storage. Call this once at the beginning of your
-application if you want any on-screen widgets to be loaded.
-
-They will be loaded into a global `WIDGETS` array, and can be rendered with
-`Pinetime.drawWidgets`.
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
-    "name" : "drawWidgets",
-    "generate_js" : "libs/js/pinetime40/Pinetime_drawWidgets.min.js",
-    "ifdef" : "PINETIME40"
-}
-Draw any onscreen widgets that were loaded with `Pinetime.loadWidgets()`.
-
-Widgets should redraw themselves when something changes - you'll only need to
-call drawWidgets if you decide to clear the entire screen with `g.clear()`.
-*/
-
-
-/*TYPESCRIPT
-type SetUIArg<Mode> = Mode | {
-  mode: Mode,
-  back?: () => void,
-  remove?: () => void,
-  redraw?: () => void,
-};
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
-    "name" : "setUI",
-    "generate_js" : "libs/js/pinetime40/Pinetime_setUI.min.js",
-    "params" : [
-      ["type","JsVar","The type of UI input: 'updown', 'leftright', 'clock', 'clockupdown' or undefined to cancel. Can also be an object (see below)"],
-      ["callback","JsVar","A function with one argument which is the direction"]
-    ],
-    "ifdef" : "PINETIME40",
-    "typescript" : [
-      "setUI(type?: undefined): void;",
-      "setUI(type: SetUIArg<\"updown\" | \"leftright\">, callback: (direction?: -1 | 1) => void): void;",
-      "setUI(type: SetUIArg<\"clock\">): void;",
-      "setUI(type: SetUIArg<\"clockupdown\">, callback?: (direction: -1 | 1) => void): void;",
-      "setUI(type: SetUIArg<\"custom\"> & { touch?: TouchCallback; swipe?: SwipeCallback; drag?: DragCallback; btn?: (n: 1 | 2 | 3) => void; clock?: boolean | 0 | 1 }): void;"
-    ]
-}
-This puts Pinetime into the specified UI input mode, and calls the callback
-provided when there is user input.
-
-Currently supported interface types are:
-
-* 'updown' - UI input with upwards motion `cb(-1)`, downwards motion `cb(1)`,
-  and select `cb()`
-  * Pinetime uses touchscreen swipe up/down and tap
-* 'leftright' - UI input with left motion `cb(-1)`, right motion `cb(1)`, and
-  select `cb()`
-  * Pinetime uses touchscreen swipe left/right and tap/BTN1 for select
-* 'clock' - called for clocks. Sets `Pinetime.CLOCK=1` and allows a button to
-  start the launcher
-  * Pinetime BTN1 starts the launcher
-* 'clockupdown' - called for clocks. Sets `Pinetime.CLOCK=1`, allows a button to
-  start the launcher, but also provides up/down functionality
-  * Pinetime BTN1 starts the launcher, touchscreen tap in top/bottom right
-    hand side calls `cb(-1)` and `cb(1)`
-* `{mode:"custom", ...}` allows you to specify custom handlers for different
-  interactions. See below.
-* `undefined` removes all user interaction code
-
-While you could use setWatch/etc manually, the benefit here is that you don't
-end up with multiple `setWatch` instances, and the actual input method (touch,
-or buttons) is implemented dependent on the watch (Pinetime 1 or 2)
-
-**Note:** You can override this function in boot code to change the interaction
-mode with the watch. For instance you could make all clocks start the launcher
-with a swipe by using:
-
-```
-(function() {
-  var sui = Pinetime.setUI;
-  Pinetime.setUI = function(mode, cb) {
-    if (mode!="clock") return sui(mode,cb);
-    sui(); // clear
-    Pinetime.CLOCK=1;
-    Pinetime.swipeHandler = Pinetime.showLauncher;
-    Pinetime.on("swipe", Pinetime.swipeHandler);
-  };
-})();
-```
-
-The first argument can also be an object, in which case more options can be
-specified:
-
-```
-Pinetime.setUI({
-  mode : "custom",
-  back : function() {}, // optional - add a 'back' icon in top-left widget area and call this function when it is pressed , also call it when the hardware button is clicked (does not override btn if defined)
-  remove : function() {}, // optional - add a handler for when the UI should be removed (eg stop any intervals/timers here)
-  redraw : function() {}, // optional - add a handler to redraw the UI. Not needed but it can allow widgets/etc to provide other functionality that requires the screen to be redrawn
-  touch : function(n,e) {}, // optional - (mode:custom only) handler for 'touch' events
-  swipe : function(dir) {}, // optional - (mode:custom only) handler for 'swipe' events
-  drag : function(e) {}, // optional - (mode:custom only) handler for 'drag' events (Pinetime 2 only)
-  btn : function(n) {}, // optional - (mode:custom only) handler for 'button' events (n==1 on Pinetime 2, n==1/2/3 depending on button for Pinetime 1)
-  clock : 0 // optional - if set the behavior of 'clock' mode is added (does not override btn if defined)
-});
-```
-
-If `remove` is specified, `Pinetime.showLauncher`, `Pinetime.showClock`, `Pinetime.load` and some apps
-may choose to just call the `remove` function and then load a new app without resetting Pinetime.
-As a result, **if you specify 'remove' you should make sure you test that after calling `Pinetime.setUI()`
-without arguments your app is completely unloaded**, otherwise you may end up with memory leaks or
-other issues when switching apps. Please see http://www.espruino.com/Pinetime+Fast+Load for more details on this.
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
-    "name" : "showLauncher",
-    "generate_js" : "libs/js/pinetime40/Pinetime_showLauncher.min.js",
-    "ifdef" : "PINETIME40"
-}
-Load the Pinetime app launcher, which will allow the user to select an
-application to launch.
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
-    "name" : "showClock",
-    "generate_js" : "libs/js/banglejs/Bangle_showClock.min.js",
-    "ifdef" : "PINETIME40"
-}
-Load the Pinetime clock - this has the same effect as calling `Pinetime.load()`.
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "E",
-    "name" : "showScroller",
-    "generate_js" : "libs/js/pinetime40/E_showScroller.min.js",
-    "params" : [
-      ["options","JsVar","An object containing `{ h, c, draw, select, back, remove }` (see below) "]
-    ],
-    "return" : ["JsVar", "A menu object with `draw()` and `drawItem(itemNo)` functions" ],
-    "ifdef" : "PINETIME40",
-    "typescript" : [
-      "showScroller(options?: { h: number, c: number, draw: (idx: number, rect: { x: number, y: number, w: number, h: number }) => void, select: (idx: number, touch?: {x: number, y: number}) => void, back?: () => void, remove?: () => void }): { draw: () => void, drawItem: (itemNo: number) => void };",
-      "showScroller(): void;"
-    ]
-}
-Display a scrollable menu on the screen, and set up the buttons/touchscreen to
-navigate through it and select items.
-
-Supply an object containing:
-
-```
-{
-  h : 24, // height of each menu item in pixels
-  c : 10, // number of menu items
-  // a function to draw a menu item
-  draw : function(idx, rect) { ... }
-  // a function to call when the item is selected, touch parameter is only relevant
-  // for Pinetime and contains the coordinates touched inside the selected item
-  select : function(idx, touch) { ... }
-  // optional function to be called when 'back' is tapped
-  back : function() { ...}
-  // Pinetime: optional function to be called when the scroller should be removed
-  remove : function() {}
-}
-```
-
-For example to display a list of numbers:
-
-```
-E.showScroller({
-  h : 40, c : 8,
-  draw : (idx, r) => {
-    g.setBgColor((idx&1)?"#666":"#999").clearRect(r.x,r.y,r.x+r.w-1,r.y+r.h-1);
-    g.setFont("6x8:2").drawString("Item Number\n"+idx,r.x+10,r.y+4);
-  },
-  select : (idx) => console.log("You selected ", idx)
-});
-```
-
-To remove the scroller, just call `E.showScroller()`
-*/
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "E",
-    "name" : "showPrompt",
-    "generate_js" : "libs/js/pinetime40/E_showPrompt.min.js",
-    "params" : [
-      ["message","JsVar","A message to display. Can include newlines"],
-      ["options","JsVar","[optional] an object of options (see below)"]
-    ],
-    "return" : ["JsVar","A promise that is resolved when 'Ok' is pressed"],
-    "ifdef" : "PINETIME40",
-    "typescript" : [
-      "showPrompt<T = boolean>(message: string, options?: { title?: string, buttons?: { [key: string]: T }, image?: string, remove?: () => void }): Promise<T>;",
-      "showPrompt(): void;"
-    ]
-}
-
-Displays a full screen prompt on the screen, with the buttons requested (or
-`Yes` and `No` for defaults).
-
-When the button is pressed the promise is resolved with the requested values
-(for the `Yes` and `No` defaults, `true` and `false` are returned).
-
-```
-E.showPrompt("Do you like fish?").then(function(v) {
-  if (v) print("'Yes' chosen");
-  else print("'No' chosen");
-});
-// Or
-E.showPrompt("How many fish\ndo you like?",{
-  title:"Fish",
-  buttons : {"One":1,"Two":2,"Three":3}
-}).then(function(v) {
-  print("You like "+v+" fish");
-});
-// Or
-E.showPrompt("Continue?", {
-  title:"Alert",
-  img:atob("FBQBAfgAf+Af/4P//D+fx/n+f5/v+f//n//5//+f//n////3//5/n+P//D//wf/4B/4AH4A=")}).then(function(v) {
-  if (v) print("'Yes' chosen");
-  else print("'No' chosen");
-});
-```
-
-To remove the prompt, call `E.showPrompt()` with no arguments.
-
-The second `options` argument can contain:
-
-```
-{
-  title: "Hello",                       // optional Title
-  buttons : {"Ok":true,"Cancel":false}, // optional list of button text & return value
-  img: "image_string"                   // optional image string to draw
-  remove: function() { }                // Pinetime: optional function to be called when the prompt is removed
-}
-```
-*/
-
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "E",
-    "name" : "showMenu",
-    "generate_js" : "libs/js/pinetime40/E_showMenu.min.js",
-    "params" : [
-      ["menu","JsVar","An object containing name->function mappings to to be used in a menu"]
-    ],
-    "return" : ["JsVar", "A menu object with `draw`, `move` and `select` functions" ],
-    "ifdef" : "PINETIME40",
-    "typescript": [
-      "showMenu(menu: Menu): MenuInstance;",
-      "showMenu(): void;"
-    ]
-}
-Display a menu on the screen, and set up the buttons to navigate through it.
-
-Supply an object containing menu items. When an item is selected, the function
-it references will be executed. For example:
-
-```
-var boolean = false;
-var number = 50;
-// First menu
-var mainmenu = {
-  "" : { title : "-- Main Menu --" }, // options
-  "LED On" : function() { LED1.set(); },
-  "LED Off" : function() { LED1.reset(); },
-  "Submenu" : function() { E.showMenu(submenu); },
-  "A Boolean" : {
-    value : boolean,
-    format : v => v?"On":"Off",
-    onchange : v => { boolean=v; }
-  },
-  "A Number" : {
-    value : number,
-    min:0,max:100,step:10,
-    onchange : v => { number=v; }
-  },
-  "Exit" : function() { E.showMenu(); }, // remove the menu
-};
-// Submenu
-var submenu = {
-  "" : { title : "-- SubMenu --",
-         back : function() { E.showMenu(mainmenu); } },
-  "One" : undefined, // do nothing
-  "Two" : undefined // do nothing
-};
-// Actually display the menu
-E.showMenu(mainmenu);
-```
-
-The menu will stay onscreen and active until explicitly removed, which you can
-do by calling `E.showMenu()` without arguments.
-
-See http://www.espruino.com/graphical_menu for more detailed information.
-
-On Pinetime there are a few additions over the standard `graphical_menu`:
-
-* The options object can contain:
-  * `back : function() { }` - add a 'back' button, with the function called when
-    it is pressed
-  * `remove : function() { }` - add a handler function to be called when the
-    menu is removed
-  * (Pinetime) `scroll : int` - an integer specifying how much the initial
-    menu should be scrolled by
-* The object returned by `E.showMenu` contains:
-  * (Pinetime) `scroller` - the object returned by `E.showScroller` -
-    `scroller.scroll` returns the amount the menu is currently scrolled by
-* In the object specified for editable numbers:
-  * (Pinetime) the `format` function is called with `format(value)` in the
-    main menu, `format(value,1)` when in a scrollable list, or `format(value,2)`
-    when in a popup window.
-
-You can also specify menu items as an array (rather than an Object). This can be
-useful if you have menu items with the same title, or you want to `push` menu
-items onto an array:
-
-```
-var menu = [
-  { title:"Something", onchange:function() { print("selected"); } },
-  { title:"On or Off", value:false, onchange: v => print(v) },
-  { title:"A Value", value:3, min:0, max:10, onchange: v => print(v) },
-];
-menu[""] = { title:"Hello" };
-E.showMenu(menu);
-```
 */

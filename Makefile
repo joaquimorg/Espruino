@@ -413,7 +413,7 @@ ifeq ($(USE_LVGL),1)
 DEFINES += -DUSE_LVGL -DLV_CONF_INCLUDE_SIMPLE
 
 INCLUDE += -I$(ROOT)/libs/graphics
-#WRAPPERSOURCES += libs/lvgl/jswrap_lvgl.c
+WRAPPERSOURCES += libs/lvgl/jswrap_lvgl.c
 
 SOURCES += \
 libs/lvgl/lcd_spi_nrf.c
