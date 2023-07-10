@@ -320,6 +320,7 @@ JsPinetimeTasks pinetimeTasks;
 void jswrap_pinetime40_setLCDPowerBacklight(bool isOn);
 
 APP_TIMER_DEF(m_peripheral_poll_timer_id);
+APP_TIMER_DEF(m_lvgl_timer_id);
 volatile uint16_t pollInterval; // in ms
 
 /// LCD Brightness - 255=full
@@ -442,6 +443,8 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
  * Also, holding down both buttons will reboot */
 void peripheralPollHandler() {
 
+  //lv_timer_handler();
+
   JsSysTime time = jshGetSystemTime();
   // Handle watchdog
   if (jshPinGetValue(BTN1_PININDEX))
@@ -503,8 +506,6 @@ void peripheralPollHandler() {
     jshHadEvent();
   }
 
-  //lv_timer_handler();
-  //lv_tick_inc(5);
 }
 
 void btn1Handler(bool state, IOEventFlags flags) {
@@ -805,6 +806,7 @@ int jswrap_pinetime40_isLCDOn() {
   return (pinetimeFlags&JSPF_LCD_ON)!=0;
 }
 
+/* LVGL */
 void disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color_p) {
   uint32_t width = (area->x2 - area->x1) + 1;
   uint32_t height = (area->y2 - area->y1) + 1;  
@@ -815,13 +817,28 @@ void disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color
 }
 
 void touchpad_read(lv_indev_t * indev, lv_indev_data_t * data) {
-    /*`touchpad_is_pressed` and `touchpad_get_xy` needs to be implemented by you*/
-    /*if(touchpad_is_pressed()) {
-      data->state = LV_INDEV_STATE_PRESSED;
-      touchpad_get_xy(&data->point.x, &data->point.y);
-    } else {
-      data->state = LV_INDEV_STATE_RELEASED;
-    }*/
+
+  if (pinetimeFlags & JSPF_LOCKED) return;
+
+  unsigned char buf[6];
+  buf[0] = 1;
+  jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 1, buf, false);
+  jsi2cRead(TOUCH_I2C, TOUCH_ADDR, 6, buf, true);
+
+  // 0: Gesture type
+  // 1: touch pts (0 or 1)
+  // 2: Status / X hi (0x00 first, 0x80 pressed, 0x40 released)
+  // 3: X lo (0..160)
+  // 4: Y hi
+  // 5: Y lo (0..160)
+
+  if(buf[1] == 1) {
+    data->state = LV_INDEV_STATE_PRESSED;
+    data->point.x = buf[3];
+    data->point.y = buf[5];
+  } else {
+    data->state = LV_INDEV_STATE_RELEASED;
+  }
 }
 
 void jswrap_pinetime40_lvglinit() {
@@ -846,6 +863,13 @@ void jswrap_pinetime40_lvglinit() {
   indev_drv.read_cb = touchpad_read;  /*Set your driver function*/
   lv_indev_drv_register(&indev_drv);  /*Finally register the driver*/
 }
+
+void call_lv_timer_handler () {
+  //if (pinetimeFlags & JSPF_LOCKED) return;
+  lv_timer_handler();
+}
+
+/* LVGL */
 
 /*JSON{
   "type" : "hwinit",
@@ -906,7 +930,7 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   jsiConsolePrintf("HWINIT DONE\n");
 }
 
-JsVar* jswrap_pinetime_getLogo();
+//JsVar* jswrap_pinetime_getLogo();
 
 /*JSON{
   "type" : "init",
@@ -1041,11 +1065,17 @@ NO_INLINE void jswrap_pinetime40_init() {
     graphicsInternalFlip();
     graphicsStructResetState(&graphicsInternal);*/
 
+    char addrStr[20];
+    JsVar* addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
+    jsvGetString(addr, addrStr, sizeof(addrStr));
+    jsvUnLock(addr);
+
     /* Create simple label */
-    //lv_obj_clean(lv_scr_act());
+    //lv_obj_clean(lv_scr_act());    
     lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000055), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_t *label = lv_label_create( lv_scr_act() );
-    lv_label_set_text( label, "Pinetime 40 - LVGL" );
+    lv_label_set_text_fmt( label, "Pinetime 40 - LVGL\n\nEspruino %s\n%s\n\njoaquim.org", JS_VERSION, addrStr);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(label);
     lv_timer_handler();
   }  
@@ -1067,12 +1097,21 @@ NO_INLINE void jswrap_pinetime40_init() {
       APP_TIMER_MODE_REPEATED,
       peripheralPollHandler);
     jsble_check_error(err_code);
-    app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);
+    app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);    
+
+    /*err_code = app_timer_create(&m_lvgl_timer_id,
+      APP_TIMER_MODE_REPEATED,
+      call_lv_timer_handler);
+    jsble_check_error(err_code);
+    app_timer_start(m_lvgl_timer_id, APP_TIMER_TICKS(100), NULL);*/
 
     //jsiConsolePrintf("FIRST INIT DONE\n");
 
     // hack for lvgl update...
-    //jsvUnLock(jspEvaluate("setInterval(lvgl.timerHandler,100)", true));
+    //jsvUnLock(jspEvaluate("setInterval(lvgl.timerHandler,50)", true));
+
+    //JsSysTime period = jshGetTimeFromMilliseconds(500);
+    //jstExecuteFn(call_lv_timer_handler, 0, period, period, NULL);
 
     jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,1000)", true));    
 
@@ -1081,9 +1120,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   {
     jsiConsolePrintf("HOT INIT DONE\n");
   }*/
-
-  //JsSysTime period = jshGetTimeFromMilliseconds(100);
-  //jstExecuteFn(jswrap_graphics_timerHandler, 0, period, (uint32_t)period, NULL);
+  
   //jsvUnLock(jspEvaluate("setInterval(lv.timerHandler,100)", true));
 
   //pinetimeFlags |= JSPF_POWER_SAVE; // ensure we turn power-save on by default every restart
@@ -1138,7 +1175,7 @@ bool jswrap_pinetime40_idle() {
       jsvUnLock(charging);
     }
 
-    if (pinetimeTasks & JSPT_SWIPE) {
+    /*if (pinetimeTasks & JSPT_SWIPE) {
       JsVar *o[2] = {
           jsvNewFromInteger((touchGesture==TG_SWIPE_LEFT)?-1:((touchGesture==TG_SWIPE_RIGHT)?1:0)),
           jsvNewFromInteger((touchGesture==TG_SWIPE_UP)?-1:((touchGesture==TG_SWIPE_DOWN)?1:0)),
@@ -1164,9 +1201,9 @@ bool jswrap_pinetime40_idle() {
       jsvObjectSetChildAndUnLock(o[1], "type", jsvNewFromInteger(touchType));
       jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"touch", o, 2);
       jsvUnLockMany(2,o);
-    }
+    }*/
   }
-  if (pinetimeTasks & JSPT_DRAG) {
+  /*if (pinetimeTasks & JSPT_DRAG) {
     JsVar *o = jsvNewObject();
     jsvObjectSetChildAndUnLock(o, "x", jsvNewFromInteger(touchX));
     jsvObjectSetChildAndUnLock(o, "y", jsvNewFromInteger(touchY));
@@ -1178,7 +1215,8 @@ bool jswrap_pinetime40_idle() {
     lastTouchX = touchX;
     lastTouchY = touchY;
     lastTouchPts = touchPts;
-  }
+  }*/
+  
 
   jsvUnLock(pinetime);
   pinetimeTasks = JSPT_NONE;
@@ -1316,13 +1354,19 @@ void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
 }
 
 void touchHandler(bool state, IOEventFlags flags) {
+  
   if (state) return; // only interested in when low
+  if (pinetimeFlags & JSPF_LOCKED) return;
+
+  // Reset inactivity timer so we will lock ourselves after a delay
+  inactivityTimer = 0;
+
   // Ok, now get touch info
-  unsigned char buf[6];
+  /*unsigned char buf[6];
   buf[0] = 1;
   jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 1, buf, false);
   jsi2cRead(TOUCH_I2C, TOUCH_ADDR, 6, buf, true);
-
+  */
   // 0: Gesture type
   // 1: touch pts (0 or 1)
   // 2: Status / X hi (0x00 first, 0x80 pressed, 0x40 released)
@@ -1331,9 +1375,9 @@ void touchHandler(bool state, IOEventFlags flags) {
   // 5: Y lo (0..160)
 
   //jsiConsolePrintf("TS = %d:%d:%d:%d:%d:%d\n", buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
-
-  int tx = buf[3]/* | ((buf[2] & 0x0F)<<8)*/; // top bits are never used on our touchscreen
-  int ty = buf[5]/* | ((buf[4] & 0x0F)<<8)*/;
+  /*
+  int tx = buf[3];// | ((buf[2] & 0x0F)<<8) // top bits are never used on our touchscreen
+  int ty = buf[5];// | ((buf[4] & 0x0F)<<8)
   if (tx >= 250) tx = 0; // on some devices, 251-255 gets reported for touches right at the top of the screen
   if (ty >= 250) ty = 0;
   touchHandlerInternal(
@@ -1341,6 +1385,7 @@ void touchHandler(bool state, IOEventFlags flags) {
     (ty - touchMinY) * LCD_HEIGHT / (touchMaxY - touchMinY), // touchY
     buf[2], // touchPts
     buf[0]); // gesture
+  */
 }
 
 
