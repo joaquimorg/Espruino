@@ -862,6 +862,18 @@ void jswrap_pinetime40_lvglinit() {
   indev_drv.type = LV_INDEV_TYPE_POINTER;    /*Touch pad is a pointer-like device*/
   indev_drv.read_cb = touchpad_read;  /*Set your driver function*/
   lv_indev_drv_register(&indev_drv);  /*Finally register the driver*/
+
+
+  // Set default theme
+  lv_disp_t *dispp = lv_disp_get_default();
+  lv_theme_t *theme = lv_theme_default_init(
+    dispp, 
+    lv_palette_main(LV_PALETTE_BLUE), 
+    lv_palette_main(LV_PALETTE_RED),
+    true, 
+    LV_FONT_DEFAULT);
+  lv_disp_set_theme(dispp, theme);
+
 }
 
 void call_lv_timer_handler () {

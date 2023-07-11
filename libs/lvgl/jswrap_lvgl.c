@@ -82,6 +82,97 @@ This library provides GUI operations using LVGL.
 }*/
 
 
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_ALL", "generate_full" : "LV_EVENT_ALL", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_PRESSED", "generate_full" : "LV_EVENT_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_PRESSING", "generate_full" : "LV_EVENT_PRESSING", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_PRESS_LOST", "generate_full" : "LV_EVENT_PRESS_LOST", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SHORT_CLICKED", "generate_full" : "LV_EVENT_SHORT_CLICKED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_LONG_PRESSED", "generate_full" : "LV_EVENT_LONG_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_LONG_PRESSED_REPEAT", "generate_full" : "LV_EVENT_LONG_PRESSED_REPEAT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CLICKED", "generate_full" : "LV_EVENT_CLICKED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_RELEASED", "generate_full" : "LV_EVENT_RELEASED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCROLL_BEGIN", "generate_full" : "LV_EVENT_SCROLL_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCROLL_END", "generate_full" : "LV_EVENT_SCROLL_END", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCROLL", "generate_full" : "LV_EVENT_SCROLL", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_GESTURE", "generate_full" : "LV_EVENT_GESTURE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_KEY", "generate_full" : "LV_EVENT_KEY", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_FOCUSED", "generate_full" : "LV_EVENT_FOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DEFOCUSED", "generate_full" : "LV_EVENT_DEFOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_LEAVE", "generate_full" : "LV_EVENT_LEAVE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_HIT_TEST", "generate_full" : "LV_EVENT_HIT_TEST", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_COVER_CHECK", "generate_full" : "LV_EVENT_COVER_CHECK", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_REFR_EXT_DRAW_SIZE", "generate_full" : "LV_EVENT_REFR_EXT_DRAW_SIZE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_MAIN_BEGIN", "generate_full" : "LV_EVENT_DRAW_MAIN_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_MAIN", "generate_full" : "LV_EVENT_DRAW_MAIN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_MAIN_END", "generate_full" : "LV_EVENT_DRAW_MAIN_END", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_POST_BEGIN", "generate_full" : "LV_EVENT_DRAW_POST_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_POST", "generate_full" : "LV_EVENT_DRAW_POST", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_POST_END", "generate_full" : "LV_EVENT_DRAW_POST_END", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_PART_BEGIN", "generate_full" : "LV_EVENT_DRAW_PART_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_PART_END", "generate_full" : "LV_EVENT_DRAW_PART_END", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_VALUE_CHANGED", "generate_full" : "LV_EVENT_VALUE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_INSERT", "generate_full" : "LV_EVENT_INSERT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_REFRESH", "generate_full" : "LV_EVENT_REFRESH", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_READY", "generate_full" : "LV_EVENT_READY", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CANCEL", "generate_full" : "LV_EVENT_CANCEL", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DELETE", "generate_full" : "LV_EVENT_DELETE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CHILD_CHANGED", "generate_full" : "LV_EVENT_CHILD_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CHILD_CREATED", "generate_full" : "LV_EVENT_CHILD_CREATED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CHILD_DELETED", "generate_full" : "LV_EVENT_CHILD_DELETED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCREEN_UNLOAD_START", "generate_full" : "LV_EVENT_SCREEN_UNLOAD_START", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCREEN_LOAD_START", "generate_full" : "LV_EVENT_SCREEN_LOAD_START", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCREEN_LOADED", "generate_full" : "LV_EVENT_SCREEN_LOADED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCREEN_UNLOADED", "generate_full" : "LV_EVENT_SCREEN_UNLOADED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SIZE_CHANGED", "generate_full" : "LV_EVENT_SIZE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_STYLE_CHANGED", "generate_full" : "LV_EVENT_STYLE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_LAYOUT_CHANGED", "generate_full" : "LV_EVENT_LAYOUT_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_GET_SELF_SIZE", "generate_full" : "LV_EVENT_GET_SELF_SIZE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
 
 /*
  * lv_obj_t *lv_obj_create(lv_obj_t *parent)
@@ -233,7 +324,7 @@ JsVar *jswrap_lv_btn_create(JsVar *jsvar) {
 
 void jswrap_lv_label_set_text(JsVar *jsvar, JsVar *txt) {
   JSV_GET_AS_CHAR_ARRAY(messagePtr, messageLen, txt);
-  if (!messagePtr) return 0;
+  if (!messagePtr) return;
   js_lv_label_set_text(jsvar, messagePtr, lv_label_set_text);
 }
 
@@ -319,18 +410,41 @@ void jswrap_lv_obj_align(JsVar *jsvar, int align, int x_ofs, int y_ofs) {
   ]
 }*/
 
-void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, int user_data) {
+
+static void js_event_handler(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+
+    //if(code == LV_EVENT_CLICKED) {
+    lv_obj_t* target = lv_event_get_target(e);
+    JsVar *js_event_cb_h = target->user_data;
+
+    //jsiConsolePrintf("\n Clicked \n");
+    JsVar *js_user_data = lv_event_get_user_data(e);
+    //jsiConsolePrintf("\n 2 - func %x, %x \n", js_event_cb_h, jsvIsFunction(js_event_cb_h));
+
+    if (!jsvIsUndefined(js_event_cb_h) && !jsvIsFunction(js_event_cb_h)) {
+      jsError("Callback Function error, got %t", js_event_cb_h);
+      return;
+    }
+    JsVar *args[2];
+    args[0] = jsvNewFromInteger(code);
+    args[1] = js_user_data;
+    jspeFunctionCall(js_event_cb_h, jsvNewFromString("js_event_handler"), 0, false, 2, args);
+    //}
+}
+
+void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar *user_data) {
 
   if (!jsvIsUndefined(event_cb) && !jsvIsFunction(event_cb)) {
-    jsError("Expecting Callback Function but got %t", event_cb);
+    jsError("Expecting Callback Function, got %t", event_cb);
     return;
   }
-  //lv_event_code_t 
+ 
+  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);  
+  obj->user_data = (uintptr_t)event_cb;
+  //jsiConsolePrintf("\n func %x \n", obj->user_data);
+  //jsiConsolePrintf("\n 1 - func %x, %x \n", event_cb, jsvIsFunction(event_cb));
 
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);
-
-  jspeFunctionCall(event_cb, 0, NULL, false, 0, NULL);
-
-  //lv_obj_add_event_cb(obj, jsvGetNativeFunctionPtr(event_cb), filter, NULL);
+  lv_obj_add_event_cb(obj, js_event_handler, filter, (uintptr_t)user_data);
 }
 

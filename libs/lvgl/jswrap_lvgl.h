@@ -31,5 +31,5 @@ void jswrap_lv_obj_center(JsVar *jsvar);
 void jswrap_lv_obj_align(JsVar *jsvar, int align, int x_ofs, int y_ofs);
 
 
-void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, int user_data);
+void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar *user_data);
 
