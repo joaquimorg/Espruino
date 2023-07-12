@@ -19,7 +19,7 @@ This library provides GUI operations using LVGL.
 */
 
 /*********************************************************************************/
-
+// lv_dir_t
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_LEFT",    "generate_full" : "LV_DIR_LEFT",    "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_RIGHT",   "generate_full" : "LV_DIR_RIGHT",   "ifdef" : "LVGL", "return" : ["int",""]
@@ -35,7 +35,7 @@ This library provides GUI operations using LVGL.
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_ALL",     "generate_full" : "LV_DIR_ALL",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
-
+//lv_align_t
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_DEFAULT",     "generate_full" : "LV_ALIGN_DEFAULT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_TOP_LEFT",    "generate_full" : "LV_ALIGN_TOP_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
@@ -81,7 +81,7 @@ This library provides GUI operations using LVGL.
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_RIGHT_BOTTOM","generate_full" : "LV_ALIGN_OUT_RIGHT_BOTTOM",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
-
+//lv_event_code_t
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_ALL", "generate_full" : "LV_EVENT_ALL", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_PRESSED", "generate_full" : "LV_EVENT_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
@@ -173,6 +173,62 @@ This library provides GUI operations using LVGL.
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_GET_SELF_SIZE", "generate_full" : "LV_EVENT_GET_SELF_SIZE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
+//lv_state_t
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_DEFAULT", "generate_full" : "LV_STATE_DEFAULT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_CHECKED", "generate_full" : "LV_STATE_CHECKED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_FOCUSED", "generate_full" : "LV_STATE_FOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_FOCUS_KEY", "generate_full" : "LV_STATE_FOCUS_KEY", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_EDITED", "generate_full" : "LV_STATE_EDITED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_HOVERED", "generate_full" : "LV_STATE_HOVERED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_PRESSED", "generate_full" : "LV_STATE_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_SCROLLED", "generate_full" : "LV_STATE_SCROLLED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_DISABLED", "generate_full" : "LV_STATE_DISABLED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_USER_1", "generate_full" : "LV_STATE_USER_1", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_USER_2", "generate_full" : "LV_STATE_USER_2", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_USER_3", "generate_full" : "LV_STATE_USER_3", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_USER_4", "generate_full" : "LV_STATE_USER_4", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_ANY", "generate_full" : "LV_STATE_ANY", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
+
+//lv_part_t
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_MAIN", "generate_full" : "LV_PART_MAIN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_SCROLLBAR", "generate_full" : "LV_PART_SCROLLBAR", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_INDICATOR", "generate_full" : "LV_PART_INDICATOR", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_KNOB", "generate_full" : "LV_PART_KNOB", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_SELECTED", "generate_full" : "LV_PART_SELECTED", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_ITEMS", "generate_full" : "LV_PART_ITEMS", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_TICKS", "generate_full" : "LV_PART_TICKS", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_CURSOR", "generate_full" : "LV_PART_CURSOR", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_CUSTOM_FIRST", "generate_full" : "LV_PART_CUSTOM_FIRST", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_ANY", "generate_full" : "LV_PART_ANY", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
+
+
+
 
 /*
  * lv_obj_t *lv_obj_create(lv_obj_t *parent)
@@ -200,6 +256,30 @@ void js_lv_label_set_text(JsVar *jsvar, const char* txt, void *lv_func_ptr) {
   //jsiConsolePrintf("\n set_text : %s \n", txt);
 }
 
+
+/*
+ * inline static lv_color_t lv_color_hex(uint32_t c)
+ */
+
+JsVar *js_lv_color_hex(JsVar *jsvar, void *lv_func_ptr) {
+    uint32_t c = (uint32_t)jsvGetLongInteger(jsvar);
+    //jsiConsolePrintf("\n color : %x \n", c);    
+    lv_color_t _res = ((lv_color_t (*)(uint32_t))lv_func_ptr)(c);
+    return jsvNewFromInteger(_res.full);
+}
+
+
+/*
+ * void lv_obj_set_style_bg_color(struct _lv_obj_t *obj, lv_color_t value, lv_style_selector_t selector)
+ */
+
+void js_lv_obj_set_style_bg_color(JsVar *jsvar, JsVar *jsvar_color, int selector, void *lv_func_ptr) {
+    struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);
+    lv_color_t value;
+    value.full = (uint32_t)jsvGetInteger(jsvar_color);
+    ((void (*)(struct _lv_obj_t *, lv_color_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
+}
+
 /*********************************************************************************/
 
 
@@ -211,7 +291,7 @@ void js_lv_label_set_text(JsVar *jsvar, const char* txt, void *lv_func_ptr) {
 }*/
 
 void jswrap_lvgl_init() {
-  jsiConsolePrintf("\n lvgl init \n");
+  //jsiConsolePrintf("\n lvgl init \n");
 }
 
 /*JSON{
@@ -428,7 +508,21 @@ static void js_event_handler(lv_event_t * e) {
     }
     JsVar *args[2];
     args[0] = jsvNewFromInteger(code);
-    args[1] = js_user_data;
+    args[1] = NULL;
+    /*if (jsvIsString(js_user_data)) {
+      args[1] = jsvNewFromString(js_user_data);
+      jsiConsolePrintf("\n string : %s \n", js_user_data); 
+    } else if (jsvIsNumeric(js_user_data)) {
+      args[1] = jsvNewFromInteger(js_user_data);
+      jsiConsolePrintf("\n int : %i \n", js_user_data); 
+    } else {
+      args[1] = NULL;
+      jsiConsolePrintf("\n null \n"); 
+    }*/
+    //char buf[64];
+    //jsvGetString(js_user_data, buf, sizeof(buf));
+
+    //jsiConsolePrintf("\n string : %s \n", buf); 
     jspeFunctionCall(js_event_cb_h, jsvNewFromString("js_event_handler"), 0, false, 2, args);
     //}
 }
@@ -441,10 +535,43 @@ void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar
   }
  
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);  
-  obj->user_data = (uintptr_t)event_cb;
+  obj->user_data = (void *)(uintptr_t)event_cb;
   //jsiConsolePrintf("\n func %x \n", obj->user_data);
   //jsiConsolePrintf("\n 1 - func %x, %x \n", event_cb, jsvIsFunction(event_cb));
 
-  lv_obj_add_event_cb(obj, js_event_handler, filter, (uintptr_t)user_data);
+  lv_obj_add_event_cb(obj, js_event_handler, filter, (void *)(uintptr_t)user_data);
+}
+
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_color_hex",
+  "generate" : "jswrap_lv_color_hex",
+  "params" : [
+    ["type","JsVar","hex color"]
+  ],
+  "return" : ["JsVar","lv_color_t"]
+}*/
+
+JsVar *jswrap_lv_color_hex(JsVar *jsvar) {
+  return js_lv_color_hex(jsvar, lv_color_hex);
+}
+
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_obj_set_style_bg_color",
+  "generate" : "jswrap_lv_obj_set_style_bg_color",
+  "params" : [
+    ["type","JsVar","lv_obj_t"],
+    ["type","JsVar","lv_color_t"],
+    ["type","int","lv_style_selector_t"]
+  ]
+}*/
+
+void jswrap_lv_obj_set_style_bg_color(JsVar *jsvar, JsVar *jsvar_color, int selector) {
+  js_lv_obj_set_style_bg_color(jsvar, jsvar_color, selector, lv_obj_set_style_bg_color);
 }
 
