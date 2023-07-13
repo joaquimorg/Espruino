@@ -61,8 +61,8 @@ info = {
 #     'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
 #     'WRAPPERSOURCES += libs/pinetime40/jswrap_font_24.c',
 
-     #'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
-     #'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
+     'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
+     'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
 
      'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6,0xb7',
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key_40.pem',

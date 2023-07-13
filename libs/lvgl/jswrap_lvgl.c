@@ -81,6 +81,16 @@ This library provides GUI operations using LVGL.
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_RIGHT_BOTTOM","generate_full" : "LV_ALIGN_OUT_RIGHT_BOTTOM",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
+//lv_text_align_t
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_TEXT_ALIGN_AUTO","generate_full" : "LV_TEXT_ALIGN_AUTO", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_TEXT_ALIGN_LEFT","generate_full" : "LV_TEXT_ALIGN_LEFT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_TEXT_ALIGN_CENTER","generate_full" : "LV_TEXT_ALIGN_CENTER", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_TEXT_ALIGN_RIGHT","generate_full" : "LV_TEXT_ALIGN_RIGHT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
 //lv_event_code_t
 /*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_ALL", "generate_full" : "LV_EVENT_ALL", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
@@ -227,8 +237,59 @@ This library provides GUI operations using LVGL.
 }*/
 
 
+/*******************************************************************************************/
+// FONT
 
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_font_montserrat_18",
+  "generate" : "jswrap_lv_font_montserrat_18",
+  "return" : ["JsVar","lv_font_t"]
+}*/
+JsVar *jswrap_lv_font_montserrat_18() {
+  struct lv_font_t * _font = (struct lv_font_t *)&lv_font_montserrat_18;
+  return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
+}
 
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_font_montserrat_22",
+  "generate" : "jswrap_lv_font_montserrat_22",
+  "return" : ["JsVar","lv_font_t"]
+}*/
+JsVar *jswrap_lv_font_montserrat_22() {
+  struct lv_font_t * _font = (struct lv_font_t *)&lv_font_montserrat_22;
+  return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
+}
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_font_montserrat_34",
+  "generate" : "jswrap_lv_font_montserrat_34",
+  "return" : ["JsVar","lv_font_t"]
+}*/
+JsVar *jswrap_lv_font_montserrat_34() {
+  struct lv_font_t * _font = (struct lv_font_t *)&lv_font_montserrat_34;
+  return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
+}
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_font_montserrat_48",
+  "generate" : "jswrap_lv_font_montserrat_48",
+  "return" : ["JsVar","lv_font_t"]
+}*/
+JsVar *jswrap_lv_font_montserrat_48() {
+  struct lv_font_t * _font = (struct lv_font_t *)&lv_font_montserrat_48;
+  return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
+}
+
+/*******************************************************************************************/
+// Generic functions
 
 /*
  * lv_obj_t *lv_obj_create(lv_obj_t *parent)
@@ -279,6 +340,39 @@ void js_lv_obj_set_style_bg_color(JsVar *jsvar, JsVar *jsvar_color, int selector
     value.full = (uint32_t)jsvGetInteger(jsvar_color);
     ((void (*)(struct _lv_obj_t *, lv_color_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
 }
+
+
+/*
+ * void lv_obj_set_style_text_align(struct _lv_obj_t *obj, lv_text_align_t value, lv_style_selector_t selector)
+ */
+
+void js_lv_obj_set_style_text_align(JsVar *jsvar, int align, int selector, void *lv_func_ptr) {
+    struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);
+    ((void (*)(struct _lv_obj_t *, lv_text_align_t, lv_style_selector_t))lv_func_ptr)(obj, align, selector);
+}
+
+
+/*
+ * lvgl extension definition for:
+ * void lv_style_set_text_font(lv_style_t *style, const lv_font_t *value)
+ */
+
+void js_lv_style_set_text_font(JsVar *jsvar, JsVar *jsvar_font, void *lv_func_ptr) {
+    lv_style_t *style = jsvGetNativeFunctionPtr(jsvar);
+    const lv_font_t *value = (const lv_font_t *)jsvGetNativeFunctionPtr(jsvar_font);
+    ((void (*)(lv_style_t *, const lv_font_t *))lv_func_ptr)(style, value);    
+}
+
+/*
+ * void lv_obj_set_style_text_font(struct _lv_obj_t *obj, const lv_font_t *value, lv_style_selector_t selector)
+ */
+
+void js_lv_obj_set_style_text_font(JsVar *jsvar, JsVar *jsvar_font, int selector, void *lv_func_ptr) {
+    struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);
+    const lv_font_t *value = (const lv_font_t *)jsvGetNativeFunctionPtr(jsvar_font);
+    ((void (*)(struct _lv_obj_t *, const lv_font_t *, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
+}
+
 
 /*********************************************************************************/
 
@@ -420,6 +514,20 @@ void jswrap_lv_label_set_text(JsVar *jsvar, JsVar *txt) {
 
 void jswrap_lv_obj_center(JsVar *jsvar) {
   js_lv_obj_center(jsvar, lv_obj_center);
+}
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_scr_load",
+  "generate" : "jswrap_lv_scr_load",
+  "params" : [
+    ["type","JsVar","lv_obj_t"]
+  ]
+}*/
+
+void jswrap_lv_scr_load(JsVar *jsvar) {
+  js_lv_obj_center(jsvar, lv_scr_load);
 }
 
 /*JSON{
@@ -574,4 +682,42 @@ JsVar *jswrap_lv_color_hex(JsVar *jsvar) {
 void jswrap_lv_obj_set_style_bg_color(JsVar *jsvar, JsVar *jsvar_color, int selector) {
   js_lv_obj_set_style_bg_color(jsvar, jsvar_color, selector, lv_obj_set_style_bg_color);
 }
+
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_obj_set_style_text_align",
+  "generate" : "jswrap_lv_obj_set_style_text_align",
+  "params" : [
+    ["type","JsVar","lv_obj_t"],
+    ["type","int","lv_text_align_t"],
+    ["type","int","lv_style_selector_t"]
+  ]
+}*/
+
+void jswrap_lv_obj_set_style_text_align(JsVar *jsvar, int align, int selector) {
+  js_lv_obj_set_style_text_align(jsvar, align, selector, lv_obj_set_style_text_align);
+}
+
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "lv",
+  "name" : "lv_obj_set_style_text_font",
+  "generate" : "jswrap_lv_obj_set_style_text_font",
+  "params" : [
+    ["type","JsVar","lv_obj_t"],
+    ["type","JsVar","lv_font_t"],
+    ["type","int","lv_style_selector_t"]
+  ]
+}*/
+
+void jswrap_lv_obj_set_style_text_font(JsVar *jsvar, JsVar *jsvar_font, int selector) {
+  js_lv_obj_set_style_text_font(jsvar, jsvar_font, selector, lv_obj_set_style_text_font);
+}
+
+
+
+
 
