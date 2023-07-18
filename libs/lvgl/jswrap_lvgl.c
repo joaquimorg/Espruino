@@ -10,230 +10,230 @@
 
 
 /*JSON{
-  "type" : "library",
-  "class" : "lv",
+  "type" : "class",
+  "class" : "LVGL",
   "typescript" : "lv"
 }
-This library provides GUI operations using LVGL.
+This class provides GUI operations using LVGL.
 
 */
 
 /*********************************************************************************/
 // lv_dir_t
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_LEFT",    "generate_full" : "LV_DIR_LEFT",    "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_DIR_LEFT",    "generate_full" : "LV_DIR_LEFT",    "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_RIGHT",   "generate_full" : "LV_DIR_RIGHT",   "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_DIR_RIGHT",   "generate_full" : "LV_DIR_RIGHT",   "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_TOP",     "generate_full" : "LV_DIR_TOP",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_DIR_TOP",     "generate_full" : "LV_DIR_TOP",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_BOTTOM",  "generate_full" : "LV_DIR_BOTTOM",  "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_DIR_BOTTOM",  "generate_full" : "LV_DIR_BOTTOM",  "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_HOR",     "generate_full" : "LV_DIR_HOR",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_DIR_HOR",     "generate_full" : "LV_DIR_HOR",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_VER",     "generate_full" : "LV_DIR_VER",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_DIR_VER",     "generate_full" : "LV_DIR_VER",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_DIR_ALL",     "generate_full" : "LV_DIR_ALL",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_DIR_ALL",     "generate_full" : "LV_DIR_ALL",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
 //lv_align_t
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_DEFAULT",     "generate_full" : "LV_ALIGN_DEFAULT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_DEFAULT",     "generate_full" : "LV_ALIGN_DEFAULT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_TOP_LEFT",    "generate_full" : "LV_ALIGN_TOP_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_TOP_LEFT",    "generate_full" : "LV_ALIGN_TOP_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_TOP_MID",     "generate_full" : "LV_ALIGN_TOP_MID",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_TOP_MID",     "generate_full" : "LV_ALIGN_TOP_MID",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_TOP_RIGHT",   "generate_full" : "LV_ALIGN_TOP_RIGHT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_TOP_RIGHT",   "generate_full" : "LV_ALIGN_TOP_RIGHT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_BOTTOM_LEFT", "generate_full" : "LV_ALIGN_BOTTOM_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_BOTTOM_LEFT", "generate_full" : "LV_ALIGN_BOTTOM_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_BOTTOM_MID",  "generate_full" : "LV_ALIGN_BOTTOM_MID",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_BOTTOM_MID",  "generate_full" : "LV_ALIGN_BOTTOM_MID",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_BOTTOM_RIGHT","generate_full" : "LV_ALIGN_BOTTOM_RIGHT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_BOTTOM_RIGHT","generate_full" : "LV_ALIGN_BOTTOM_RIGHT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_LEFT_MID",    "generate_full" : "LV_ALIGN_LEFT_MID",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_LEFT_MID",    "generate_full" : "LV_ALIGN_LEFT_MID",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_RIGHT_MID",   "generate_full" : "LV_ALIGN_RIGHT_MID",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_RIGHT_MID",   "generate_full" : "LV_ALIGN_RIGHT_MID",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_CENTER",      "generate_full" : "LV_ALIGN_CENTER",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_CENTER",      "generate_full" : "LV_ALIGN_CENTER",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_TOP_LEFT","generate_full" : "LV_ALIGN_OUT_TOP_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_TOP_LEFT","generate_full" : "LV_ALIGN_OUT_TOP_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_TOP_MID", "generate_full" : "LV_ALIGN_OUT_TOP_MID",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_TOP_MID", "generate_full" : "LV_ALIGN_OUT_TOP_MID",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_TOP_RIGHT", "generate_full" : "LV_ALIGN_OUT_TOP_RIGHT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_TOP_RIGHT", "generate_full" : "LV_ALIGN_OUT_TOP_RIGHT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_BOTTOM_LEFT", "generate_full" : "LV_ALIGN_OUT_BOTTOM_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_BOTTOM_LEFT", "generate_full" : "LV_ALIGN_OUT_BOTTOM_LEFT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_BOTTOM_MID",  "generate_full" : "LV_ALIGN_OUT_BOTTOM_MID",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_BOTTOM_MID",  "generate_full" : "LV_ALIGN_OUT_BOTTOM_MID",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_BOTTOM_RIGHT","generate_full" : "LV_ALIGN_OUT_BOTTOM_RIGHT",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_BOTTOM_RIGHT","generate_full" : "LV_ALIGN_OUT_BOTTOM_RIGHT",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_LEFT_TOP",    "generate_full" : "LV_ALIGN_OUT_LEFT_TOP",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_LEFT_TOP",    "generate_full" : "LV_ALIGN_OUT_LEFT_TOP",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_LEFT_MID",    "generate_full" : "LV_ALIGN_OUT_LEFT_MID",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_LEFT_MID",    "generate_full" : "LV_ALIGN_OUT_LEFT_MID",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_LEFT_BOTTOM", "generate_full" : "LV_ALIGN_OUT_LEFT_BOTTOM",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_LEFT_BOTTOM", "generate_full" : "LV_ALIGN_OUT_LEFT_BOTTOM",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_RIGHT_TOP",   "generate_full" : "LV_ALIGN_OUT_RIGHT_TOP",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_RIGHT_TOP",   "generate_full" : "LV_ALIGN_OUT_RIGHT_TOP",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_RIGHT_MID",   "generate_full" : "LV_ALIGN_OUT_RIGHT_MID",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_RIGHT_MID",   "generate_full" : "LV_ALIGN_OUT_RIGHT_MID",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_ALIGN_OUT_RIGHT_BOTTOM","generate_full" : "LV_ALIGN_OUT_RIGHT_BOTTOM",     "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ALIGN_OUT_RIGHT_BOTTOM","generate_full" : "LV_ALIGN_OUT_RIGHT_BOTTOM",     "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
 //lv_text_align_t
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_TEXT_ALIGN_AUTO","generate_full" : "LV_TEXT_ALIGN_AUTO", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_TEXT_ALIGN_AUTO","generate_full" : "LV_TEXT_ALIGN_AUTO", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_TEXT_ALIGN_LEFT","generate_full" : "LV_TEXT_ALIGN_LEFT", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_TEXT_ALIGN_LEFT","generate_full" : "LV_TEXT_ALIGN_LEFT", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_TEXT_ALIGN_CENTER","generate_full" : "LV_TEXT_ALIGN_CENTER", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_TEXT_ALIGN_CENTER","generate_full" : "LV_TEXT_ALIGN_CENTER", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_TEXT_ALIGN_RIGHT","generate_full" : "LV_TEXT_ALIGN_RIGHT", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_TEXT_ALIGN_RIGHT","generate_full" : "LV_TEXT_ALIGN_RIGHT", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
 //lv_event_code_t
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_ALL", "generate_full" : "LV_EVENT_ALL", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_ALL", "generate_full" : "LV_EVENT_ALL", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_PRESSED", "generate_full" : "LV_EVENT_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_PRESSED", "generate_full" : "LV_EVENT_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_PRESSING", "generate_full" : "LV_EVENT_PRESSING", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_PRESSING", "generate_full" : "LV_EVENT_PRESSING", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_PRESS_LOST", "generate_full" : "LV_EVENT_PRESS_LOST", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_PRESS_LOST", "generate_full" : "LV_EVENT_PRESS_LOST", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SHORT_CLICKED", "generate_full" : "LV_EVENT_SHORT_CLICKED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SHORT_CLICKED", "generate_full" : "LV_EVENT_SHORT_CLICKED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_LONG_PRESSED", "generate_full" : "LV_EVENT_LONG_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_LONG_PRESSED", "generate_full" : "LV_EVENT_LONG_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_LONG_PRESSED_REPEAT", "generate_full" : "LV_EVENT_LONG_PRESSED_REPEAT", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_LONG_PRESSED_REPEAT", "generate_full" : "LV_EVENT_LONG_PRESSED_REPEAT", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CLICKED", "generate_full" : "LV_EVENT_CLICKED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_CLICKED", "generate_full" : "LV_EVENT_CLICKED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_RELEASED", "generate_full" : "LV_EVENT_RELEASED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_RELEASED", "generate_full" : "LV_EVENT_RELEASED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCROLL_BEGIN", "generate_full" : "LV_EVENT_SCROLL_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SCROLL_BEGIN", "generate_full" : "LV_EVENT_SCROLL_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCROLL_END", "generate_full" : "LV_EVENT_SCROLL_END", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SCROLL_END", "generate_full" : "LV_EVENT_SCROLL_END", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCROLL", "generate_full" : "LV_EVENT_SCROLL", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SCROLL", "generate_full" : "LV_EVENT_SCROLL", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_GESTURE", "generate_full" : "LV_EVENT_GESTURE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_GESTURE", "generate_full" : "LV_EVENT_GESTURE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_KEY", "generate_full" : "LV_EVENT_KEY", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_KEY", "generate_full" : "LV_EVENT_KEY", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_FOCUSED", "generate_full" : "LV_EVENT_FOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_FOCUSED", "generate_full" : "LV_EVENT_FOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DEFOCUSED", "generate_full" : "LV_EVENT_DEFOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DEFOCUSED", "generate_full" : "LV_EVENT_DEFOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_LEAVE", "generate_full" : "LV_EVENT_LEAVE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_LEAVE", "generate_full" : "LV_EVENT_LEAVE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_HIT_TEST", "generate_full" : "LV_EVENT_HIT_TEST", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_HIT_TEST", "generate_full" : "LV_EVENT_HIT_TEST", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_COVER_CHECK", "generate_full" : "LV_EVENT_COVER_CHECK", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_COVER_CHECK", "generate_full" : "LV_EVENT_COVER_CHECK", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_REFR_EXT_DRAW_SIZE", "generate_full" : "LV_EVENT_REFR_EXT_DRAW_SIZE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_REFR_EXT_DRAW_SIZE", "generate_full" : "LV_EVENT_REFR_EXT_DRAW_SIZE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_MAIN_BEGIN", "generate_full" : "LV_EVENT_DRAW_MAIN_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DRAW_MAIN_BEGIN", "generate_full" : "LV_EVENT_DRAW_MAIN_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_MAIN", "generate_full" : "LV_EVENT_DRAW_MAIN", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DRAW_MAIN", "generate_full" : "LV_EVENT_DRAW_MAIN", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_MAIN_END", "generate_full" : "LV_EVENT_DRAW_MAIN_END", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DRAW_MAIN_END", "generate_full" : "LV_EVENT_DRAW_MAIN_END", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_POST_BEGIN", "generate_full" : "LV_EVENT_DRAW_POST_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DRAW_POST_BEGIN", "generate_full" : "LV_EVENT_DRAW_POST_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_POST", "generate_full" : "LV_EVENT_DRAW_POST", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DRAW_POST", "generate_full" : "LV_EVENT_DRAW_POST", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_POST_END", "generate_full" : "LV_EVENT_DRAW_POST_END", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DRAW_POST_END", "generate_full" : "LV_EVENT_DRAW_POST_END", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_PART_BEGIN", "generate_full" : "LV_EVENT_DRAW_PART_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DRAW_PART_BEGIN", "generate_full" : "LV_EVENT_DRAW_PART_BEGIN", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DRAW_PART_END", "generate_full" : "LV_EVENT_DRAW_PART_END", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DRAW_PART_END", "generate_full" : "LV_EVENT_DRAW_PART_END", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_VALUE_CHANGED", "generate_full" : "LV_EVENT_VALUE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_VALUE_CHANGED", "generate_full" : "LV_EVENT_VALUE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_INSERT", "generate_full" : "LV_EVENT_INSERT", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_INSERT", "generate_full" : "LV_EVENT_INSERT", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_REFRESH", "generate_full" : "LV_EVENT_REFRESH", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_REFRESH", "generate_full" : "LV_EVENT_REFRESH", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_READY", "generate_full" : "LV_EVENT_READY", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_READY", "generate_full" : "LV_EVENT_READY", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CANCEL", "generate_full" : "LV_EVENT_CANCEL", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_CANCEL", "generate_full" : "LV_EVENT_CANCEL", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_DELETE", "generate_full" : "LV_EVENT_DELETE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_DELETE", "generate_full" : "LV_EVENT_DELETE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CHILD_CHANGED", "generate_full" : "LV_EVENT_CHILD_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_CHILD_CHANGED", "generate_full" : "LV_EVENT_CHILD_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CHILD_CREATED", "generate_full" : "LV_EVENT_CHILD_CREATED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_CHILD_CREATED", "generate_full" : "LV_EVENT_CHILD_CREATED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_CHILD_DELETED", "generate_full" : "LV_EVENT_CHILD_DELETED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_CHILD_DELETED", "generate_full" : "LV_EVENT_CHILD_DELETED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCREEN_UNLOAD_START", "generate_full" : "LV_EVENT_SCREEN_UNLOAD_START", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SCREEN_UNLOAD_START", "generate_full" : "LV_EVENT_SCREEN_UNLOAD_START", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCREEN_LOAD_START", "generate_full" : "LV_EVENT_SCREEN_LOAD_START", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SCREEN_LOAD_START", "generate_full" : "LV_EVENT_SCREEN_LOAD_START", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCREEN_LOADED", "generate_full" : "LV_EVENT_SCREEN_LOADED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SCREEN_LOADED", "generate_full" : "LV_EVENT_SCREEN_LOADED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SCREEN_UNLOADED", "generate_full" : "LV_EVENT_SCREEN_UNLOADED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SCREEN_UNLOADED", "generate_full" : "LV_EVENT_SCREEN_UNLOADED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_SIZE_CHANGED", "generate_full" : "LV_EVENT_SIZE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_SIZE_CHANGED", "generate_full" : "LV_EVENT_SIZE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_STYLE_CHANGED", "generate_full" : "LV_EVENT_STYLE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_STYLE_CHANGED", "generate_full" : "LV_EVENT_STYLE_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_LAYOUT_CHANGED", "generate_full" : "LV_EVENT_LAYOUT_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_LAYOUT_CHANGED", "generate_full" : "LV_EVENT_LAYOUT_CHANGED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_EVENT_GET_SELF_SIZE", "generate_full" : "LV_EVENT_GET_SELF_SIZE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_EVENT_GET_SELF_SIZE", "generate_full" : "LV_EVENT_GET_SELF_SIZE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
 //lv_state_t
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_DEFAULT", "generate_full" : "LV_STATE_DEFAULT", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_DEFAULT", "generate_full" : "LV_STATE_DEFAULT", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_CHECKED", "generate_full" : "LV_STATE_CHECKED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_CHECKED", "generate_full" : "LV_STATE_CHECKED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_FOCUSED", "generate_full" : "LV_STATE_FOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_FOCUSED", "generate_full" : "LV_STATE_FOCUSED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_FOCUS_KEY", "generate_full" : "LV_STATE_FOCUS_KEY", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_FOCUS_KEY", "generate_full" : "LV_STATE_FOCUS_KEY", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_EDITED", "generate_full" : "LV_STATE_EDITED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_EDITED", "generate_full" : "LV_STATE_EDITED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_HOVERED", "generate_full" : "LV_STATE_HOVERED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_HOVERED", "generate_full" : "LV_STATE_HOVERED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_PRESSED", "generate_full" : "LV_STATE_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_PRESSED", "generate_full" : "LV_STATE_PRESSED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_SCROLLED", "generate_full" : "LV_STATE_SCROLLED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_SCROLLED", "generate_full" : "LV_STATE_SCROLLED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_DISABLED", "generate_full" : "LV_STATE_DISABLED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_DISABLED", "generate_full" : "LV_STATE_DISABLED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_USER_1", "generate_full" : "LV_STATE_USER_1", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_USER_1", "generate_full" : "LV_STATE_USER_1", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_USER_2", "generate_full" : "LV_STATE_USER_2", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_USER_2", "generate_full" : "LV_STATE_USER_2", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_USER_3", "generate_full" : "LV_STATE_USER_3", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_USER_3", "generate_full" : "LV_STATE_USER_3", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_USER_4", "generate_full" : "LV_STATE_USER_4", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_USER_4", "generate_full" : "LV_STATE_USER_4", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_STATE_ANY", "generate_full" : "LV_STATE_ANY", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_STATE_ANY", "generate_full" : "LV_STATE_ANY", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
 
 //lv_part_t
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_MAIN", "generate_full" : "LV_PART_MAIN", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_MAIN", "generate_full" : "LV_PART_MAIN", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_SCROLLBAR", "generate_full" : "LV_PART_SCROLLBAR", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_SCROLLBAR", "generate_full" : "LV_PART_SCROLLBAR", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_INDICATOR", "generate_full" : "LV_PART_INDICATOR", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_INDICATOR", "generate_full" : "LV_PART_INDICATOR", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_KNOB", "generate_full" : "LV_PART_KNOB", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_KNOB", "generate_full" : "LV_PART_KNOB", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_SELECTED", "generate_full" : "LV_PART_SELECTED", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_SELECTED", "generate_full" : "LV_PART_SELECTED", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_ITEMS", "generate_full" : "LV_PART_ITEMS", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_ITEMS", "generate_full" : "LV_PART_ITEMS", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_TICKS", "generate_full" : "LV_PART_TICKS", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_TICKS", "generate_full" : "LV_PART_TICKS", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_CURSOR", "generate_full" : "LV_PART_CURSOR", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_CURSOR", "generate_full" : "LV_PART_CURSOR", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_CUSTOM_FIRST", "generate_full" : "LV_PART_CUSTOM_FIRST", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_CUSTOM_FIRST", "generate_full" : "LV_PART_CUSTOM_FIRST", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "lv", "name" : "LV_PART_ANY", "generate_full" : "LV_PART_ANY", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_ANY", "generate_full" : "LV_PART_ANY", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
 
@@ -242,7 +242,7 @@ This library provides GUI operations using LVGL.
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_font_montserrat_18",
   "generate" : "jswrap_lv_font_montserrat_18",
   "return" : ["JsVar","lv_font_t"]
@@ -254,7 +254,7 @@ JsVar *jswrap_lv_font_montserrat_18() {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_font_montserrat_22",
   "generate" : "jswrap_lv_font_montserrat_22",
   "return" : ["JsVar","lv_font_t"]
@@ -266,7 +266,7 @@ JsVar *jswrap_lv_font_montserrat_22() {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_font_montserrat_34",
   "generate" : "jswrap_lv_font_montserrat_34",
   "return" : ["JsVar","lv_font_t"]
@@ -278,7 +278,7 @@ JsVar *jswrap_lv_font_montserrat_34() {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_font_montserrat_48",
   "generate" : "jswrap_lv_font_montserrat_48",
   "return" : ["JsVar","lv_font_t"]
@@ -374,6 +374,16 @@ void js_lv_obj_set_style_text_font(JsVar *jsvar, JsVar *jsvar_font, int selector
 }
 
 
+/* 
+ * void lv_img_set_src(lv_obj_t *obj, const void *src)
+ */
+
+void js_lv_img_set_src(JsVar *jsvar, const void* src, void *lv_func_ptr) {
+    struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);
+    //jsiConsolePrintf("\n img : %s \n", src);
+    ((void (*)(lv_obj_t *, const void *))lv_func_ptr)(obj, src);    
+}
+
 /*********************************************************************************/
 
 
@@ -401,7 +411,7 @@ bool jswrap_lvgl_idle() {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "timerHandler",
   "generate_full" : "jswrap_lvgl_timerHandler()"
 }*/
@@ -413,7 +423,7 @@ void jswrap_lvgl_timerHandler() {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_scr_act",
   "generate" : "jswrap_lv_scr_act",
   "return" : ["JsVar","lv_obj_t"]
@@ -426,7 +436,7 @@ JsVar *jswrap_lv_scr_act() {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_obj_clean",
   "generate" : "jswrap_lv_obj_clean",
   "params" : [
@@ -441,7 +451,7 @@ void jswrap_lv_obj_clean(JsVar *jsvar) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_obj_del",
   "generate" : "jswrap_lv_obj_del",
   "params" : [
@@ -456,7 +466,7 @@ void jswrap_lv_obj_del(JsVar *jsvar) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_label_create",
   "generate" : "jswrap_lv_label_create",
   "params" : [
@@ -471,7 +481,7 @@ JsVar *jswrap_lv_label_create(JsVar *jsvar) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_btn_create",
   "generate" : "jswrap_lv_btn_create",
   "params" : [
@@ -486,7 +496,22 @@ JsVar *jswrap_lv_btn_create(JsVar *jsvar) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
+  "name" : "lv_img_create",
+  "generate" : "jswrap_lv_img_create",
+  "params" : [
+    ["type","JsVar","lv_obj_t"]
+  ],
+  "return" : ["JsVar","lv_obj_t"]
+}*/
+
+JsVar *jswrap_lv_img_create(JsVar *jsvar) {
+  return js_lv_obj_create(jsvar, lv_img_create);
+}
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "LVGL",
   "name" : "lv_label_set_text",
   "generate" : "jswrap_lv_label_set_text",
   "params" : [
@@ -504,7 +529,7 @@ void jswrap_lv_label_set_text(JsVar *jsvar, JsVar *txt) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_obj_center",
   "generate" : "jswrap_lv_obj_center",
   "params" : [
@@ -518,7 +543,7 @@ void jswrap_lv_obj_center(JsVar *jsvar) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_scr_load",
   "generate" : "jswrap_lv_scr_load",
   "params" : [
@@ -532,7 +557,7 @@ void jswrap_lv_scr_load(JsVar *jsvar) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_tileview_create",
   "generate" : "jswrap_lv_tileview_create",
   "params" : [
@@ -547,7 +572,7 @@ JsVar *jswrap_lv_tileview_create(JsVar *jsvar) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_tileview_add_tile",
   "generate" : "jswrap_lv_tileview_add_tile",
   "params" : [
@@ -561,14 +586,14 @@ JsVar *jswrap_lv_tileview_create(JsVar *jsvar) {
 
 JsVar *jswrap_lv_tileview_add_tile(JsVar *jsvar, int col_id, int row_id, int dir) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);
-  struct _lv_obj_t * _res = (struct _lv_obj_t *)lv_tileview_add_tile(obj, col_id, row_id, (lv_dir_t)dir);
+  struct _lv_obj_t *_res = (struct _lv_obj_t *)lv_tileview_add_tile(obj, col_id, row_id, (lv_dir_t)dir);
   return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
 }
 
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_obj_align",
   "generate" : "jswrap_lv_obj_align",
   "params" : [
@@ -587,7 +612,7 @@ void jswrap_lv_obj_align(JsVar *jsvar, int align, int x_ofs, int y_ofs) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_obj_add_event_cb",
   "generate" : "jswrap_lv_obj_add_event_cb",
   "params" : [
@@ -653,7 +678,7 @@ void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_color_hex",
   "generate" : "jswrap_lv_color_hex",
   "params" : [
@@ -669,7 +694,7 @@ JsVar *jswrap_lv_color_hex(JsVar *jsvar) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_obj_set_style_bg_color",
   "generate" : "jswrap_lv_obj_set_style_bg_color",
   "params" : [
@@ -686,7 +711,7 @@ void jswrap_lv_obj_set_style_bg_color(JsVar *jsvar, JsVar *jsvar_color, int sele
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_obj_set_style_text_align",
   "generate" : "jswrap_lv_obj_set_style_text_align",
   "params" : [
@@ -703,7 +728,7 @@ void jswrap_lv_obj_set_style_text_align(JsVar *jsvar, int align, int selector) {
 
 /*JSON{
   "type" : "staticmethod",
-  "class" : "lv",
+  "class" : "LVGL",
   "name" : "lv_obj_set_style_text_font",
   "generate" : "jswrap_lv_obj_set_style_text_font",
   "params" : [
@@ -717,6 +742,22 @@ void jswrap_lv_obj_set_style_text_font(JsVar *jsvar, JsVar *jsvar_font, int sele
   js_lv_obj_set_style_text_font(jsvar, jsvar_font, selector, lv_obj_set_style_text_font);
 }
 
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "LVGL",
+  "name" : "lv_img_set_src",
+  "generate" : "jswrap_lv_img_set_src",
+  "params" : [
+    ["type","JsVar","lv_obj_t"],
+    ["type","JsVar","src"]
+  ]
+}*/
+
+void jswrap_lv_img_set_src(JsVar *jsvar, JsVar *src) {
+  char buf[64];
+  jsvGetString(src, buf, sizeof(buf));
+  js_lv_img_set_src(jsvar, buf, lv_img_set_src);
+}
 
 
 

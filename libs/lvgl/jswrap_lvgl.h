@@ -44,3 +44,8 @@ void jswrap_lv_obj_set_style_text_align(JsVar *jsvar, int align, int selector);
 
 void jswrap_lv_obj_set_style_text_font(JsVar *jsvar, JsVar *jsvar_font, int selector);
 
+
+JsVar *jswrap_lv_img_create(JsVar *jsvar);
+void jswrap_lv_img_set_src(JsVar *jsvar, JsVar *src);
+
+

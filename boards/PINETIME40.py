@@ -34,6 +34,7 @@ info = {
    'optimizeflags' : '-Os -s -z noseparate-code',
    'libraries' : [
      'BLUETOOTH',
+#     'FILESYSTEM',
 #     'TERMINAL',
 #     'GRAPHICS',
 #     'LCD_SPI'

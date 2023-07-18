@@ -15,10 +15,7 @@
 #include "jswrap_arraybuffer.h"
 #include "jswrap_heatshrink.h"
 #include "jswrap_espruino.h"
-//#include "jswrap_terminal.h"
 #include "jsflash.h"
-//#include "graphics.h"
-//#include "bitmap_font_6x8.h"
 #include "jswrap_bluetooth.h"
 #include "app_timer.h"
 #include "nrf_gpio.h"
@@ -30,8 +27,6 @@
 #include "bluetooth.h" // for self-test
 #include "jsi2c.h" // accelerometer/etc
 
-//#include "lcd_spilcd.h"
-//#include "jswrap_graphics.h"
 #include "jswrap_lvgl.h"
 #include "lcd_spi_nrf.h"
 #include "lvgl.h"
@@ -841,11 +836,68 @@ void touchpad_read(lv_indev_t * indev, lv_indev_data_t * data) {
   }
 }
 
+
+typedef struct _lvgl_file_header{
+  uint32_t size;
+  uint32_t addr;
+  uint32_t pos;
+} lvgl_file_header;
+
+void * fs_open_cb(struct _lv_fs_drv_t * drv, const char * path, lv_fs_mode_t mode) {  
+  JsfFileName fn = jsfNameFromString(path);
+
+  JsfFileHeader header;
+  uint32_t addr = jsfFindFile(fn, &header);
+  if (!addr) return NULL;
+  int fileLen = (int)jsfGetFileSize(&header);  
+
+  lvgl_file_header *lv_file = (lvgl_file_header*) malloc(sizeof(lvgl_file_header));
+  lv_file->size = fileLen;
+  lv_file->addr = addr;
+  lv_file->pos = 0;
+
+  //jsiConsolePrintf("\n file open : (p)%s : (a)%x : (l)%x : (f)%x\n", path, addr, fileLen, lv_file);
+
+  return lv_file;
+}
+
+
+lv_fs_res_t fs_close_cb(struct _lv_fs_drv_t * drv, void * file_p) {
+  struct _lvgl_file_header *f = (lvgl_file_header*)file_p;
+  //jsiConsolePrintf("\n file close : %x : (a)%x : (l)%x \n", f, f->addr, f->size);
+  free(f);
+  return LV_FS_RES_OK; 
+}
+
+lv_fs_res_t fs_read_cb(struct _lv_fs_drv_t * drv, void * file_p, void * buf, uint32_t btr, uint32_t * br) {
+  struct _lvgl_file_header *f = (lvgl_file_header*)file_p;
+  //jsiConsolePrintf("\n file read : %x : (a)%x : (l)%x - %x \n", f, f->addr, f->size, btr);
+  *br = btr;
+  //buf = (unsigned char*) malloc(btr);
+  jshFlashRead((unsigned char*)buf, f->addr + f->pos, btr);
+  f->pos += btr;
+  return LV_FS_RES_OK; 
+}
+
+lv_fs_res_t fs_seek_cb(struct _lv_fs_drv_t * drv, void * file_p, uint32_t pos, lv_fs_whence_t whence) {
+  struct _lvgl_file_header *f = (lvgl_file_header*)file_p;
+  //jsiConsolePrintf("\n file seek : %x : (a)%x : (l)%x : (p)%x \n", f, f->addr, f->size, pos);
+  f->pos = pos;
+  return LV_FS_RES_OK; 
+}
+
+void js_log_cb(const char * buf) {
+  jsiConsolePrintf("LVGL : %s\n", buf);
+}
+
+
 void jswrap_pinetime40_lvglinit() {
 
   static lv_disp_drv_t disp_drv;        /*Descriptor of a display driver*/
 
   lv_init();
+
+  lv_log_register_print_cb(js_log_cb);
 
   //Initialize the display
   lv_disp_draw_buf_init(&draw_buf, buf1, NULL, LCD_WIDTH * LCD_HEIGHT / 10);  /*Initialize the display buffer.*/
@@ -864,6 +916,29 @@ void jswrap_pinetime40_lvglinit() {
   lv_indev_drv_register(&indev_drv);  /*Finally register the driver*/
 
 
+  static lv_fs_drv_t drv;                   /*Needs to be static or global*/
+  lv_fs_drv_init(&drv);                     /*Basic initialization*/
+
+  drv.letter = 'F';
+
+  drv.cache_size = 512;           /*Cache size for reading in bytes. 0 to not cache.*/
+
+  drv.ready_cb = NULL;               /*Callback to tell if the drive is ready to use */
+  drv.open_cb = fs_open_cb;                 /*Callback to open a file */
+  drv.close_cb = fs_close_cb;               /*Callback to close a file */
+  drv.read_cb = fs_read_cb;                 /*Callback to read a file */
+  drv.write_cb = NULL;               /*Callback to write a file */
+  drv.seek_cb = fs_seek_cb;                 /*Callback to seek in a file (Move cursor) */
+  drv.tell_cb = NULL;                 /*Callback to tell the cursor position  */
+
+  drv.dir_open_cb = NULL;         /*Callback to open directory to read its content */
+  drv.dir_read_cb = NULL;         /*Callback to read a directory's content */
+  drv.dir_close_cb = NULL;       /*Callback to close a directory */
+
+  //drv.user_data = fs_user_data;             /*Any custom data if required*/
+
+  lv_fs_drv_register(&drv);   
+
   // Set default theme
   lv_disp_t *dispp = lv_disp_get_default();
   lv_theme_t *theme = lv_theme_default_init(
@@ -873,6 +948,7 @@ void jswrap_pinetime40_lvglinit() {
     true, 
     LV_FONT_DEFAULT);
   lv_disp_set_theme(dispp, theme);
+
 
 }
 
@@ -987,16 +1063,16 @@ NO_INLINE void jswrap_pinetime40_init() {
   // Reset global graphics instance
   //graphicsStructResetState(&graphicsInternal);
 
-  /*
+  
   // Create backing graphics object for LCD
-  JsVar* graphics = jspNewObject(0, "LVGL");
+  //JsVar* graphics = jspNewObject(0, "LVGL");
   // if there's nothing in the Graphics object, we assume it's for the built-in graphics
-  if (!graphics) return; // low memory
+  //if (!graphics) return; // low memory
   // add it as a global var
-  jsvObjectSetChild(execInfo.root, "lv", graphics);
-  jsvObjectSetChild(execInfo.hiddenRoot, JS_GRAPHICS_VAR, graphics);
+  //jsvObjectSetChild(execInfo.root, "lv", graphics);
+  //jsvObjectSetChild(execInfo.hiddenRoot, JS_GRAPHICS_VAR, graphics);
   //graphicsInternal.graphicsVar = graphics;
-  */
+  
 
   //jsvObjectSetChildAndUnLock(graphics, "scr_act", jsvNewNativeFunction(lv_scr_act, JSWAT_JSVAR | JSWAT_VOID));
   //jsvObjectSetChildAndUnLock(graphics, "obj_clean", jsvNewNativeFunction(lv_obj_clean, JSWAT_VOID | JSWAT_JSVAR));
@@ -1089,6 +1165,9 @@ NO_INLINE void jswrap_pinetime40_init() {
     lv_label_set_text_fmt( label, "Pinetime 40 - LVGL\n\nEspruino %s\n%s\n\njoaquim.org", JS_VERSION, addrStr);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(label);
+    //lv_obj_t *img1= lv_img_create(lv_scr_act());
+    //lv_img_set_src(img1, "F:mario.bin");
+
     lv_timer_handler();
   }  
   
