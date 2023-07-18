@@ -48,4 +48,6 @@ void jswrap_lv_obj_set_style_text_font(JsVar *jsvar, JsVar *jsvar_font, int sele
 JsVar *jswrap_lv_img_create(JsVar *jsvar);
 void jswrap_lv_img_set_src(JsVar *jsvar, JsVar *src);
 
+void jswrap_lv_obj_set_style_img_recolor(JsVar *jsvar, JsVar *jsvar_color, int selector) ;
+void jswrap_lv_obj_set_style_img_recolor_opa(JsVar *jsvar, int value, int selector);
 

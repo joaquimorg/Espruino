@@ -897,7 +897,9 @@ void jswrap_pinetime40_lvglinit() {
 
   lv_init();
 
+#if LV_USE_LOG
   lv_log_register_print_cb(js_log_cb);
+#endif
 
   //Initialize the display
   lv_disp_draw_buf_init(&draw_buf, buf1, NULL, LCD_WIDTH * LCD_HEIGHT / 10);  /*Initialize the display buffer.*/

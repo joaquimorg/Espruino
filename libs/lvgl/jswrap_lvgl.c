@@ -384,6 +384,16 @@ void js_lv_img_set_src(JsVar *jsvar, const void* src, void *lv_func_ptr) {
     ((void (*)(lv_obj_t *, const void *))lv_func_ptr)(obj, src);    
 }
 
+
+
+/*
+ * void lv_obj_set_style_bg_opa(struct _lv_obj_t *obj, lv_opa_t value, lv_style_selector_t selector)
+ */
+
+void js_lv_obj_set_style_bg_opa(JsVar *jsvar, int value, int selector, void *lv_func_ptr) {
+    struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);
+    ((void (*)(struct _lv_obj_t *, lv_opa_t, lv_style_selector_t))lv_func_ptr)(obj, (uint8_t)value, selector);    
+}
 /*********************************************************************************/
 
 
@@ -754,11 +764,44 @@ void jswrap_lv_obj_set_style_text_font(JsVar *jsvar, JsVar *jsvar_font, int sele
 }*/
 
 void jswrap_lv_img_set_src(JsVar *jsvar, JsVar *src) {
-  char buf[64];
+  char buf[30];
   jsvGetString(src, buf, sizeof(buf));
   js_lv_img_set_src(jsvar, buf, lv_img_set_src);
 }
 
 
 
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "LVGL",
+  "name" : "lv_obj_set_style_img_recolor",
+  "generate" : "jswrap_lv_obj_set_style_img_recolor",
+  "params" : [
+    ["type","JsVar","lv_obj_t"],
+    ["type","JsVar","lv_color_t"],
+    ["type","int","lv_style_selector_t"]
+  ]
+}*/
+
+void jswrap_lv_obj_set_style_img_recolor(JsVar *jsvar, JsVar *jsvar_color, int selector) {
+  js_lv_obj_set_style_bg_color(jsvar, jsvar_color, selector, lv_obj_set_style_img_recolor);
+}
+
+
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "LVGL",
+  "name" : "lv_obj_set_style_img_recolor_opa",
+  "generate" : "jswrap_lv_obj_set_style_img_recolor_opa",
+  "params" : [
+    ["type","JsVar","lv_obj_t"],
+    ["type","int","lv_opa_t"],
+    ["type","int","lv_style_selector_t"]
+  ]
+}*/
+
+void jswrap_lv_obj_set_style_img_recolor_opa(JsVar *jsvar, int value, int selector) {
+  js_lv_obj_set_style_bg_opa(jsvar, value, selector, lv_obj_set_style_img_recolor_opa);
+}
 
