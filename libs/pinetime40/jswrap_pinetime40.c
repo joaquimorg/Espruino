@@ -38,20 +38,6 @@ static lv_color_t buf1[LCD_WIDTH * LCD_HEIGHT / 10];                        /*De
 /*TYPESCRIPT
 declare const BTN1: Pin;
 
-declare const g: Graphics<false>;
-
-type WidgetArea = "tl" | "tr" | "bl" | "br";
-type Widget = {
-  area: WidgetArea;
-  width: number;
-  sortorder?: number;
-  draw: (this: Widget, w: Widget) => void;
-  x?: number;
-  y?: number;
-};
-declare const WIDGETS: { [key: string]: Widget };
-*/
-
 /*JSON{
     "type": "class",
     "class" : "Pinetime",
@@ -138,44 +124,6 @@ longer useful if nothing is displayed. Also see `Pinetime.isLCDOn()`
 /*JSON{
   "type" : "event",
   "class" : "Pinetime",
-  "name" : "gesture",
-  "params" : [["xyz","JsVar","An Int8Array of XYZXYZXYZ data"]],
-  "ifdef" : "PINETIME40",
-  "typescript" : "on(event: \"gesture\", callback: (xyz: Int8Array) => void): void;"
-}
-Emitted when a 'gesture' (fast movement) is detected
-*/
-/*TYPESCRIPT
-type SwipeCallback = (directionLR: -1 | 0 | 1, directionUD?: -1 | 0 | 1) => void;
-*/
-/*JSON{
-  "type" : "event",
-  "class" : "Pinetime",
-  "name" : "swipe",
-  "params" : [["directionLR","int","`-1` for left, `1` for right, `0` for up/down"],
-              ["directionUD","int","`-1` for up, `1` for down, `0` for left/right"]],
-  "ifdef" : "PINETIME40",
-  "typescript" : "on(event: \"swipe\", callback: SwipeCallback): void;"
-}
-Emitted when a swipe on the touchscreen is detected (a movement from
-left->right, right->left, down->up or up->down)
-*/
-/*JSON{
-  "type" : "event",
-  "class" : "Pinetime",
-  "name" : "touch",
-  "params" : [
-    ["button","int","`1` for left, `2` for right"],
-    ["xy","JsVar","Object of form `{x,y,type}` containing touch coordinates (if the device supports full touch). "]
-  ],
-  "ifdef" : "PINETIME40",
-  "typescript" : "on(event: \"touch\", callback: TouchCallback): void;"
-}
-Emitted when the touchscreen is pressed
-*/
-/*JSON{
-  "type" : "event",
-  "class" : "Pinetime",
   "name" : "midnight",
   "ifdef" : "PINETIME40"
 }
@@ -183,7 +131,6 @@ Emitted at midnight (at the point the `day` health info is reset to 0).
 
 Can be used for housekeeping tasks that don't want to be run during the day.
 */
-
 /*JSON{
   "type" : "event",
   "class" : "Pinetime",
@@ -230,36 +177,6 @@ JshI2CInfo i2cTouch;
 #define TOUCH_I2C &i2cTouch
 
 typedef enum {
-  TS_NONE = 0,
-  TS_LEFT = 1,
-  TS_RIGHT = 2,
-  TS_BOTH = 3,
-  TS_SWIPED = 4
-} TouchState;
-
-TouchState touchLastState;
-TouchState touchStatus;
-
-typedef enum {
-  TG_SWIPE_NONE,
-  TG_SWIPE_LEFT,
-  TG_SWIPE_RIGHT,
-  TG_SWIPE_UP,
-  TG_SWIPE_DOWN,
-} TouchGestureType;
-
-
-TouchGestureType touchGesture;
-short lastTouchX, lastTouchY;
-short touchX, touchY;
-bool touchPts, lastTouchPts;
-unsigned char touchType;
-short touchMinX = 0, touchMinY = 0, touchMaxX = 240, touchMaxY = 240;
-
-void touchHandler(bool state, IOEventFlags flags);
-
-
-typedef enum {
   JSPF_NONE,
   JSPF_WAKEON_FACEUP = 1 << 0,
   JSPF_WAKEON_BTN1 = 1 << 1,
@@ -269,11 +186,9 @@ typedef enum {
   JSPF_POWER_SAVE = 1 << 5, ///< if no movement detected for a while, lower the accelerometer poll interval
   JSPF_HRM_ON = 1 << 6,
   JSPF_LCD_ON = 1 << 7,
-  JSPF_LCD_BL_ON = 1 << 8,
-  JSPF_LOCKED = 1 << 9,
-  JSPF_HRM_INSTANT_LISTENER = 1 << 10,
-  JSPF_ENABLE_BEEP = 1 << 11,
-  JSPF_ENABLE_BUZZ = 1 << 12,
+  JSPF_HRM_INSTANT_LISTENER = 1 << 9,
+  JSPF_ENABLE_BEEP = 1 << 10,
+  JSPF_ENABLE_BUZZ = 1 << 11,
 
   JSPF_DEFAULT = ///< default at power-on
   JSPF_WAKEON_BTN1 | JSPF_WAKEON_FACEUP
@@ -284,62 +199,31 @@ volatile JsPinetimeFlags pinetimeFlags = JSPF_NONE;
 typedef enum {
   JSPT_NONE,
   JSPT_RESET = 1 << 0, ///< reset the watch and reload code from flash
-  JSPT_LCD_ON = 1 << 1, ///< LCD controller (can turn this on without the backlight)
+  JSPT_LCD_ON = 1 << 1, ///< LCD controller
   JSPT_LCD_OFF = 1 << 2,
-  JSPT_LCD_BL_ON = 1 << 3, ///< LCD backlight
-  JSPT_LCD_BL_OFF = 1 << 4,
-  JSPT_LOCK = 1 << 5, ///< watch is locked
-  JSPT_UNLOCK = 1 << 6, ///< watch is unlocked
   JSPT_ACCEL_DATA = 1 << 7, ///< need to push xyz data to JS
   JSPT_ACCEL_TAPPED = 1 << 8, ///< tap event detected
-  JSPT_MAG_DATA = 1 << 14, ///< need to push magnetometer data to JS
-  JSPT_GESTURE_DATA = 1 << 15, ///< we have data from a gesture
-  JSPT_HRM_DATA = 1 << 16, ///< Heart rate data is ready for analysis
-  JSPT_CHARGE_EVENT = 1 << 17, ///< we need to fire a charging event
-  JSPT_STEP_EVENT = 1 << 18, ///< we've detected a step via the pedometer
-  JSPT_SWIPE = 1 << 19, ///< swiped over touchscreen, info in touchGesture
-  JSPT_TOUCH_LEFT = 1 << 20, ///< touch lhs of touchscreen
-  JSPT_TOUCH_RIGHT = 1 << 21, ///< touch rhs of touchscreen
-  JSPT_TOUCH_MASK = JSPT_TOUCH_LEFT | JSPT_TOUCH_RIGHT,
-  JSPT_DRAG = 1 << 22,
-  JSPT_TWIST_EVENT = 1 << 24, ///< Watch was twisted
-  JSPT_FACE_UP = 1 << 25, ///< Watch was turned face up/down (faceUp holds the actual state)
-  JSPT_ACCEL_INTERVAL_DEFAULT = 1 << 26, ///< reschedule accelerometer poll handler to default speed
-  JSPT_ACCEL_INTERVAL_POWERSAVE = 1 << 27, ///< reschedule accelerometer poll handler to powersave speed
-  JSPT_HRM_INSTANT_DATA = 1 << 28, ///< Instant heart rate data
-  JSPT_HEALTH = 1 << 29, ///< New 'health' event
-  JSPT_MIDNIGHT = 1 << 30, ///< Fired at midnight each day - for housekeeping tasks
+  JSPT_MAG_DATA = 1 << 9, ///< need to push magnetometer data to JS
+  JSPT_GESTURE_DATA = 1 << 10, ///< we have data from a gesture
+  JSPT_HRM_DATA = 1 << 11, ///< Heart rate data is ready for analysis
+  JSPT_CHARGE_EVENT = 1 << 12, ///< we need to fire a charging event
+  JSPT_STEP_EVENT = 1 << 13, ///< we've detected a step via the pedometer
+  JSPT_FACE_UP = 1 << 14, ///< Watch was turned face up/down (faceUp holds the actual state)
+  JSPT_ACCEL_INTERVAL_DEFAULT = 1 << 15, ///< reschedule accelerometer poll handler to default speed
+  JSPT_ACCEL_INTERVAL_POWERSAVE = 1 << 16, ///< reschedule accelerometer poll handler to powersave speed
+  JSPT_HRM_INSTANT_DATA = 1 << 17, ///< Instant heart rate data
+  JSPT_HEALTH = 1 << 18, ///< New 'health' event
+  JSPT_MIDNIGHT = 1 << 19, ///< Fired at midnight each day - for housekeeping tasks
 } JsPinetimeTasks;
 JsPinetimeTasks pinetimeTasks;
 
 void jswrap_pinetime40_setLCDPowerBacklight(bool isOn);
 
 APP_TIMER_DEF(m_peripheral_poll_timer_id);
-APP_TIMER_DEF(m_lvgl_timer_id);
 volatile uint16_t pollInterval; // in ms
 
 /// LCD Brightness - 255=full
 uint8_t lcdBrightness;
-
-void graphicsInternalFlip() {
-  //lcdFlip_SPILCD(&graphicsInternal);
-}
-
-/// Flip buffer contents with the screen.
-void lcd_flip(JsVar* parent, bool all) {
-  graphicsInternalFlip();
-}
-
-
-NO_INLINE void jswrap_pinetime40_setTheme() {
-  /*graphicsTheme.fg = GRAPHICS_COL_RGB_TO_16(255, 255, 255);
-  graphicsTheme.bg = GRAPHICS_COL_RGB_TO_16(0, 0, 0);
-  graphicsTheme.fg2 = GRAPHICS_COL_RGB_TO_16(255, 255, 255);
-  graphicsTheme.bg2 = GRAPHICS_COL_RGB_TO_16(0, 0, 63);
-  graphicsTheme.fgH = GRAPHICS_COL_RGB_TO_16(255, 255, 255);
-  graphicsTheme.bgH = GRAPHICS_COL_RGB_TO_16(0, 95, 190);
-  graphicsTheme.dark = true;*/
-}
 
 
 /*JSON{
@@ -377,23 +261,16 @@ JsVarInt jswrap_pinetime40_getBattery() {
 
 void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
 // wake up IF LCD power or Lock has a timeout (so will turn off automatically)
-  if (lcdPowerTimeout || backlightTimeout) {
+  if (lcdPowerTimeout) {
     if ((pinetimeFlags&JSPF_WAKEON_BTN1)&&(button==1)) {
-      // if a 'hard' button, turn LCD on
-      //jsiConsolePrintf("BT\n");
+      // if a 'hard' button, turn LCD on      
       inactivityTimer = 0;
       if (state) {
         bool ignoreBtnUp = false;
         if (lcdPowerTimeout && !(pinetimeFlags&JSPF_LCD_ON) && state) {
           pinetimeTasks |= JSPT_LCD_ON;
           ignoreBtnUp = true;
-          //jsiConsolePrintf("LCD on BT\n");
-        }
-        if (backlightTimeout && !(pinetimeFlags&JSPF_LCD_BL_ON) && state) {
-          pinetimeTasks |= JSPT_LCD_BL_ON;
-          ignoreBtnUp = true;
-          //jsiConsolePrintf("BL on BT\n");
-        }
+        }        
         if (ignoreBtnUp) {
           // This allows us to ignore subsequent button
           // rising or 'bounce' events
@@ -429,16 +306,14 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
       lcdWakeButtonTime = 0;
     }
   }
-  // if not locked, add to the event queue for normal processing for watches
-  if (!(pinetimeFlags&JSPF_LOCKED))
+  // if not off, add to the event queue for normal processing for watches
+  if (!(pinetimeFlags&JSPF_LCD_ON))
     jshPushIOEvent(flags | (state?EV_EXTI_IS_HIGH:0), t);
 }
 
 /* Scan peripherals for any data that's needed
  * Also, holding down both buttons will reboot */
 void peripheralPollHandler() {
-
-  //lv_timer_handler();
 
   JsSysTime time = jshGetSystemTime();
   // Handle watchdog
@@ -483,12 +358,6 @@ void peripheralPollHandler() {
     pinetimeTasks |= JSPT_LCD_OFF;
     jshHadEvent();
   }
-  if (backlightTimeout && (pinetimeFlags&JSPF_LCD_BL_ON) && inactivityTimer>=backlightTimeout) {
-    // 10 seconds of inactivity, turn off display
-    pinetimeTasks |= JSPT_LCD_BL_OFF;
-    jshHadEvent();
-    //jsiConsolePrintf("JSPT_LCD_BL_OFF\n");
-  }
 
   // check charge status
   if (chargeTimer < TIMER_MAX)
@@ -528,38 +397,8 @@ static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
 */
 }
 
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
-    "name" : "setBacklight",
-    "generate" : "jswrap_pinetime40_setLCDPowerBacklight",
-    "params" : [
-      ["isOn","bool","True if the LCD backlight should be on, false if not"]
-    ],
-    "ifdef" : "PINETIME40"
-}
-This function can be used to turn Pinetime LCD backlight off or on.
 
-This function resets the Pinetime 'activity timer' (like pressing a button or
-the screen would) so after a time period of inactivity set by
-`Pinetime.setOptions({backlightTimeout: X});` the backlight will turn off.
-
-If you want to keep the backlight on permanently (until apps are changed) you can
-do:
-
-```
-Pinetime.setOptions({backlightTimeout: 0}) // turn off the timeout
-Pinetime.setBacklight(1); // keep screen on
-```
-
-Of course, the backlight depends on `Pinetime.setLCDPower` too, so any lcdPowerTimeout/setLCDTimeout will
-also turn the backlight off. The use case is when you require the backlight timeout
-to be shorter than the power timeout. 
-*/
-/// Turn just the backlight on or off (or adjust brightness)
 void jswrap_pinetime40_setLCDPowerBacklight(bool isOn) {
-  if (isOn) pinetimeFlags |= JSPF_LCD_BL_ON;
-  else pinetimeFlags &= ~JSPF_LCD_BL_ON;
 
   jswrap_pinetime40_pwrBacklight(isOn && (lcdBrightness>0));
   
@@ -610,6 +449,7 @@ void jswrap_pinetime40_setLCDPower(bool isOn) {
     jsvUnLock(pinetime);
   }
   inactivityTimer = 0;
+
   if (isOn) pinetimeFlags |= JSPF_LCD_ON;
   else pinetimeFlags &= ~JSPF_LCD_ON;
 }
@@ -677,9 +517,7 @@ void jswrap_pinetime40_setLCDTimeout(JsVarFloat timeout) {
   if (!isfinite(timeout))
     timeout=0;
   else if (timeout<0) timeout=0;
-
-  backlightTimeout = timeout*1000;
-  //lockTimeout = timeout*1000;
+  backlightTimeout = timeout*1000;  
 }
 
 
@@ -720,12 +558,7 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
   bool powerSave = pinetimeFlags&JSPF_POWER_SAVE;
   int stepCounterThresholdLow, stepCounterThresholdHigh; // ignore these with new step counter
 
-#ifdef TOUCH_DEVICE
-  int touchX1 = touchMinX;
-  int touchY1 = touchMinY;
-  int touchX2 = touchMaxX;
-  int touchY2 = touchMaxY;
-#endif
+
   jsvConfigObject configs[] = {
       {"stepCounterThresholdLow", JSV_INTEGER, &stepCounterThresholdLow},
       {"stepCounterThresholdHigh", JSV_INTEGER, &stepCounterThresholdHigh},
@@ -739,12 +572,6 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
       {"lcdPowerTimeout", JSV_INTEGER, &lcdPowerTimeout},
       {"backlightTimeout", JSV_INTEGER, &backlightTimeout},
       {"btnLoadTimeout", JSV_INTEGER, &btnLoadTimeout},
-#ifdef TOUCH_DEVICE
-      {"touchX1", JSV_INTEGER, &touchX1},
-      {"touchY1", JSV_INTEGER, &touchY1},
-      {"touchX2", JSV_INTEGER, &touchX2},
-      {"touchY2", JSV_INTEGER, &touchY2},
-#endif
   };
   if (createObject) {
     return jsvCreateConfigObject(configs, sizeof(configs) / sizeof(jsvConfigObject));
@@ -758,12 +585,6 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
     if (lcdPowerTimeout<0) lcdPowerTimeout=0;
     if (backlightTimeout<0) backlightTimeout=0;
 
-#ifdef TOUCH_DEVICE
-    touchMinX = touchX1;
-    touchMinY = touchY1;
-    touchMaxX = touchX2;
-    touchMaxY = touchY2;
-#endif
   }
   return 0;
 }
@@ -801,8 +622,12 @@ int jswrap_pinetime40_isLCDOn() {
   return (pinetimeFlags&JSPF_LCD_ON)!=0;
 }
 
-/* LVGL */
+/* ----------------------------- LVGL --------------------------------- */
+
 void disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color_p) {
+
+  //if ((pinetimeFlags & JSPF_LCD_ON) == 0) return;
+
   uint32_t width = (area->x2 - area->x1) + 1;
   uint32_t height = (area->y2 - area->y1) + 1;  
 
@@ -813,7 +638,7 @@ void disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color
 
 void touchpad_read(lv_indev_t * indev, lv_indev_data_t * data) {
 
-  if (pinetimeFlags & JSPF_LOCKED) return;
+  if ((pinetimeFlags & JSPF_LCD_ON) == 0) return;
 
   unsigned char buf[6];
   buf[0] = 1;
@@ -954,12 +779,20 @@ void jswrap_pinetime40_lvglinit() {
 
 }
 
-void call_lv_timer_handler () {
-  //if (pinetimeFlags & JSPF_LOCKED) return;
-  lv_timer_handler();
+/* ----------------------------- LVGL --------------------------------- */
+
+void touchHandler(bool state, IOEventFlags flags) {
+  
+  if (state) return; // only interested in when low
+  if ((pinetimeFlags & JSPF_LCD_ON) == 0) return;
+
+  // Reset inactivity timer so we will lock ourselves after a delay
+  inactivityTimer = 0;
+
 }
 
-/* LVGL */
+/*******************************************************************/
+
 
 /*JSON{
   "type" : "hwinit",
@@ -1006,21 +839,8 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
 
   jswrap_pinetime40_lvglinit();
 
-  /*graphicsStructInit(&graphicsInternal, LCD_WIDTH, LCD_HEIGHT, LCD_BPP);
-  graphicsInternal.data.type = JSGRAPHICSTYPE_SPILCD;
-  graphicsInternal.data.flags = 0;
-  graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
-  lcdInit_SPILCD(&graphicsInternal);
-  lcdSetCallbacks_SPILCD(&graphicsInternal);
-
-  // set default graphics themes - before we even start to load settings.json
-  jswrap_pinetime40_setTheme();
-  graphicsFillRect(&graphicsInternal, 0, 0, LCD_WIDTH - 1, LCD_HEIGHT - 1, graphicsTheme.bg2);
-  */
   jsiConsolePrintf("HWINIT DONE\n");
 }
-
-//JsVar* jswrap_pinetime_getLogo();
 
 /*JSON{
   "type" : "init",
@@ -1040,82 +860,14 @@ NO_INLINE void jswrap_pinetime40_init() {
   channel = jshPinWatch(TOUCH_PIN_IRQ, true, JSPW_NONE);
   if (channel != EV_NONE) jshSetEventCallback(channel, touchHandler);
 
-  JsVar *settingsFN = jsvNewFromString("setting.json");
+  /*JsVar *settingsFN = jsvNewFromString("setting.json");
   JsVar *settings = jswrap_storage_readJSON(settingsFN,true);
   jsvUnLock(settingsFN);
-  /*JsVar *v;
 
-  // Load themes from the settings.json file
-  jswrap_pinetime40_setTheme();
-  v = jsvIsObject(settings) ? jsvObjectGetChildIfExists(settings,"theme") : 0;
-  if (jsvIsObject(v)) {
-    graphicsTheme.fg = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fg"));
-    graphicsTheme.bg = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bg"));
-    graphicsTheme.fg2 = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fg2"));
-    graphicsTheme.bg2 = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bg2"));
-    graphicsTheme.fgH = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fgH"));
-    graphicsTheme.bgH = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bgH"));
-    graphicsTheme.dark = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(v,"dark"));
-  }
-  jsvUnLock(v);*/
+  jsvUnLock(settings);*/
 
-  jsvUnLock(settings);
-
-  
-  // Reset global graphics instance
-  //graphicsStructResetState(&graphicsInternal);
-
-  
-  // Create backing graphics object for LCD
-  //JsVar* graphics = jspNewObject(0, "LVGL");
-  // if there's nothing in the Graphics object, we assume it's for the built-in graphics
-  //if (!graphics) return; // low memory
-  // add it as a global var
-  //jsvObjectSetChild(execInfo.root, "lv", graphics);
-  //jsvObjectSetChild(execInfo.hiddenRoot, JS_GRAPHICS_VAR, graphics);
-  //graphicsInternal.graphicsVar = graphics;
-  
-
-  //jsvObjectSetChildAndUnLock(graphics, "scr_act", jsvNewNativeFunction(lv_scr_act, JSWAT_JSVAR | JSWAT_VOID));
-  //jsvObjectSetChildAndUnLock(graphics, "obj_clean", jsvNewNativeFunction(lv_obj_clean, JSWAT_VOID | JSWAT_JSVAR));
-
-  /*
-  // Create 'flip' fn
-  JsVar* fn = jsvNewNativeFunction((void (*)(void))lcd_flip, JSWAT_VOID | JSWAT_THIS_ARG | (JSWAT_BOOL << (JSWAT_BITS * 1)));
-  jsvObjectSetChildAndUnLock(graphics, "flip", fn);
-  */
-  
   if (!firstRun) {
-    /*// Display a loading screen
-    // Check for a '.loading' file
-    JsVar *img = jsfReadFile(jsfNameFromString(".loading"),0,0);
-    if (jsvIsString(img)) {
-      if (jsvGetStringLength(img)>3) {
-        // if it exists and is big enough to store an image, render the image in the middle of the screen
-        int w,h;
-        w = (int)(unsigned char)jsvGetCharInString(img, 0);
-        h = (int)(unsigned char)jsvGetCharInString(img, 1);
-        jsvUnLock2(jswrap_graphics_drawImage(graphics,img,(LCD_WIDTH-w)/2,(LCD_HEIGHT-h)/2,NULL),img);
-        graphicsInternalFlip();
-      }
-      // else if <3 bytes we don't render anything
-    } else {
-      // otherwise render the standard 'Loading...' box
-      int x = LCD_WIDTH/2;
-      int y = LCD_HEIGHT/2;
-      graphicsFillRect(&graphicsInternal, x-49, y-19, x+49, y+19, graphicsTheme.bg);
-      graphicsInternal.data.fgColor = graphicsTheme.fg;
-      graphicsDrawRect(&graphicsInternal, x-50, y-20, x+50, y+20);
-      y -= 4;
-      x -= 4*6;
-      const char *s = "Loading...";
-      while (*s) {
-        graphicsDrawChar6x8(&graphicsInternal, x, y, *s, 1, 1, false);
-        x+=6;
-        s++;
-      }
-      graphicsInternalFlip();
-    }*/
+    
     lv_obj_clean(lv_scr_act());
     lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_t *label = lv_label_create( lv_scr_act() );
@@ -1126,35 +878,9 @@ NO_INLINE void jswrap_pinetime40_init() {
     lv_obj_set_size(spinner, 200, 200);
     lv_obj_center(spinner);*/
     lv_timer_handler();
+
   } else {
-    /*graphicsInternal.data.fontSize = JSGRAPHICS_FONTSIZE_6X8 + 1; // 4x6 size is default
-    graphicsClear(&graphicsInternal);
-
-    int w, h, y;
-    h = 0;
-    JsVar* img = jsfReadFile(jsfNameFromString(".splash"), 0, 0);
-    if (jsvIsString(img) || jsvGetStringLength(img)) {
-      w = (int)(unsigned char)jsvGetCharInString(img, 0);
-      h = (int)(unsigned char)jsvGetCharInString(img, 1);
-      y = (LCD_HEIGHT - h) / 2;
-      jsvUnLock2(jswrap_graphics_drawImage(graphics, img, (LCD_WIDTH - w) / 2, y, NULL), img);
-    }
-    else {
-      y = LCD_HEIGHT / 2;
-    }
-    if (h > 0) y += h + 10;
-    char addrStr[20];
-    JsVar* addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
-    jsvGetString(addr, addrStr, sizeof(addrStr));
-    jsvUnLock(addr);
-    jswrap_graphics_drawCString(&graphicsInternal, 60, y, JS_VERSION);
-    jswrap_graphics_drawCString(&graphicsInternal, 60, y + 10, "Espruino - nRF52840");
-    jswrap_graphics_drawCString(&graphicsInternal, 60, y + 20, addrStr);
-    jswrap_graphics_drawCString(&graphicsInternal, 60, y + 30, "PineTime 40 - joaquim.org");
-
-    graphicsInternalFlip();
-    graphicsStructResetState(&graphicsInternal);*/
-
+  
     char addrStr[20];
     JsVar* addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
     jsvGetString(addr, addrStr, sizeof(addrStr));
@@ -1179,7 +905,7 @@ NO_INLINE void jswrap_pinetime40_init() {
 
   if (firstRun) {
 
-    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON | JSPF_LCD_BL_ON; // includes pinetimeFlags
+    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON ; // includes pinetimeFlags
     lcdBrightness = 128;
 
     jshEnableWatchDog(10); // 5 second watchdog
@@ -1192,12 +918,6 @@ NO_INLINE void jswrap_pinetime40_init() {
     jsble_check_error(err_code);
     app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);    
 
-    /*err_code = app_timer_create(&m_lvgl_timer_id,
-      APP_TIMER_MODE_REPEATED,
-      call_lv_timer_handler);
-    jsble_check_error(err_code);
-    app_timer_start(m_lvgl_timer_id, APP_TIMER_TICKS(100), NULL);*/
-
     //jsiConsolePrintf("FIRST INIT DONE\n");
 
     // hack for lvgl update...
@@ -1209,26 +929,14 @@ NO_INLINE void jswrap_pinetime40_init() {
     jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,1000)", true));    
 
   }
-  /*else
-  {
-    jsiConsolePrintf("HOT INIT DONE\n");
-  }*/
-  
-  //jsvUnLock(jspEvaluate("setInterval(lv.timerHandler,100)", true));
 
-  //pinetimeFlags |= JSPF_POWER_SAVE; // ensure we turn power-save on by default every restart
-  //pinetimeFlags |= JSPF_LCD_BL_ON; // ensure we turn power-save on by default every restart
+  pinetimeFlags |= JSPF_LCD_ON;
   inactivityTimer = 0; // reset the LCD timeout timer
   btnLoadTimeout = DEFAULT_BTN_LOAD_TIMEOUT;
   lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;
-  backlightTimeout = DEFAULT_BACKLIGHT_TIMEOUT;
-  //lockTimeout = DEFAULT_LOCK_TIMEOUT;
+  backlightTimeout = DEFAULT_BACKLIGHT_TIMEOUT;  
   lcdWakeButton = 0;
 
-  // touch
-  touchStatus = TS_NONE;
-  touchLastState = 0;
-  //touchLastState2 = 0;
 
   // If the home button is still pressed when we're restarting, set up
   // lcdWakeButton so the event for button release is 'eaten'
@@ -1236,6 +944,7 @@ NO_INLINE void jswrap_pinetime40_init() {
     lcdWakeButton = HOME_BTN;
   
   //jsiConsolePrintf("pinetimeFlags %d\n",pinetimeFlags);
+
 }
 
 /*JSON{
@@ -1251,12 +960,7 @@ bool jswrap_pinetime40_idle() {
   if (pinetimeTasks != JSPT_NONE) {
     if (pinetimeTasks & JSPT_LCD_OFF) jswrap_pinetime40_setLCDPower(0);
     if (pinetimeTasks & JSPT_LCD_ON) jswrap_pinetime40_setLCDPower(1);
-    if (pinetimeTasks & JSPT_LCD_BL_OFF) jswrap_pinetime40_setLCDPowerBacklight(0);
-    if (pinetimeTasks & JSPT_LCD_BL_ON) jswrap_pinetime40_setLCDPowerBacklight(1);
-    if (pinetimeTasks & JSPT_LOCK) jswrap_pinetime40_setLocked(1);
-    if (pinetimeTasks & JSPT_UNLOCK) jswrap_pinetime40_setLocked(0);
     if (pinetimeTasks & JSPT_RESET) jsiStatus |= JSIS_TODO_FLASH_LOAD;
-
 
     if (pinetimeTasks & JSPT_MIDNIGHT) {
       jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"midnight", NULL, 0);
@@ -1268,60 +972,11 @@ bool jswrap_pinetime40_idle() {
       jsvUnLock(charging);
     }
 
-    /*if (pinetimeTasks & JSPT_SWIPE) {
-      JsVar *o[2] = {
-          jsvNewFromInteger((touchGesture==TG_SWIPE_LEFT)?-1:((touchGesture==TG_SWIPE_RIGHT)?1:0)),
-          jsvNewFromInteger((touchGesture==TG_SWIPE_UP)?-1:((touchGesture==TG_SWIPE_DOWN)?1:0)),
-      };
-      touchGesture = TG_SWIPE_NONE;
-      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"swipe", o, 2);
-      jsvUnLockMany(2,o);
-    }
-    if (pinetimeTasks & JSPT_TOUCH_MASK) {
-      JsVar *o[2] = {
-          jsvNewFromInteger(((pinetimeTasks & JSPT_TOUCH_LEFT)?1:0) |
-                            ((pinetimeTasks & JSPT_TOUCH_RIGHT)?2:0)),
-          jsvNewObject()
-      };
-      int x = touchX;
-      int y = touchY;
-      if (x<0) x=0;
-      if (y<0) y=0;
-      if (x>=LCD_WIDTH) x=LCD_WIDTH-1;
-      if (y>=LCD_HEIGHT) y=LCD_HEIGHT-1;
-      jsvObjectSetChildAndUnLock(o[1], "x", jsvNewFromInteger(x));
-      jsvObjectSetChildAndUnLock(o[1], "y", jsvNewFromInteger(y));
-      jsvObjectSetChildAndUnLock(o[1], "type", jsvNewFromInteger(touchType));
-      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"touch", o, 2);
-      jsvUnLockMany(2,o);
-    }*/
   }
-  /*if (pinetimeTasks & JSPT_DRAG) {
-    JsVar *o = jsvNewObject();
-    jsvObjectSetChildAndUnLock(o, "x", jsvNewFromInteger(touchX));
-    jsvObjectSetChildAndUnLock(o, "y", jsvNewFromInteger(touchY));
-    jsvObjectSetChildAndUnLock(o, "b", jsvNewFromInteger(touchPts));
-    jsvObjectSetChildAndUnLock(o, "dx", jsvNewFromInteger(lastTouchPts ? touchX-lastTouchX : 0));
-    jsvObjectSetChildAndUnLock(o, "dy", jsvNewFromInteger(lastTouchPts ? touchY-lastTouchY : 0));
-    jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"drag", &o, 1);
-    jsvUnLock(o);
-    lastTouchX = touchX;
-    lastTouchY = touchY;
-    lastTouchPts = touchPts;
-  }*/
   
-
   jsvUnLock(pinetime);
   pinetimeTasks = JSPT_NONE;
 
-  //lv_timer_handler();
-
-  /*
-  // Automatically flip!
-  if (graphicsInternal.data.modMaxX >= graphicsInternal.data.modMinX) {
-    graphicsInternalFlip();
-  }
-  */
   // resolve any beep/buzz promises
   if (promiseBuzz && !buzzAmt) {
     jspromise_resolve(promiseBuzz, 0);
@@ -1351,153 +1006,7 @@ void jswrap_pinetime40_kill() {
 }
 
 
-
 /*******************************************************************/
-
-// Convert Touchscreen gesture based on graphics orientation
-TouchGestureType touchSwipeRotate(TouchGestureType g) {
-  // gesture is the value that comes straight from the touchscreen
-  /*if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_INVERT_X) {
-    if (g == TG_SWIPE_LEFT) g = TG_SWIPE_RIGHT;
-    else if (g == TG_SWIPE_RIGHT) g = TG_SWIPE_LEFT;
-  }
-  if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_INVERT_Y) {
-    if (g == TG_SWIPE_UP) g = TG_SWIPE_DOWN;
-    else if (g == TG_SWIPE_DOWN) g = TG_SWIPE_UP;
-  }
-  if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_SWAP_XY) {
-    if (g == TG_SWIPE_LEFT) g = TG_SWIPE_UP;
-    else if (g == TG_SWIPE_RIGHT) g = TG_SWIPE_DOWN;
-    else if (g == TG_SWIPE_UP) g = TG_SWIPE_LEFT;
-    else if (g == TG_SWIPE_DOWN) g = TG_SWIPE_RIGHT;
-  }*/
-  return g;
-}
-
-void touchHandlerInternal(int tx, int ty, int pts, int gesture) {
-  // ignore if locked
-  if (pinetimeFlags & JSPF_LOCKED) return;  
-  // deal with the case where we rotated the Bangle.js screen
-  //deviceToGraphicsCoordinates(&graphicsInternal, &tx, &ty);
-
-  int dx = tx-touchX;
-  int dy = ty-touchY;
-
-  touchX = tx;
-  touchY = ty;
-  touchPts = pts;
-  JsPinetimeTasks lastPinetimeTasks = pinetimeTasks;  
-
-  //static int lastGesture = 0;
-  //if (gesture!=lastGesture) {
-
-    //jsiConsolePrintf("TS = x:%d y:%d pts:%d gest:%d\n", tx,ty,pts,gesture);
-
-    switch (gesture) { // gesture
-      case 0:break; // no gesture
-      case 1: // slide down
-        touchGesture = touchSwipeRotate(TG_SWIPE_DOWN);
-        pinetimeTasks |= JSPT_SWIPE;
-        break;
-      case 2: // slide up
-        touchGesture = touchSwipeRotate(TG_SWIPE_UP);
-        pinetimeTasks |= JSPT_SWIPE;
-        break;
-      case 3: // slide left
-        touchGesture = touchSwipeRotate(TG_SWIPE_LEFT);
-        pinetimeTasks |= JSPT_SWIPE;
-        break;
-      case 4: // slide right
-        touchGesture = touchSwipeRotate(TG_SWIPE_RIGHT);
-        pinetimeTasks |= JSPT_SWIPE;
-        break;
-      case 5: // single click
-        if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
-        else pinetimeTasks |= JSPT_TOUCH_RIGHT;
-        touchType = 0;
-        break;
-      case 0x0B:     // double touch
-        if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
-        else pinetimeTasks |= JSPT_TOUCH_RIGHT;
-        touchType = 1;
-        break;
-      case 0x0C:     // long touch
-        if (touchX<80) pinetimeTasks |= JSPT_TOUCH_LEFT;
-        else pinetimeTasks |= JSPT_TOUCH_RIGHT;
-        touchType = 2;
-        break;
-      }
-  //}
-
-  if (touchPts!=lastTouchPts || lastTouchX!=touchX || lastTouchY!=touchY) {
-    pinetimeTasks |= JSPT_DRAG;
-    // ensure we don't sleep if touchscreen is being used
-    inactivityTimer = 0;
-  }
-  // Ensure we process events if we modified pinetimeTasks
-  if (lastPinetimeTasks != pinetimeTasks)
-    jshHadEvent();
-
-  if (touchPts != lastTouchPts || lastTouchX != touchX || lastTouchY != touchY) {
-    // ensure we don't sleep if touchscreen is being used
-    inactivityTimer = 0;
-  }
-
-  //lastGesture = gesture;
-}
-
-void touchHandler(bool state, IOEventFlags flags) {
-  
-  if (state) return; // only interested in when low
-  if (pinetimeFlags & JSPF_LOCKED) return;
-
-  // Reset inactivity timer so we will lock ourselves after a delay
-  inactivityTimer = 0;
-
-  // Ok, now get touch info
-  /*unsigned char buf[6];
-  buf[0] = 1;
-  jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 1, buf, false);
-  jsi2cRead(TOUCH_I2C, TOUCH_ADDR, 6, buf, true);
-  */
-  // 0: Gesture type
-  // 1: touch pts (0 or 1)
-  // 2: Status / X hi (0x00 first, 0x80 pressed, 0x40 released)
-  // 3: X lo (0..160)
-  // 4: Y hi
-  // 5: Y lo (0..160)
-
-  //jsiConsolePrintf("TS = %d:%d:%d:%d:%d:%d\n", buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
-  /*
-  int tx = buf[3];// | ((buf[2] & 0x0F)<<8) // top bits are never used on our touchscreen
-  int ty = buf[5];// | ((buf[4] & 0x0F)<<8)
-  if (tx >= 250) tx = 0; // on some devices, 251-255 gets reported for touches right at the top of the screen
-  if (ty >= 250) ty = 0;
-  touchHandlerInternal(
-    (tx - touchMinX) * LCD_WIDTH / (touchMaxX - touchMinX), // touchX
-    (ty - touchMinY) * LCD_HEIGHT / (touchMaxY - touchMinY), // touchY
-    buf[2], // touchPts
-    buf[0]); // gesture
-  */
-}
-
-
-/*******************************************************************/
-
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
-    "name" : "isLocked",
-    "generate" : "jswrap_pinetime40_isLocked",
-    "return" : ["bool","Is the screen locked or not?"],
-    "ifdef" : "PINETIME40"
-}
-*/
-// emscripten bug means we can't use 'bool' as return value here!
-int jswrap_pinetime40_isLocked() {
-  return (pinetimeFlags&JSPF_LOCKED)!=0;
-}
 
 
 static NO_INLINE void _jswrap_pinetime40_setVibration() {
@@ -1617,69 +1126,6 @@ JsVar *jswrap_pinetime40_buzz(int time, JsVarFloat amt) {
 /*JSON{
     "type" : "staticmethod",
     "class" : "Pinetime",
-    "name" : "setLocked",
-    "generate" : "jswrap_pinetime40_setLocked",
-    "params" : [
-      ["isLocked","bool","`true` if the Bangle is locked (no user input allowed)"]
-    ],
-    "ifdef" : "PINETIME40"
-}
-This function can be used to lock or unlock Bangle.js (e.g. whether buttons and
-touchscreen work or not)
-*/
-void jswrap_pinetime40_setLocked(bool isLocked) {
-  if (isLocked) {
-    unsigned char buf[2];
-    buf[0]=0xE5;
-    buf[1]=0x03;
-    jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
-  } else { // best way to wake up is to reset
-    jshPinOutput(TOUCH_PIN_RST, 1);
-    jshDelayMicroseconds(1000);
-    jshPinOutput(TOUCH_PIN_RST, 0);
-    jshDelayMicroseconds(1000);
-    jshPinOutput(TOUCH_PIN_RST, 1);
-    jshDelayMicroseconds(1000);
-  }
-
-  if ((pinetimeFlags&JSPF_LOCKED) != isLocked) {
-    JsVar *pinetime =jsvObjectGetChildIfExists(execInfo.root, "Pinetime");
-    if (pinetime) {
-      JsVar *v = jsvNewFromBool(isLocked);
-      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"lock", &v, 1);
-      jsvUnLock(v);
-    }
-    jsvUnLock(pinetime);
-  }
-  if (isLocked) pinetimeFlags |= JSPF_LOCKED;
-  else pinetimeFlags &= ~JSPF_LOCKED;
-  // Reset inactivity timer so we will lock ourselves after a delay
-  inactivityTimer = 0;
-}
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
-    "name" : "setLCDOffset",
-    "generate" : "jswrap_pinetime40_setLCDOffset",
-    "params" : [
-      ["y","int","The amount of pixels to shift the LCD up or down"]
-    ],
-    "ifdef" : "PINETIME40"
-}
-This can be used to move the displayed memory area up or down temporarily. It's
-used for displaying notifications while keeping the main display contents
-intact.
-*/
-void jswrap_pinetime40_setLCDOffset(int y) {
-//#ifdef LCD_CONTROLLER_ST7789_8BIT
-  //lcdST7789_setYOffset(y);
-//#endif
-}
-
-/*JSON{
-    "type" : "staticmethod",
-    "class" : "Pinetime",
     "name" : "setHRMPower",
     "generate" : "jswrap_pinetime40_setHRMPower",
     "params" : [
@@ -1695,8 +1141,8 @@ Set the power to the Heart rate monitor
 When on, data is output via the `HRM` event on `Pinetime`:
 
 ```
-Bangle.setHRMPower(true, "myapp");
-Bangle.on('HRM',print);
+Pinetime.setHRMPower(true, "myapp");
+Pinetime.on('HRM',print);
 ```
 
 *When on, the Heart rate monitor draws roughly 5mA*
