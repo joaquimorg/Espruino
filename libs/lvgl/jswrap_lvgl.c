@@ -243,48 +243,72 @@ This class provides GUI operations using LVGL.
 /*JSON{
   "type" : "staticmethod",
   "class" : "LVGL",
-  "name" : "lv_font_montserrat_18",
-  "generate" : "jswrap_lv_font_montserrat_18",
+  "name" : "lv_font_BigNumbers",
+  "generate" : "jswrap_lv_font_BigNumbers",
   "return" : ["JsVar","lv_font_t"]
 }*/
-JsVar *jswrap_lv_font_montserrat_18() {
-  struct lv_font_t * _font = (struct lv_font_t *)&lv_font_montserrat_18;
+JsVar *jswrap_lv_font_BigNumbers() {
+  struct lv_font_t * _font = (struct lv_font_t *)&ui_font_BigNumbers;
   return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
 }
 
 /*JSON{
   "type" : "staticmethod",
   "class" : "LVGL",
-  "name" : "lv_font_montserrat_22",
-  "generate" : "jswrap_lv_font_montserrat_22",
+  "name" : "lv_font_Icons32",
+  "generate" : "jswrap_lv_font_Icons32",
   "return" : ["JsVar","lv_font_t"]
 }*/
-JsVar *jswrap_lv_font_montserrat_22() {
-  struct lv_font_t * _font = (struct lv_font_t *)&lv_font_montserrat_22;
+JsVar *jswrap_lv_font_Icons32() {
+  struct lv_font_t * _font = (struct lv_font_t *)&ui_font_Icons32;
   return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
 }
 
 /*JSON{
   "type" : "staticmethod",
   "class" : "LVGL",
-  "name" : "lv_font_montserrat_34",
-  "generate" : "jswrap_lv_font_montserrat_34",
+  "name" : "lv_font_Numbers42",
+  "generate" : "jswrap_lv_font_Numbers42",
   "return" : ["JsVar","lv_font_t"]
 }*/
-JsVar *jswrap_lv_font_montserrat_34() {
-  struct lv_font_t * _font = (struct lv_font_t *)&lv_font_montserrat_34;
+JsVar *jswrap_lv_font_Numbers42() {
+  struct lv_font_t * _font = (struct lv_font_t *)&ui_font_Numbers42;
   return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
 }
 
 /*JSON{
   "type" : "staticmethod",
   "class" : "LVGL",
-  "name" : "lv_font_montserrat_48",
-  "generate" : "jswrap_lv_font_montserrat_48",
+  "name" : "lv_font_Numbers64",
+  "generate" : "jswrap_lv_font_Numbers64",
   "return" : ["JsVar","lv_font_t"]
 }*/
-JsVar *jswrap_lv_font_montserrat_48() {
-  struct lv_font_t * _font = (struct lv_font_t *)&lv_font_montserrat_48;
+JsVar *jswrap_lv_font_Numbers64() {
+  struct lv_font_t * _font = (struct lv_font_t *)&ui_font_Numbers64;
+  return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
+}
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "LVGL",
+  "name" : "lv_font_OpenSans22",
+  "generate" : "jswrap_lv_font_OpenSans22",
+  "return" : ["JsVar","lv_font_t"]
+}*/
+JsVar *jswrap_lv_font_OpenSans22() {
+  struct lv_font_t * _font = (struct lv_font_t *)&ui_font_OpenSans22;
+  return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
+}
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "LVGL",
+  "name" : "lv_font_OpenSans22Bold",
+  "generate" : "jswrap_lv_font_OpenSans22Bold",
+  "return" : ["JsVar","lv_font_t"]
+}*/
+JsVar *jswrap_lv_font_OpenSans22Bold() {
+  struct lv_font_t * _font = (struct lv_font_t *)&ui_font_OpenSans22Bold;
   return jsvNewNativeFunction((void*)_font, JSWAT_VOID);
 }
 

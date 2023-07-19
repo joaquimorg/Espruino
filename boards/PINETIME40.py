@@ -51,7 +51,14 @@ info = {
      'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves 1k of flash 
      'DEFINES+=-DESPR_NO_LINE_NUMBERS=1', # we execute mainly from flash, so line numbers can be worked out
      'INCLUDE += -I$(ROOT)/libs/pinetime40 -I$(ROOT)/libs/misc',  
-     'WRAPPERSOURCES += libs/pinetime40/jswrap_pinetime40.c',  
+     'WRAPPERSOURCES += libs/pinetime40/jswrap_pinetime40.c',
+
+     'SOURCES += libs/lvgl/fonts/ui_font_BigNumbers.c',
+     'SOURCES += libs/lvgl/fonts/ui_font_Icons32.c',
+     'SOURCES += libs/lvgl/fonts/ui_font_Numbers42.c',
+     'SOURCES += libs/lvgl/fonts/ui_font_Numbers64.c',
+     'SOURCES += libs/lvgl/fonts/ui_font_OpenSans22.c',
+     'SOURCES += libs/lvgl/fonts/ui_font_OpenSans22Bold.c',
 
      'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',

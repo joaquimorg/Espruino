@@ -12,10 +12,12 @@ typedef struct JsLvgl {
 void jswrap_lvgl_init();
 bool jswrap_lvgl_idle();
 
-JsVar *jswrap_lv_font_montserrat_18();
-JsVar *jswrap_lv_font_montserrat_22();
-JsVar *jswrap_lv_font_montserrat_34();
-JsVar *jswrap_lv_font_montserrat_48();
+JsVar *jswrap_lv_font_BigNumbers();
+JsVar *jswrap_lv_font_Icons32();
+JsVar *jswrap_lv_font_Numbers42();
+JsVar *jswrap_lv_font_Numbers64();
+JsVar *jswrap_lv_font_OpenSans22();
+JsVar *jswrap_lv_font_OpenSans22Bold();
 
 void jswrap_lvgl_timerHandler();
 JsVar *jswrap_lv_scr_act();
