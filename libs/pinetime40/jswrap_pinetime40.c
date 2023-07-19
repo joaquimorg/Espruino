@@ -121,25 +121,6 @@ Is the battery charging or not?
 Has the screen been turned on or off? Can be used to stop tasks that are no
 longer useful if nothing is displayed. Also see `Pinetime.isLCDOn()`
 */
-/*JSON{
-  "type" : "event",
-  "class" : "Pinetime",
-  "name" : "midnight",
-  "ifdef" : "PINETIME40"
-}
-Emitted at midnight (at the point the `day` health info is reset to 0).
-
-Can be used for housekeeping tasks that don't want to be run during the day.
-*/
-/*JSON{
-  "type" : "event",
-  "class" : "Pinetime",
-  "name" : "lock",
-  "params" : [["on","bool","`true` if screen is locked, `false` if it is unlocked and touchscreen/buttons will work"]],
-  "ifdef" : "PINETIME40"
-}
-Has the screen been locked? Also see `Pinetime.isLocked()`
-*/
 
 #define HOME_BTN 1
 #define HOME_BTN_PININDEX    BTN1_PININDEX
@@ -148,7 +129,6 @@ volatile uint16_t inactivityTimer; // in ms
 volatile uint16_t homeBtnTimer; // in ms
 int btnLoadTimeout; // in ms
 int lcdPowerTimeout; // in ms
-int backlightTimeout; // in ms
 JsSysTime lcdWakeButtonTime;
 char lcdWakeButton;
 volatile uint16_t homeBtnInterruptTimer; // in ms
@@ -517,7 +497,7 @@ void jswrap_pinetime40_setLCDTimeout(JsVarFloat timeout) {
   if (!isfinite(timeout))
     timeout=0;
   else if (timeout<0) timeout=0;
-  backlightTimeout = timeout*1000;  
+  lcdPowerTimeout = timeout*1000;  
 }
 
 
@@ -532,7 +512,6 @@ type PinetimeOptions<Boolean = boolean> = {
   twistTimeout: number;
   powerSave: boolean;
   lcdPowerTimeout: number;
-  backlightTimeout: number;
   btnLoadTimeout: number;
 };
 */
@@ -570,7 +549,6 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
       {"twistMaxY", JSV_INTEGER, &twistMaxY},
       {"powerSave", JSV_BOOLEAN, &powerSave},      
       {"lcdPowerTimeout", JSV_INTEGER, &lcdPowerTimeout},
-      {"backlightTimeout", JSV_INTEGER, &backlightTimeout},
       {"btnLoadTimeout", JSV_INTEGER, &btnLoadTimeout},
   };
   if (createObject) {
@@ -581,9 +559,8 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
     pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_FACEUP) | (wakeOnFaceUp?JSPF_WAKEON_FACEUP:0);
     pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_TOUCH) | (wakeOnTouch?JSPF_WAKEON_TOUCH:0);
     //pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_TWIST) | (wakeOnTwist?JSPF_WAKEON_TWIST:0);
-    pinetimeFlags = (pinetimeFlags&~JSPF_POWER_SAVE) | (powerSave?JSPF_POWER_SAVE:0);
+    pinetimeFlags = (pinetimeFlags&~JSPF_POWER_SAVE) | (powerSave?JSPF_POWER_SAVE:0);    
     if (lcdPowerTimeout<0) lcdPowerTimeout=0;
-    if (backlightTimeout<0) backlightTimeout=0;
 
   }
   return 0;
@@ -933,8 +910,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   pinetimeFlags |= JSPF_LCD_ON;
   inactivityTimer = 0; // reset the LCD timeout timer
   btnLoadTimeout = DEFAULT_BTN_LOAD_TIMEOUT;
-  lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;
-  backlightTimeout = DEFAULT_BACKLIGHT_TIMEOUT;  
+  lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;  
   lcdWakeButton = 0;
 
 
