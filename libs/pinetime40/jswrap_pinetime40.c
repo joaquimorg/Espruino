@@ -565,9 +565,11 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
   }
   return 0;
 }
+
 void jswrap_pinetime40_setOptions(JsVar *options) {
   _jswrap_pinetime40_setOptions(options, false);
 }
+
 /*JSON{
     "type" : "staticmethod",
     "class" : "Pinetime",
@@ -854,7 +856,7 @@ NO_INLINE void jswrap_pinetime40_init() {
     /*lv_obj_t * spinner = lv_spinner_create(lv_scr_act(), 1000, 60);
     lv_obj_set_size(spinner, 200, 200);
     lv_obj_center(spinner);*/
-    lv_timer_handler();
+    //lv_timer_handler();
 
   } else {
   
@@ -873,7 +875,7 @@ NO_INLINE void jswrap_pinetime40_init() {
     //lv_obj_t *img1= lv_img_create(lv_scr_act());
     //lv_img_set_src(img1, "F:mario.bin");
 
-    lv_timer_handler();
+    //lv_timer_handler();
   }  
   
 
@@ -900,10 +902,7 @@ NO_INLINE void jswrap_pinetime40_init() {
     // hack for lvgl update...
     //jsvUnLock(jspEvaluate("setInterval(lvgl.timerHandler,50)", true));
 
-    //JsSysTime period = jshGetTimeFromMilliseconds(500);
-    //jstExecuteFn(call_lv_timer_handler, 0, period, period, NULL);
-
-    jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,1000)", true));    
+    jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,5000)", true));
 
   }
 
@@ -920,6 +919,11 @@ NO_INLINE void jswrap_pinetime40_init() {
     lcdWakeButton = HOME_BTN;
   
   //jsiConsolePrintf("pinetimeFlags %d\n",pinetimeFlags);
+
+  //JsSysTime period = jshGetTimeFromMilliseconds(50);
+  //jstExecuteFn(jswrap_lvgl_timerHandler, 0, period, (uint32_t)period, NULL);
+
+  jspEvaluate("setInterval(LVGL.timer_handler,25)", true);
 
 }
 
