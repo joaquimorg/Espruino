@@ -146,7 +146,7 @@
  *With complex image decoders (e.g. PNG or JPG) caching can save the continuous open/decode of images.
  *However the opened images might consume additional RAM.
  *0: to disable caching*/
-#define LV_IMG_CACHE_DEF_SIZE 0
+#define LV_IMG_CACHE_DEF_SIZE 1
 
 /*Number of stops allowed per gradient. Increase this to allow more stops.
  *This adds (sizeof(lv_color_t) + 1) bytes per additional stop*/
@@ -501,7 +501,7 @@ LV_FONT_DECLARE(ui_font_OpenSans22Bold)
     #define LV_LABEL_LONG_TXT_HINT 1  /*Store some extra info in labels to speed up drawing of very long texts*/
 #endif
 
-#define LV_USE_LINE       0
+#define LV_USE_LINE       1
 
 #define LV_USE_ROLLER     1   /*Requires: lv_label*/
 #if LV_USE_ROLLER
@@ -510,7 +510,7 @@ LV_FONT_DECLARE(ui_font_OpenSans22Bold)
 
 #define LV_USE_SLIDER     1   /*Requires: lv_bar*/
 
-#define LV_USE_SWITCH     0
+#define LV_USE_SWITCH     1
 
 #define LV_USE_TEXTAREA   0   /*Requires: lv_label*/
 #if LV_USE_TEXTAREA != 0
@@ -526,7 +526,7 @@ LV_FONT_DECLARE(ui_font_OpenSans22Bold)
 /*-----------
  * Widgets
  *----------*/
-#define LV_USE_ANIMIMG    0
+#define LV_USE_ANIMIMG    1
 
 #define LV_USE_CALENDAR   0
 #if LV_USE_CALENDAR
@@ -546,7 +546,7 @@ LV_FONT_DECLARE(ui_font_OpenSans22Bold)
 
 #define LV_USE_COLORWHEEL 0
 
-#define LV_USE_IMGBTN     0
+#define LV_USE_IMGBTN     1
 
 #define LV_USE_KEYBOARD   0
 
