@@ -84,7 +84,7 @@ typedef struct {
 typedef struct {
   const JswSymPtr *symbols;
   const char *symbolChars;
-  unsigned char symbolCount;
+  unsigned short symbolCount;
 } PACKED_JSW_SYM JswSymList;
 
 /// Do a binary search of the symbol table list

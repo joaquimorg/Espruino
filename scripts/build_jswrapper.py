@@ -406,7 +406,7 @@ codeOut("""
 // Binary search coded to allow for JswSyms to be in flash on the esp8266 where they require
 // word accesses
 JsVar *jswBinarySearch(const JswSymList *symbolsPtr, JsVar *parent, const char *name) {
-  uint8_t symbolCount = READ_FLASH_UINT8(&symbolsPtr->symbolCount);
+  uint16_t symbolCount = READ_FLASH_UINT16(&symbolsPtr->symbolCount);
   int searchMin = 0;
   int searchMax = symbolCount - 1;
   while (searchMin <= searchMax) {  

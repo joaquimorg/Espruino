@@ -181,7 +181,7 @@ static void _jswrap_object_keys_or_property_names_iterator(
     void *data) {
   if (!symbols) return;
   unsigned int i;
-  unsigned char symbolCount = READ_FLASH_UINT8(&symbols->symbolCount);
+  unsigned short symbolCount = READ_FLASH_UINT16(&symbols->symbolCount);
   for (i=0;i<symbolCount;i++) {
     unsigned short strOffset = READ_FLASH_UINT16(&symbols->symbols[i].strOffset);
 #ifndef USE_FLASH_MEMORY
