@@ -80,7 +80,7 @@ bool jsfWriteFile(JsfFileName name, JsVar *data, JsfFileFlags flags, JsVarInt of
 bool jsfEraseFile(JsfFileName name);
 /// Erase the entire contents of the memory store
 bool jsfEraseAll();
-/// Try and compact saved data so it'll fit in Flash again
+/// Try and compact saved data so it'll fit in Flash again. Return true if some free space was created
 bool jsfCompact();
 /** Return all files in flash as a JsVar array of names. If regex is supplied, it is used to filter the filenames using String.match(regexp)
  * If containing!=0, file flags must contain one of the 'containing' argument's bits.
@@ -121,6 +121,9 @@ typedef struct {
   uint32_t trashBytes;
   uint32_t trashCount;
   uint32_t total, free;
+#ifndef SAVE_ON_FLASH
+  uint32_t firstPageWithErasedFiles; /// first page with files erased in it - if compacting, this is where we start from
+#endif
 } JsfStorageStats;
 /// Get info about the current filesystem
 JsfStorageStats jsfGetStorageStats(uint32_t addr, bool allPages);

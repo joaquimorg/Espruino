@@ -241,6 +241,7 @@ static bool jsfIsErased(uint32_t addr, uint32_t len) {
       // we don't end up calling jshKickWatchDog, so it's harder
       // to get in a state where things lock up.
       jshKickWatchDog();
+      jshKickSoftWatchDog();
       watchdogCtr = 0;
     }
   }
@@ -399,7 +400,17 @@ JsfStorageStats jsfGetStorageStats(uint32_t addr, bool allPages) {
   JsfFileHeader header;
   memset(&header,0,sizeof(JsfFileHeader));
   uint32_t lastAddr = addr;
+#ifndef SAVE_ON_FLASH
+  uint32_t lastUnbrokenPageStart = addr; // address of last page that doesn't have a file straddling the start
+#endif
   if (jsfGetFileHeader(addr, &header, false)) do {
+    uint32_t pageAddr,pageLen;
+#ifndef SAVE_ON_FLASH
+    // check if this header sits right at the start of a page
+    if (jshFlashGetPage(addr, &pageAddr, &pageLen) && pageAddr==addr)
+      lastUnbrokenPageStart = pageAddr;
+#endif
+    // now look at the file...
     uint32_t fileSize = jsfAlignAddress(jsfGetFileSize(&header)) + (uint32_t)sizeof(JsfFileHeader);
     lastAddr = addr + fileSize;
     if (header.name.firstChars != 0) { // if not replaced
@@ -408,6 +419,10 @@ JsfStorageStats jsfGetStorageStats(uint32_t addr, bool allPages) {
     } else { // replaced
       stats.trashBytes += fileSize;
       stats.trashCount++;
+#ifndef SAVE_ON_FLASH
+      if (!stats.firstPageWithErasedFiles)
+        stats.firstPageWithErasedFiles = lastUnbrokenPageStart;
+#endif
     }
   } while (jsfGetNextFileHeader(&addr, &header, (allPages ? GNFH_GET_ALL : GNFH_GET_EMPTY)|GNFH_READ_ONLY_FILENAME_START));
   uint32_t pageEndAddr = allPages ? jsfGetBankEndAddress(startAddr) : jsfGetAddressOfNextPage(startAddr);
@@ -461,6 +476,7 @@ static void jsfCompactWriteBuffer(uint32_t *writeAddress, uint32_t readAddress, 
     *swapBufferUsed -= s;
     // ensure we don't reboot here if it takes a long time
     jshKickWatchDog();
+    jshKickSoftWatchDog();
   }
 }
 
@@ -514,6 +530,7 @@ static bool jsfCompactInternal(uint32_t startAddress, char *swapBuffer, uint32_t
     }
     // kick watchdog to ensure we don't reboot
     jshKickWatchDog();
+    jshKickSoftWatchDog();
   } while (jsfGetNextFileHeader(&addr, &header, GNFH_GET_ALL));
   jsDebug(DBG_INFO,"compact> finished reading...\n");
   // try and write the remaining
@@ -534,6 +551,7 @@ static bool jsfCompactInternal(uint32_t startAddress, char *swapBuffer, uint32_t
 }
 #endif
 
+// Compacts one bank - return true if some free space was created
 bool jsfBankCompact(uint32_t startAddress) {
 #ifndef SAVE_ON_FLASH
   jsDebug(DBG_INFO,"Compacting\n");
@@ -546,28 +564,41 @@ bool jsfBankCompact(uint32_t startAddress) {
   JsfStorageStats stats = jsfGetStorageStats(startAddress, true);
   if (!stats.trashBytes) {
     jsDebug(DBG_INFO,"Already fully compacted\n");
-    return true;
+    return false;
   }
+
+  // On watches that support overlays, show a message over the screen warning that we're compacting and it may take some time
+#ifdef BANGLEJS_Q3
+  jsvUnLock(jspEvaluate("Bangle.setLCDOverlay(Graphics.createArrayBuffer(160,44,1,{msb:true}).drawRect(0,0,159,43).drawRect(1,1,158,42).setFont('12x20').setFontAlign(0,0).drawString('Please Wait',80,14).setColor('#888').setFont('6x8').drawString('STORAGE COMPACTION\\nIN PROGRESS...',80,32),8,66);g.flip();",true));
+#endif
+#ifdef DICKENS
+  jsvUnLock(jspEvaluate("Bangle.setLCDOverlay(Graphics.createArrayBuffer(160,40,16,{msb:true}).drawRect(0,0,159,39).drawRect(1,1,158,38).setFontArchitekt12().setFontAlign(0,0).drawString('PLEASE WAIT',80,8).setColor('#888').setFontArchitekt10().drawString('STORAGE COMPACTION\\nIN PROGRESS...',80,27),40,100);g.flip();",true));
+#endif
+
   uint32_t swapBufferSize = stats.fileBytes;
   if (swapBufferSize > maxRequired) swapBufferSize=maxRequired;
   // See if we have enough memory...
+  bool freedMemory = false;
   if (swapBufferSize+256 < jsuGetFreeStack()) {
     jsDebug(DBG_INFO,"Enough stack for %d byte buffer\n", swapBufferSize);
     char *swapBuffer = alloca(swapBufferSize);
-    return jsfCompactInternal(startAddress, swapBuffer, swapBufferSize);
+    freedMemory = jsfCompactInternal(stats.firstPageWithErasedFiles, swapBuffer, swapBufferSize);
   } else {
     jsDebug(DBG_INFO,"Not enough stack for (%d bytes)\n", swapBufferSize);
     JsVar *buf = jsvNewFlatStringOfLength(swapBufferSize);
     if (buf) {
       jsDebug(DBG_INFO,"Allocated data in JsVars\n");
       char *swapBuffer = jsvGetFlatStringPointer(buf);
-      bool r = jsfCompactInternal(startAddress, swapBuffer, swapBufferSize);
+      freedMemory = jsfCompactInternal(stats.firstPageWithErasedFiles, swapBuffer, swapBufferSize);
       jsvUnLock(buf);
-      return r;
-    }
+    } else
+      jsDebug(DBG_INFO,"Not enough memory to compact anything\n");
   }
-  jsDebug(DBG_INFO,"Not enough memory to compact anything\n");
-
+#if defined(BANGLEJS_Q3) || defined(DICKENS)
+  // if we added the compact message, take it off
+  jsvUnLock(jspEvaluate("Bangle.setLCDOverlay();g.flip();",true));
+#endif
+  return freedMemory;
 #else
   /* If low on flash assume we only have a tiny bit of flash. Chances
    * are there'll only be one file so just erasing flash will do it. */
@@ -580,8 +611,15 @@ bool jsfBankCompact(uint32_t startAddress) {
   return false;
 }
 
-// Try and compact saved data so it'll fit in Flash again
+// Try and compact saved data so it'll fit in Flash again - return true if some free space was created
 bool jsfCompact() {
+#ifdef BANGLEJS
+  JsVarInt jswrap_banglejs_getBattery();
+  if (jswrap_banglejs_getBattery() < 10) {
+    jsiConsolePrintf("Less than 10% battery remaining - cannot compact\n");
+    return false;
+  }
+#endif
   jsfCacheClear();
 #ifdef ESPR_STORAGE_FILENAME_TABLE
   jsfFilenameTableBank1Addr = 0;
