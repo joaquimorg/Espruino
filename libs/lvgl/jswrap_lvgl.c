@@ -387,7 +387,6 @@ void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar
 void jswrap_lv_obj_center(JsVar *jsobj, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *))lv_func_ptr)(obj);
-  
 }
 
 
@@ -1117,7 +1116,9 @@ void jswrap_lv_img_cache_invalidate_src(JsVar *src, void *lv_func_ptr) {
  */
 void jswrap_lv_img_set_src(JsVar *jsobj, JsVar *src, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(lv_obj_t *, const void *))lv_func_ptr)(obj, src);
+  char buf[30];
+  jsvGetString(src, buf, sizeof(buf));
+  ((void (*)(lv_obj_t *, const void *))lv_func_ptr)(obj, buf);
   
 }
 
@@ -1216,7 +1217,8 @@ int jswrap_lv_img_get_size_mode(JsVar *jsobj, void *lv_func_ptr) {
  */
 void jswrap_lv_label_set_text(JsVar *jsobj, JsVar *text, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(lv_obj_t *, const char *))lv_func_ptr)(obj, text);
+  JSV_GET_AS_CHAR_ARRAY(messagePtr, messageLen, text);
+  ((void (*)(lv_obj_t *, const char *))lv_func_ptr)(obj, messagePtr);
   
 }
 
@@ -1391,8 +1393,8 @@ JsVar *jswrap_lv_spinner_create(JsVar *jsobj, uint32_t time, uint32_t arc_length
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_tileview_add_tile )
  */
 JsVar *jswrap_lv_tileview_add_tile(JsVar *tv, uint8_t col_id, uint8_t row_id, lv_dir_t dir, void *lv_func_ptr) {
-  
-  lv_obj_t * _res = ((lv_obj_t *(*)(lv_obj_t *, uint8_t, uint8_t, lv_dir_t))lv_func_ptr)(tv, col_id, row_id, dir);
+  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(tv);
+  lv_obj_t * _res = ((lv_obj_t *(*)(lv_obj_t *, uint8_t, uint8_t, lv_dir_t))lv_func_ptr)(obj, col_id, row_id, dir);
   return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
 }
 
@@ -1987,7 +1989,7 @@ JsVar *jswrap_lv_color_make(uint8_t r, uint8_t g, uint8_t b, void *lv_func_ptr) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_color_hex )
  */
 JsVar *jswrap_lv_color_hex(uint32_t c, void *lv_func_ptr) {
-  
+  //jsiConsolePrintf("\n color : %x \n", c);      
   lv_color_t _res = ((lv_color_t (*)(uint32_t))lv_func_ptr)(c);
   return jsvNewFromInteger(_res.full);
 }
@@ -2113,10 +2115,6 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-// -----------------------------------------------
-// JS wrap 
-
 
 // -----------------------------------------------
 // JS wrap 
@@ -2440,7 +2438,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "params" : [
     ["jsobj","JsVar"]
   ],
-  "return" : ["int","struct _lv_obj_t *"]
+  "return" : ["JsVar","struct _lv_obj_t *"]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_obj_get_screen
 */
@@ -3119,7 +3117,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_obj_set_style_text_font(jsobj, value, selector, lv_obj_set_style_text_font)",
   "params" : [
     ["jsobj","JsVar"],
-    ["value","int"],
+    ["value","JsVar"],
     ["selector","int"]
   ]
 }
@@ -4411,7 +4409,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_tileview_add_tile",
   "generate_full" : "jswrap_lv_tileview_add_tile(tv, col_id, row_id, dir, lv_tileview_add_tile)",
   "params" : [
-    ["tv","int"],
+    ["tv","JsVar"],
     ["col_id","int"],
     ["row_id","int"],
     ["dir","int"]
@@ -4452,9 +4450,9 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
 /*JSON{
   "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
   "name" : "lv_imgbtn_set_state",
-  "generate_full" : "jswrap_lv_imgbtn_set_state(jsobjbtn, state, lv_imgbtn_set_state)",
+  "generate_full" : "jswrap_lv_imgbtn_set_state(jsobj, state, lv_imgbtn_set_state)",
   "params" : [
-    ["jsobjbtn","JsVar"],
+    ["jsobj","JsVar"],
     ["state","int"]
   ]
 }
@@ -4602,7 +4600,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_font_free",
   "generate_full" : "jswrap_lv_font_free(font, lv_font_free)",
   "params" : [
-    ["font","int"]
+    ["font","JsVar"]
   ]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_font_free
@@ -4614,7 +4612,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_set_var",
   "generate_full" : "jswrap_lv_anim_set_var(a, var, lv_anim_set_var)",
   "params" : [
-    ["a","int"],
+    ["a","JsVar"],
     ["var","JsVar"]
   ]
 }
@@ -4627,7 +4625,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_set_time",
   "generate_full" : "jswrap_lv_anim_set_time(a, duration, lv_anim_set_time)",
   "params" : [
-    ["a","int"],
+    ["a","JsVar"],
     ["duration","int"]
   ]
 }
@@ -4640,7 +4638,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_set_delay",
   "generate_full" : "jswrap_lv_anim_set_time(a, duration, lv_anim_set_delay)",
   "params" : [
-    ["a","int"],
+    ["a","JsVar"],
     ["duration","int"]
   ]
 }
@@ -4653,7 +4651,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_set_values",
   "generate_full" : "jswrap_lv_anim_set_values(a, start, end, lv_anim_set_values)",
   "params" : [
-    ["a","int"],
+    ["a","JsVar"],
     ["start","int"],
     ["end","int"]
   ]
@@ -4667,7 +4665,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_set_playback_time",
   "generate_full" : "jswrap_lv_anim_set_time(a, duration, lv_anim_set_playback_time)",
   "params" : [
-    ["a","int"],
+    ["a","JsVar"],
     ["duration","int"]
   ]
 }
@@ -4680,7 +4678,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_set_playback_delay",
   "generate_full" : "jswrap_lv_anim_set_time(a, duration, lv_anim_set_playback_delay)",
   "params" : [
-    ["a","int"],
+    ["a","JsVar"],
     ["duration","int"]
   ]
 }
@@ -4694,33 +4692,20 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_start",
   "generate_full" : "jswrap_lv_anim_start(a, lv_anim_start)",
   "params" : [
-    ["a","int"]
+    ["a","JsVar"]
   ],
-  "return" : ["int","lv_anim_t *"]
+  "return" : ["JsVar","lv_anim_t *"]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_anim_start
 */
-    
-// lv_anim_get_playtime
-/*JSON{
-  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
-  "name" : "lv_anim_get_playtime",
-  "generate_full" : "jswrap_lv_anim_get_delay(a, lv_anim_get_playtime)",
-  "params" : [
-    ["a","int"]
-  ],
-  "return" : ["int","uint32_t"]
-}
-    https://docs.lvgl.io/8.3/search.html?q=lv_anim_get_playtime
-*/
-    
+     
 // lv_anim_path_linear
 /*JSON{
   "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
   "name" : "lv_anim_path_linear",
   "generate_full" : "jswrap_lv_anim_path_linear(a, lv_anim_path_linear)",
   "params" : [
-    ["a","int"]
+    ["a","JsVar"]
   ],
   "return" : ["int","int32_t"]
 }
@@ -4733,7 +4718,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_path_ease_in",
   "generate_full" : "jswrap_lv_anim_path_linear(a, lv_anim_path_ease_in)",
   "params" : [
-    ["a","int"]
+    ["a","JsVar"]
   ],
   "return" : ["int","int32_t"]
 }
@@ -4746,7 +4731,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_path_ease_out",
   "generate_full" : "jswrap_lv_anim_path_linear(a, lv_anim_path_ease_out)",
   "params" : [
-    ["a","int"]
+    ["a","JsVar"]
   ],
   "return" : ["int","int32_t"]
 }
@@ -4759,7 +4744,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_path_ease_in_out",
   "generate_full" : "jswrap_lv_anim_path_linear(a, lv_anim_path_ease_in_out)",
   "params" : [
-    ["a","int"]
+    ["a","JsVar"]
   ],
   "return" : ["int","int32_t"]
 }
@@ -4772,7 +4757,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_path_overshoot",
   "generate_full" : "jswrap_lv_anim_path_linear(a, lv_anim_path_overshoot)",
   "params" : [
-    ["a","int"]
+    ["a","JsVar"]
   ],
   "return" : ["int","int32_t"]
 }
@@ -4785,7 +4770,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_path_bounce",
   "generate_full" : "jswrap_lv_anim_path_linear(a, lv_anim_path_bounce)",
   "params" : [
-    ["a","int"]
+    ["a","JsVar"]
   ],
   "return" : ["int","int32_t"]
 }
@@ -4798,7 +4783,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_path_step",
   "generate_full" : "jswrap_lv_anim_path_linear(a, lv_anim_path_step)",
   "params" : [
-    ["a","int"]
+    ["a","JsVar"]
   ],
   "return" : ["int","int32_t"]
 }
@@ -4811,7 +4796,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_timeline_del",
   "generate_full" : "jswrap_lv_anim_timeline_del(at, lv_anim_timeline_del)",
   "params" : [
-    ["at","int"]
+    ["at","JsVar"]
   ]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_del
@@ -4823,9 +4808,9 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_timeline_add",
   "generate_full" : "jswrap_lv_anim_timeline_add(at, start_time, a, lv_anim_timeline_add)",
   "params" : [
-    ["at","int"],
+    ["at","JsVar"],
     ["start_time","int"],
-    ["a","int"]
+    ["a","JsVar"]
   ]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_add
@@ -4837,7 +4822,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_timeline_start",
   "generate_full" : "jswrap_lv_anim_timeline_start(at, lv_anim_timeline_start)",
   "params" : [
-    ["at","int"]
+    ["at","JsVar"]
   ],
   "return" : ["int","uint32_t"]
 }
@@ -4850,7 +4835,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_timeline_stop",
   "generate_full" : "jswrap_lv_anim_timeline_del(at, lv_anim_timeline_stop)",
   "params" : [
-    ["at","int"]
+    ["at","JsVar"]
   ]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_stop
@@ -4862,7 +4847,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_timeline_set_reverse",
   "generate_full" : "jswrap_lv_anim_timeline_set_reverse(at, reverse, lv_anim_timeline_set_reverse)",
   "params" : [
-    ["at","int"],
+    ["at","JsVar"],
     ["reverse","bool"]
   ]
 }
@@ -4875,7 +4860,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_timeline_set_progress",
   "generate_full" : "jswrap_lv_anim_timeline_set_progress(at, progress, lv_anim_timeline_set_progress)",
   "params" : [
-    ["at","int"],
+    ["at","JsVar"],
     ["progress","int"]
   ]
 }
@@ -4888,7 +4873,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_timeline_get_playtime",
   "generate_full" : "jswrap_lv_anim_timeline_start(at, lv_anim_timeline_get_playtime)",
   "params" : [
-    ["at","int"]
+    ["at","JsVar"]
   ],
   "return" : ["int","uint32_t"]
 }
@@ -4901,7 +4886,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_anim_timeline_get_reverse",
   "generate_full" : "jswrap_lv_anim_timeline_get_reverse(at, lv_anim_timeline_get_reverse)",
   "params" : [
-    ["at","int"]
+    ["at","JsVar"]
   ],
   "return" : ["bool","bool"]
 }
