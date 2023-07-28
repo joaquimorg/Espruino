@@ -250,6 +250,37 @@ bool jswrap_lvgl_idle() {
 /*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_PART_ANY", "generate_full" : "LV_PART_ANY", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
+// lv_anim_enable_t
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ANIM_OFF", "generate_full" : "LV_ANIM_OFF", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_ANIM_ON", "generate_full" : "LV_ANIM_ON", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
+
+// lv_text_decor_t
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_TEXT_DECOR_NONE", "generate_full" : "LV_TEXT_DECOR_NONE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_TEXT_DECOR_UNDERLINE", "generate_full" : "LV_TEXT_DECOR_UNDERLINE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_TEXT_DECOR_STRIKETHROUGH", "generate_full" : "LV_TEXT_DECOR_STRIKETHROUGH", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
+//lv_border_side_t
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_BORDER_SIDE_NONE", "generate_full" : "LV_BORDER_SIDE_NONE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_BORDER_SIDE_BOTTOM", "generate_full" : "LV_BORDER_SIDE_BOTTOM", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_BORDER_SIDE_TOP", "generate_full" : "LV_BORDER_SIDE_TOP", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_BORDER_SIDE_LEFT", "generate_full" : "LV_BORDER_SIDE_LEFT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_BORDER_SIDE_RIGHT", "generate_full" : "LV_BORDER_SIDE_RIGHT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_BORDER_SIDE_FULL", "generate_full" : "LV_BORDER_SIDE_FULL", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_BORDER_SIDE_INTERNAL", "generate_full" : "LV_BORDER_SIDE_INTERNAL", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // FONT
@@ -408,7 +439,6 @@ int jswrap_lv_obj_dpx(JsVar *jsobj, lv_coord_t n, void *lv_func_ptr) {
 void jswrap_lv_obj_move_foreground(JsVar *jsobj, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *))lv_func_ptr)(obj);
-  
 }
 
 
@@ -419,7 +449,6 @@ void jswrap_lv_obj_move_foreground(JsVar *jsobj, void *lv_func_ptr) {
 void jswrap_lv_obj_set_pos(JsVar *jsobj, lv_coord_t x, lv_coord_t y, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_coord_t, lv_coord_t))lv_func_ptr)(obj, x, y);
-  
 }
 
 
@@ -430,7 +459,6 @@ void jswrap_lv_obj_set_pos(JsVar *jsobj, lv_coord_t x, lv_coord_t y, void *lv_fu
 void jswrap_lv_obj_set_x(JsVar *jsobj, lv_coord_t x, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_coord_t))lv_func_ptr)(obj, x);
-  
 }
 
 
@@ -441,7 +469,6 @@ void jswrap_lv_obj_set_x(JsVar *jsobj, lv_coord_t x, void *lv_func_ptr) {
 void jswrap_lv_obj_set_layout(JsVar *jsobj, uint32_t layout, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, uint32_t))lv_func_ptr)(obj, layout);
-  
 }
 
 
@@ -452,7 +479,6 @@ void jswrap_lv_obj_set_layout(JsVar *jsobj, uint32_t layout, void *lv_func_ptr) 
 void jswrap_lv_obj_update_layout(JsVar *jsobj, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(const struct _lv_obj_t *))lv_func_ptr)(obj);
-  
 }
 
 
@@ -463,7 +489,6 @@ void jswrap_lv_obj_update_layout(JsVar *jsobj, void *lv_func_ptr) {
 void jswrap_lv_obj_set_align(JsVar *jsobj, lv_align_t align, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_align_t))lv_func_ptr)(obj, align);
-  
 }
 
 
@@ -474,7 +499,6 @@ void jswrap_lv_obj_set_align(JsVar *jsobj, lv_align_t align, void *lv_func_ptr) 
 void jswrap_lv_obj_align(JsVar *jsobj, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_align_t, lv_coord_t, lv_coord_t))lv_func_ptr)(obj, align, x_ofs, y_ofs);
-  
 }
 
 
@@ -486,20 +510,7 @@ void jswrap_lv_obj_align_to(JsVar *jsobj, JsVar *base, lv_align_t align, lv_coor
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   struct _lv_obj_t *objbase = jsvGetNativeFunctionPtr(base);
   ((void (*)(struct _lv_obj_t *, const struct _lv_obj_t *, lv_align_t, lv_coord_t, lv_coord_t))lv_func_ptr)(obj, objbase, align, x_ofs, y_ofs);
-  
 }
-
-
-/*
- * void lv_obj_get_coords(const struct _lv_obj_t *obj, lv_area_t *coords) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_get_coords )
- */
-void jswrap_lv_obj_get_coords(JsVar *jsobj, lv_area_t *coords, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(const struct _lv_obj_t *, lv_area_t *))lv_func_ptr)(obj, coords);
-  
-}
-
 
 /*
  * lv_coord_t lv_obj_get_x(const struct _lv_obj_t *obj) 
@@ -541,7 +552,6 @@ JsVar *jswrap_lv_obj_get_child(JsVar *jsobj, int32_t id, void *lv_func_ptr) {
 void jswrap_lv_obj_set_scrollbar_mode(JsVar *jsobj, lv_scrollbar_mode_t mode, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_scrollbar_mode_t))lv_func_ptr)(obj, mode);
-  
 }
 
 
@@ -552,7 +562,6 @@ void jswrap_lv_obj_set_scrollbar_mode(JsVar *jsobj, lv_scrollbar_mode_t mode, vo
 void jswrap_lv_obj_set_scroll_dir(JsVar *jsobj, lv_dir_t dir, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_dir_t))lv_func_ptr)(obj, dir);
-  
 }
 
 
@@ -563,7 +572,6 @@ void jswrap_lv_obj_set_scroll_dir(JsVar *jsobj, lv_dir_t dir, void *lv_func_ptr)
 void jswrap_lv_obj_set_scroll_snap_x(JsVar *jsobj, lv_scroll_snap_t align, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_scroll_snap_t))lv_func_ptr)(obj, align);
-  
 }
 
 
@@ -574,7 +582,6 @@ void jswrap_lv_obj_set_scroll_snap_x(JsVar *jsobj, lv_scroll_snap_t align, void 
 void jswrap_lv_obj_scroll_by(JsVar *jsobj, lv_coord_t x, lv_coord_t y, lv_anim_enable_t anim_en, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_coord_t, lv_coord_t, lv_anim_enable_t))lv_func_ptr)(obj, x, y, anim_en);
-  
 }
 
 
@@ -585,7 +592,6 @@ void jswrap_lv_obj_scroll_by(JsVar *jsobj, lv_coord_t x, lv_coord_t y, lv_anim_e
 void jswrap_lv_obj_scroll_to_x(JsVar *jsobj, lv_coord_t x, lv_anim_enable_t anim_en, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_coord_t, lv_anim_enable_t))lv_func_ptr)(obj, x, anim_en);
-  
 }
 
 
@@ -596,7 +602,6 @@ void jswrap_lv_obj_scroll_to_x(JsVar *jsobj, lv_coord_t x, lv_anim_enable_t anim
 void jswrap_lv_obj_scroll_to_view(JsVar *jsobj, lv_anim_enable_t anim_en, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_anim_enable_t))lv_func_ptr)(obj, anim_en);
-  
 }
 
 
@@ -606,8 +611,8 @@ void jswrap_lv_obj_scroll_to_view(JsVar *jsobj, lv_anim_enable_t anim_en, void *
  */
 void jswrap_lv_obj_add_style(JsVar *jsobj, JsVar *style, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(struct _lv_obj_t *, lv_style_t *, lv_style_selector_t))lv_func_ptr)(obj, style, selector);
-  
+  struct lv_style_t *objstyle = jsvGetNativeFunctionPtr(style);
+  ((void (*)(struct _lv_obj_t *, lv_style_t *, lv_style_selector_t))lv_func_ptr)(obj, objstyle, selector);
 }
 
 
@@ -616,7 +621,6 @@ void jswrap_lv_obj_add_style(JsVar *jsobj, JsVar *style, lv_style_selector_t sel
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_style_get_selector_state )
  */
 int jswrap_lv_obj_style_get_selector_state(lv_style_selector_t selector, void *lv_func_ptr) {
-  
   lv_state_t _res = ((lv_state_t (*)(lv_style_selector_t))lv_func_ptr)(selector);
   return _res;
 }
@@ -627,7 +631,6 @@ int jswrap_lv_obj_style_get_selector_state(lv_style_selector_t selector, void *l
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_style_get_selector_part )
  */
 int jswrap_lv_obj_style_get_selector_part(lv_style_selector_t selector, void *lv_func_ptr) {
-  
   lv_part_t _res = ((lv_part_t (*)(lv_style_selector_t))lv_func_ptr)(selector);
   return _res;
 }
@@ -640,7 +643,6 @@ int jswrap_lv_obj_style_get_selector_part(lv_style_selector_t selector, void *lv
 void jswrap_lv_obj_set_style_align(JsVar *jsobj, lv_align_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_align_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -653,7 +655,6 @@ void jswrap_lv_obj_set_style_bg_color(JsVar *jsobj, JsVarInt *value, lv_style_se
   lv_color_t value_c;
   value_c.full = (uint32_t)jsvGetInteger(value);
   ((void (*)(struct _lv_obj_t *, lv_color_t, lv_style_selector_t))lv_func_ptr)(obj, value_c, selector);
-  
 }
 
 
@@ -664,7 +665,6 @@ void jswrap_lv_obj_set_style_bg_color(JsVar *jsobj, JsVarInt *value, lv_style_se
 void jswrap_lv_obj_set_style_bg_opa(JsVar *jsobj, lv_opa_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_opa_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -675,7 +675,6 @@ void jswrap_lv_obj_set_style_bg_opa(JsVar *jsobj, lv_opa_t value, lv_style_selec
 void jswrap_lv_obj_set_style_bg_grad_dir(JsVar *jsobj, lv_grad_dir_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_grad_dir_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -687,7 +686,6 @@ void jswrap_lv_obj_set_style_bg_grad(JsVar *jsobj, JsVar *value, lv_style_select
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   struct _lv_grad_dsc_t *objvalue = jsvGetNativeFunctionPtr(value);
   ((void (*)(struct _lv_obj_t *, const lv_grad_dsc_t *, lv_style_selector_t))lv_func_ptr)(obj, objvalue, selector);
-  
 }
 
 
@@ -698,7 +696,6 @@ void jswrap_lv_obj_set_style_bg_grad(JsVar *jsobj, JsVar *value, lv_style_select
 void jswrap_lv_obj_set_style_bg_dither_mode(JsVar *jsobj, lv_dither_mode_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_dither_mode_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -709,7 +706,6 @@ void jswrap_lv_obj_set_style_bg_dither_mode(JsVar *jsobj, lv_dither_mode_t value
 void jswrap_lv_obj_set_style_bg_img_src(JsVar *jsobj, JsVar *value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, const void *, lv_style_selector_t))lv_func_ptr)(obj, jsvGetNativeFunctionPtr(value), selector);
-  
 }
 
 
@@ -720,7 +716,6 @@ void jswrap_lv_obj_set_style_bg_img_src(JsVar *jsobj, JsVar *value, lv_style_sel
 void jswrap_lv_obj_set_style_bg_img_tiled(JsVar *jsobj, bool value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, bool, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -731,7 +726,6 @@ void jswrap_lv_obj_set_style_bg_img_tiled(JsVar *jsobj, bool value, lv_style_sel
 void jswrap_lv_obj_set_style_border_side(JsVar *jsobj, lv_border_side_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_border_side_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -743,7 +737,6 @@ void jswrap_lv_obj_set_style_text_font(JsVar *jsobj, JsVar *value, lv_style_sele
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   const lv_font_t *value_f = (const lv_font_t *)jsvGetNativeFunctionPtr(value);
   ((void (*)(struct _lv_obj_t *, const lv_font_t *, lv_style_selector_t))lv_func_ptr)(obj, value_f, selector);
-  
 }
 
 
@@ -754,7 +747,6 @@ void jswrap_lv_obj_set_style_text_font(JsVar *jsobj, JsVar *value, lv_style_sele
 void jswrap_lv_obj_set_style_text_decor(JsVar *jsobj, lv_text_decor_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_text_decor_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -765,18 +757,6 @@ void jswrap_lv_obj_set_style_text_decor(JsVar *jsobj, lv_text_decor_t value, lv_
 void jswrap_lv_obj_set_style_text_align(JsVar *jsobj, lv_text_align_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_text_align_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
-}
-
-
-/*
- * void lv_obj_set_style_color_filter_dsc(struct _lv_obj_t *obj, const lv_color_filter_dsc_t *value, lv_style_selector_t selector) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_color_filter_dsc )
- */
-void jswrap_lv_obj_set_style_color_filter_dsc(JsVar *jsobj, JsVar *value, lv_style_selector_t selector, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(struct _lv_obj_t *, const lv_color_filter_dsc_t *, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -786,8 +766,8 @@ void jswrap_lv_obj_set_style_color_filter_dsc(JsVar *jsobj, JsVar *value, lv_sty
  */
 void jswrap_lv_obj_set_style_anim(JsVar *jsobj, JsVar *value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(struct _lv_obj_t *, const lv_anim_t *, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
+  const lv_anim_t *objvalue = (const lv_anim_t *)jsvGetNativeFunctionPtr(value);
+  ((void (*)(struct _lv_obj_t *, const lv_anim_t *, lv_style_selector_t))lv_func_ptr)(obj, objvalue, selector);
 }
 
 
@@ -798,7 +778,6 @@ void jswrap_lv_obj_set_style_anim(JsVar *jsobj, JsVar *value, lv_style_selector_
 void jswrap_lv_obj_set_style_anim_time(JsVar *jsobj, uint32_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, uint32_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -808,8 +787,8 @@ void jswrap_lv_obj_set_style_anim_time(JsVar *jsobj, uint32_t value, lv_style_se
  */
 void jswrap_lv_obj_set_style_transition(JsVar *jsobj, JsVar *value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
+  const lv_style_transition_dsc_t *objvalue = (const lv_style_transition_dsc_t *)jsvGetNativeFunctionPtr(value);
   ((void (*)(struct _lv_obj_t *, const lv_style_transition_dsc_t *, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -820,7 +799,6 @@ void jswrap_lv_obj_set_style_transition(JsVar *jsobj, JsVar *value, lv_style_sel
 void jswrap_lv_obj_set_style_blend_mode(JsVar *jsobj, lv_blend_mode_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_blend_mode_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -831,7 +809,6 @@ void jswrap_lv_obj_set_style_blend_mode(JsVar *jsobj, lv_blend_mode_t value, lv_
 void jswrap_lv_obj_set_style_layout(JsVar *jsobj, uint16_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, uint16_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -842,7 +819,6 @@ void jswrap_lv_obj_set_style_layout(JsVar *jsobj, uint16_t value, lv_style_selec
 void jswrap_lv_obj_set_style_base_dir(JsVar *jsobj, lv_base_dir_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(struct _lv_obj_t *, lv_base_dir_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -853,7 +829,6 @@ void jswrap_lv_obj_set_style_base_dir(JsVar *jsobj, lv_base_dir_t value, lv_styl
 void jswrap_lv_obj_add_flag(JsVar *jsobj, lv_obj_flag_t f, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_obj_flag_t))lv_func_ptr)(obj, f);
-  
 }
 
 
@@ -864,7 +839,6 @@ void jswrap_lv_obj_add_flag(JsVar *jsobj, lv_obj_flag_t f, void *lv_func_ptr) {
 void jswrap_lv_obj_add_state(JsVar *jsobj, lv_state_t state, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_state_t))lv_func_ptr)(obj, state);
-  
 }
 
 
@@ -908,7 +882,6 @@ bool jswrap_lv_obj_has_state(JsVar *jsobj, lv_state_t state, void *lv_func_ptr) 
 void jswrap_lv_obj_set_flex_flow(JsVar *jsobj, lv_flex_flow_t flow, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_flex_flow_t))lv_func_ptr)(obj, flow);
-  
 }
 
 
@@ -919,7 +892,6 @@ void jswrap_lv_obj_set_flex_flow(JsVar *jsobj, lv_flex_flow_t flow, void *lv_fun
 void jswrap_lv_obj_set_flex_align(JsVar *jsobj, lv_flex_align_t main_place, lv_flex_align_t cross_place, lv_flex_align_t track_cross_place, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_flex_align_t, lv_flex_align_t, lv_flex_align_t))lv_func_ptr)(obj, main_place, cross_place, track_cross_place);
-  
 }
 
 
@@ -930,7 +902,6 @@ void jswrap_lv_obj_set_flex_align(JsVar *jsobj, lv_flex_align_t main_place, lv_f
 void jswrap_lv_obj_set_flex_grow(JsVar *jsobj, uint8_t grow, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, uint8_t))lv_func_ptr)(obj, grow);
-  
 }
 
 
@@ -941,7 +912,6 @@ void jswrap_lv_obj_set_flex_grow(JsVar *jsobj, uint8_t grow, void *lv_func_ptr) 
 void jswrap_lv_obj_set_style_flex_flow(JsVar *jsobj, lv_flex_flow_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_flex_flow_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -952,7 +922,6 @@ void jswrap_lv_obj_set_style_flex_flow(JsVar *jsobj, lv_flex_flow_t value, lv_st
 void jswrap_lv_obj_set_style_flex_main_place(JsVar *jsobj, lv_flex_align_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_flex_align_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -963,7 +932,6 @@ void jswrap_lv_obj_set_style_flex_main_place(JsVar *jsobj, lv_flex_align_t value
 void jswrap_lv_obj_set_style_flex_grow(JsVar *jsobj, uint8_t value, lv_style_selector_t selector, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, uint8_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
-  
 }
 
 
@@ -972,8 +940,9 @@ void jswrap_lv_obj_set_style_flex_grow(JsVar *jsobj, uint8_t value, lv_style_sel
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_tile )
  */
 void jswrap_lv_obj_set_tile(JsVar *tv, JsVar *tile_obj, lv_anim_enable_t anim_en, void *lv_func_ptr) {
-  
-  ((void (*)(lv_obj_t *, lv_obj_t *, lv_anim_enable_t))lv_func_ptr)(tv, tile_obj, anim_en);
+  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(tv);
+  struct _lv_obj_t *tile = jsvGetNativeFunctionPtr(tile_obj);
+  ((void (*)(lv_obj_t *, lv_obj_t *, lv_anim_enable_t))lv_func_ptr)(obj, tile, anim_en);
   
 }
 
@@ -983,9 +952,8 @@ void jswrap_lv_obj_set_tile(JsVar *tv, JsVar *tile_obj, lv_anim_enable_t anim_en
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_tile_id )
  */
 void jswrap_lv_obj_set_tile_id(JsVar *tv, uint32_t col_id, uint32_t row_id, lv_anim_enable_t anim_en, void *lv_func_ptr) {
-  
-  ((void (*)(lv_obj_t *, uint32_t, uint32_t, lv_anim_enable_t))lv_func_ptr)(tv, col_id, row_id, anim_en);
-  
+  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(tv);
+  ((void (*)(lv_obj_t *, uint32_t, uint32_t, lv_anim_enable_t))lv_func_ptr)(obj, col_id, row_id, anim_en);
 }
 
 
@@ -1007,7 +975,6 @@ JsVar *jswrap_lv_obj_create(JsVar *jsobj, void *lv_func_ptr) {
 void jswrap_lv_arc_set_start_angle(JsVar *jsobj, uint16_t start, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, uint16_t))lv_func_ptr)(obj, start);
-  
 }
 
 
@@ -1018,7 +985,6 @@ void jswrap_lv_arc_set_start_angle(JsVar *jsobj, uint16_t start, void *lv_func_p
 void jswrap_lv_arc_set_angles(JsVar *jsobj, uint16_t start, uint16_t end, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, uint16_t, uint16_t))lv_func_ptr)(obj, start, end);
-  
 }
 
 
@@ -1029,7 +995,6 @@ void jswrap_lv_arc_set_angles(JsVar *jsobj, uint16_t start, uint16_t end, void *
 void jswrap_lv_arc_set_mode(JsVar *jsobj, lv_arc_mode_t type, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_arc_mode_t))lv_func_ptr)(obj, type);
-  
 }
 
 
@@ -1040,7 +1005,6 @@ void jswrap_lv_arc_set_mode(JsVar *jsobj, lv_arc_mode_t type, void *lv_func_ptr)
 void jswrap_lv_arc_set_value(JsVar *jsobj, int16_t value, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, int16_t))lv_func_ptr)(obj, value);
-  
 }
 
 
@@ -1051,20 +1015,7 @@ void jswrap_lv_arc_set_value(JsVar *jsobj, int16_t value, void *lv_func_ptr) {
 void jswrap_lv_arc_set_range(JsVar *jsobj, int16_t min, int16_t max, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, int16_t, int16_t))lv_func_ptr)(obj, min, max);
-  
 }
-
-
-/*
- * uint16_t lv_arc_get_angle_start(lv_obj_t *obj) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_arc_get_angle_start )
- */
-int jswrap_lv_arc_get_angle_start(JsVar *jsobj, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  uint16_t _res = ((uint16_t (*)(lv_obj_t *))lv_func_ptr)(obj);
-  return _res;
-}
-
 
 /*
  * int16_t lv_arc_get_value(const lv_obj_t *obj) 
@@ -1078,23 +1029,13 @@ int jswrap_lv_arc_get_value(JsVar *jsobj, void *lv_func_ptr) {
 
 
 /*
- * lv_arc_mode_t lv_arc_get_mode(const lv_obj_t *obj) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_arc_get_mode )
- */
-int jswrap_lv_arc_get_mode(JsVar *jsobj, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  lv_arc_mode_t _res = ((lv_arc_mode_t (*)(const lv_obj_t *))lv_func_ptr)(obj);
-  return _res;
-}
-
-
-/*
  * void lv_arc_align_obj_to_angle(const lv_obj_t *obj, lv_obj_t *obj_to_align, lv_coord_t r_offset) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_arc_align_obj_to_angle )
  */
 void jswrap_lv_arc_align_obj_to_angle(JsVar *jsobj, JsVar *obj_to_align, lv_coord_t r_offset, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(const lv_obj_t *, lv_obj_t *, lv_coord_t))lv_func_ptr)(obj, obj_to_align, r_offset);
+  struct _lv_obj_t *objta = jsvGetNativeFunctionPtr(obj_to_align);
+  ((void (*)(const lv_obj_t *, lv_obj_t *, lv_coord_t))lv_func_ptr)(obj, objta, r_offset);
   
 }
 
@@ -1104,9 +1045,7 @@ void jswrap_lv_arc_align_obj_to_angle(JsVar *jsobj, JsVar *obj_to_align, lv_coor
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_img_cache_invalidate_src )
  */
 void jswrap_lv_img_cache_invalidate_src(JsVar *src, void *lv_func_ptr) {
-  
-  ((void (*)(const void *))lv_func_ptr)(src);
-  
+  ((void (*)(const void *))lv_func_ptr)(jsvGetNativeFunctionPtr(src));
 }
 
 
@@ -1116,10 +1055,9 @@ void jswrap_lv_img_cache_invalidate_src(JsVar *src, void *lv_func_ptr) {
  */
 void jswrap_lv_img_set_src(JsVar *jsobj, JsVar *src, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  char buf[30];
+  char buf[30]; // fix size ??
   jsvGetString(src, buf, sizeof(buf));
   ((void (*)(lv_obj_t *, const void *))lv_func_ptr)(obj, buf);
-  
 }
 
 
@@ -1130,7 +1068,6 @@ void jswrap_lv_img_set_src(JsVar *jsobj, JsVar *src, void *lv_func_ptr) {
 void jswrap_lv_img_set_offset_x(JsVar *jsobj, lv_coord_t x, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_coord_t))lv_func_ptr)(obj, x);
-  
 }
 
 
@@ -1141,7 +1078,6 @@ void jswrap_lv_img_set_offset_x(JsVar *jsobj, lv_coord_t x, void *lv_func_ptr) {
 void jswrap_lv_img_set_pivot(JsVar *jsobj, lv_coord_t x, lv_coord_t y, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_coord_t, lv_coord_t))lv_func_ptr)(obj, x, y);
-  
 }
 
 
@@ -1152,7 +1088,6 @@ void jswrap_lv_img_set_pivot(JsVar *jsobj, lv_coord_t x, lv_coord_t y, void *lv_
 void jswrap_lv_img_set_antialias(JsVar *jsobj, bool antialias, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, bool))lv_func_ptr)(obj, antialias);
-  
 }
 
 
@@ -1163,7 +1098,6 @@ void jswrap_lv_img_set_antialias(JsVar *jsobj, bool antialias, void *lv_func_ptr
 void jswrap_lv_img_set_size_mode(JsVar *jsobj, lv_img_size_mode_t mode, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_img_size_mode_t))lv_func_ptr)(obj, mode);
-  
 }
 
 
@@ -1179,39 +1113,6 @@ int jswrap_lv_img_get_offset_x(JsVar *jsobj, void *lv_func_ptr) {
 
 
 /*
- * void lv_img_get_pivot(lv_obj_t *obj, lv_point_t *pivot) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_img_get_pivot )
- */
-void jswrap_lv_img_get_pivot(JsVar *jsobj, JsVar *pivot, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(lv_obj_t *, lv_point_t *))lv_func_ptr)(obj, pivot);
-  
-}
-
-
-/*
- * bool lv_img_get_antialias(lv_obj_t *obj) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_img_get_antialias )
- */
-bool jswrap_lv_img_get_antialias(JsVar *jsobj, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  bool _res = ((bool (*)(lv_obj_t *))lv_func_ptr)(obj);
-  return _res;
-}
-
-
-/*
- * lv_img_size_mode_t lv_img_get_size_mode(lv_obj_t *obj) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_img_get_size_mode )
- */
-int jswrap_lv_img_get_size_mode(JsVar *jsobj, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  lv_img_size_mode_t _res = ((lv_img_size_mode_t (*)(lv_obj_t *))lv_func_ptr)(obj);
-  return _res;
-}
-
-
-/*
  * void lv_label_set_text(lv_obj_t *obj, const char *text) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_label_set_text )
  */
@@ -1219,7 +1120,6 @@ void jswrap_lv_label_set_text(JsVar *jsobj, JsVar *text, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   JSV_GET_AS_CHAR_ARRAY(messagePtr, messageLen, text);
   ((void (*)(lv_obj_t *, const char *))lv_func_ptr)(obj, messagePtr);
-  
 }
 
 
@@ -1230,7 +1130,6 @@ void jswrap_lv_label_set_text(JsVar *jsobj, JsVar *text, void *lv_func_ptr) {
 void jswrap_lv_label_set_long_mode(JsVar *jsobj, lv_label_long_mode_t long_mode, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_label_long_mode_t))lv_func_ptr)(obj, long_mode);
-  
 }
 
 
@@ -1240,8 +1139,8 @@ void jswrap_lv_label_set_long_mode(JsVar *jsobj, lv_label_long_mode_t long_mode,
  */
 void jswrap_lv_line_set_points(JsVar *jsobj, JsVar *points, uint16_t point_num, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
+  // TODO : convert from array....
   ((void (*)(lv_obj_t *, const lv_point_t [], uint16_t))lv_func_ptr)(obj, points, point_num);
-  
 }
 
 
@@ -1263,7 +1162,6 @@ JsVar *jswrap_lv_checkbox_get_text(JsVar *jsobj, void *lv_func_ptr) {
 void jswrap_lv_bar_set_value(JsVar *jsobj, int32_t value, lv_anim_enable_t anim, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, int32_t, lv_anim_enable_t))lv_func_ptr)(obj, value, anim);
-  
 }
 
 
@@ -1274,7 +1172,6 @@ void jswrap_lv_bar_set_value(JsVar *jsobj, int32_t value, lv_anim_enable_t anim,
 void jswrap_lv_bar_set_range(JsVar *jsobj, int32_t min, int32_t max, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, int32_t, int32_t))lv_func_ptr)(obj, min, max);
-  
 }
 
 
@@ -1285,7 +1182,6 @@ void jswrap_lv_bar_set_range(JsVar *jsobj, int32_t min, int32_t max, void *lv_fu
 void jswrap_lv_bar_set_mode(JsVar *jsobj, lv_bar_mode_t mode, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_bar_mode_t))lv_func_ptr)(obj, mode);
-  
 }
 
 
@@ -1301,17 +1197,6 @@ int jswrap_lv_bar_get_value(JsVar *jsobj, void *lv_func_ptr) {
 
 
 /*
- * lv_bar_mode_t lv_bar_get_mode(lv_obj_t *obj) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_bar_get_mode )
- */
-int jswrap_lv_bar_get_mode(JsVar *jsobj, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  lv_bar_mode_t _res = ((lv_bar_mode_t (*)(lv_obj_t *))lv_func_ptr)(obj);
-  return _res;
-}
-
-
-/*
  * inline static void lv_slider_set_mode(lv_obj_t *obj, lv_slider_mode_t mode) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_slider_set_mode )
  */
@@ -1321,26 +1206,14 @@ void jswrap_lv_slider_set_mode(JsVar *jsobj, lv_slider_mode_t mode, void *lv_fun
   
 }
 
-
-/*
- * inline static lv_slider_mode_t lv_slider_get_mode(lv_obj_t *slider) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_slider_get_mode )
- */
-int jswrap_lv_slider_get_mode(JsVar *slider, void *lv_func_ptr) {
-  
-  lv_slider_mode_t _res = ((lv_slider_mode_t (*)(lv_obj_t *))lv_func_ptr)(slider);
-  return _res;
-}
-
-
 /*
  * void lv_roller_set_options(lv_obj_t *obj, const char *options, lv_roller_mode_t mode) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_roller_set_options )
  */
 void jswrap_lv_roller_set_options(JsVar *jsobj, JsVar *options, lv_roller_mode_t mode, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(lv_obj_t *, const char *, lv_roller_mode_t))lv_func_ptr)(obj, options, mode);
-  
+  JSV_GET_AS_CHAR_ARRAY(messagePtr, messageLen, options);
+  ((void (*)(lv_obj_t *, const char *, lv_roller_mode_t))lv_func_ptr)(obj, messagePtr, mode);
 }
 
 
@@ -1351,7 +1224,6 @@ void jswrap_lv_roller_set_options(JsVar *jsobj, JsVar *options, lv_roller_mode_t
 void jswrap_lv_roller_set_selected(JsVar *jsobj, uint16_t sel_opt, lv_anim_enable_t anim, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, uint16_t, lv_anim_enable_t))lv_func_ptr)(obj, sel_opt, anim);
-  
 }
 
 
@@ -1372,8 +1244,9 @@ int jswrap_lv_roller_get_selected(JsVar *jsobj, void *lv_func_ptr) {
  */
 void jswrap_lv_animimg_set_src(JsVar *jsobj, JsVar *dsc, uint8_t num, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(lv_obj_t *, const void *[], uint8_t))lv_func_ptr)(obj, dsc, num);
-  
+  char buf[30]; // fix size ??
+  jsvGetString(dsc, buf, sizeof(buf));
+  ((void (*)(lv_obj_t *, const void *[], uint8_t))lv_func_ptr)(obj, buf, num);
 }
 
 
@@ -1400,44 +1273,10 @@ JsVar *jswrap_lv_tileview_add_tile(JsVar *tv, uint8_t col_id, uint8_t row_id, lv
 
 
 /*
- * void lv_imgbtn_set_src(lv_obj_t *imgbtn, lv_imgbtn_state_t state, const void *src_left, const void *src_mid, const void *src_right) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_imgbtn_set_src )
- */
-void jswrap_lv_imgbtn_set_src(JsVar *jsobj, lv_imgbtn_state_t state, JsVar *src_left, JsVar *src_mid, JsVar *src_right, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(lv_obj_t *, lv_imgbtn_state_t, const void *, const void *, const void *))lv_func_ptr)(obj, state, src_left, src_mid, src_right);
-  
-}
-
-
-/*
- * void lv_imgbtn_set_state(lv_obj_t *imgbtn, lv_imgbtn_state_t state) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_imgbtn_set_state )
- */
-void jswrap_lv_imgbtn_set_state(JsVar *jsobj, lv_imgbtn_state_t state, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  ((void (*)(lv_obj_t *, lv_imgbtn_state_t))lv_func_ptr)(obj, state);
-  
-}
-
-
-/*
- * const void *lv_imgbtn_get_src_left(lv_obj_t *imgbtn, lv_imgbtn_state_t state) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_imgbtn_get_src_left )
- */
-JsVar *jswrap_lv_imgbtn_get_src_left(JsVar *jsobj, lv_imgbtn_state_t state, void *lv_func_ptr) {
-  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
-  const void * _res = ((const void *(*)(lv_obj_t *, lv_imgbtn_state_t))lv_func_ptr)(obj, state);
-  return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
-}
-
-
-/*
  * inline static uint8_t lv_color_to1(lv_color_t color) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_color_to1 )
  */
 int jswrap_lv_color_to1(JsVar * color, void *lv_func_ptr) {
-  
   lv_color_t value_c;
   value_c.full = (uint32_t)jsvGetInteger(color);
   uint8_t _res = ((uint8_t (*)(lv_color_t))lv_func_ptr)(value_c);
@@ -1450,7 +1289,6 @@ int jswrap_lv_color_to1(JsVar * color, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_color_to16 )
  */
 int jswrap_lv_color_to16(JsVar * color, void *lv_func_ptr) {
-  
   lv_color_t value_c;
   value_c.full = (uint32_t)jsvGetInteger(color);
   uint16_t _res = ((uint16_t (*)(lv_color_t))lv_func_ptr)(value_c);
@@ -1463,7 +1301,6 @@ int jswrap_lv_color_to16(JsVar * color, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_color_to32 )
  */
 int jswrap_lv_color_to32(JsVar * color, void *lv_func_ptr) {
-  
   lv_color_t value_c;
   value_c.full = (uint32_t)jsvGetInteger(color);
   uint32_t _res = ((uint32_t (*)(lv_color_t))lv_func_ptr)(value_c);
@@ -1476,7 +1313,6 @@ int jswrap_lv_color_to32(JsVar * color, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_color_mix )
  */
 JsVar *jswrap_lv_color_mix(JsVar * c1, JsVar * c2, uint8_t mix, void *lv_func_ptr) {
-  
   lv_color_t value_c1;
   value_c1.full = (uint32_t)jsvGetInteger(c1);
   lv_color_t value_c2;
@@ -1491,7 +1327,6 @@ JsVar *jswrap_lv_color_mix(JsVar * c1, JsVar * c2, uint8_t mix, void *lv_func_pt
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_color_lighten )
  */
 JsVar *jswrap_lv_color_lighten(JsVar * c, lv_opa_t lvl, void *lv_func_ptr) {
-  
   lv_color_t value_c;
   value_c.full = (uint32_t)jsvGetInteger(c);
   lv_color_t _res = ((lv_color_t (*)(lv_color_t, lv_opa_t))lv_func_ptr)(value_c, lvl);
@@ -1500,34 +1335,12 @@ JsVar *jswrap_lv_color_lighten(JsVar * c, lv_opa_t lvl, void *lv_func_ptr) {
 
 
 /*
- * lv_grad_color_t lv_gradient_calculate(const lv_grad_dsc_t *dsc, lv_coord_t range, lv_coord_t frac) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_gradient_calculate )
- */
-JsVar *jswrap_lv_gradient_calculate(JsVar *dsc, lv_coord_t range, lv_coord_t frac, void *lv_func_ptr) {
-  
-  lv_grad_color_t _res = ((lv_grad_color_t (*)(const lv_grad_dsc_t *, lv_coord_t, lv_coord_t))lv_func_ptr)(dsc, range, frac);
-  return jsvNewFromInteger(_res.full);
-}
-
-
-/*
- * lv_grad_t *lv_gradient_get(const lv_grad_dsc_t *gradient, lv_coord_t w, lv_coord_t h) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_gradient_get )
- */
-JsVar *jswrap_lv_gradient_get(JsVar *gradient, lv_coord_t w, lv_coord_t h, void *lv_func_ptr) {
-  
-  lv_grad_t * _res = ((lv_grad_t *(*)(const lv_grad_dsc_t *, lv_coord_t, lv_coord_t))lv_func_ptr)(gradient, w, h);
-  return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
-}
-
-
-/*
  * inline static lv_coord_t lv_font_get_line_height(const lv_font_t *font_p) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_font_get_line_height )
  */
 int jswrap_lv_font_get_line_height(JsVar *font_p, void *lv_func_ptr) {
-  
-  lv_coord_t _res = ((lv_coord_t (*)(const lv_font_t *))lv_func_ptr)(font_p);
+  const lv_font_t *value_f = (const lv_font_t *)jsvGetNativeFunctionPtr(font_p);
+  lv_coord_t _res = ((lv_coord_t (*)(const lv_font_t *))lv_func_ptr)(value_f);
   return _res;
 }
 
@@ -1537,9 +1350,8 @@ int jswrap_lv_font_get_line_height(JsVar *font_p, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_font_free )
  */
 void jswrap_lv_font_free(lv_font_t *font, void *lv_func_ptr) {
-  
-  ((void (*)(lv_font_t *))lv_func_ptr)(font);
-  
+  const lv_font_t *value_f = (const lv_font_t *)jsvGetNativeFunctionPtr(font);
+  ((void (*)(lv_font_t *))lv_func_ptr)(value_f);
 }
 
 
@@ -1548,9 +1360,8 @@ void jswrap_lv_font_free(lv_font_t *font, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_set_var )
  */
 void jswrap_lv_anim_set_var(JsVar *a, void *var, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_t *, void *))lv_func_ptr)(a, var);
-  
+  struct _lv_anim_t *aobj = jsvGetNativeFunctionPtr(a);
+  ((void (*)(lv_anim_t *, void *))lv_func_ptr)(aobj, jsvGetNativeFunctionPtr(var));
 }
 
 
@@ -1559,9 +1370,8 @@ void jswrap_lv_anim_set_var(JsVar *a, void *var, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_set_time )
  */
 void jswrap_lv_anim_set_time(JsVar *a, uint32_t duration, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_t *, uint32_t))lv_func_ptr)(a, duration);
-  
+  struct _lv_anim_t *aobj = jsvGetNativeFunctionPtr(a);
+  ((void (*)(lv_anim_t *, uint32_t))lv_func_ptr)(aobj, duration);
 }
 
 
@@ -1570,9 +1380,8 @@ void jswrap_lv_anim_set_time(JsVar *a, uint32_t duration, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_set_values )
  */
 void jswrap_lv_anim_set_values(JsVar *a, int32_t start, int32_t end, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_t *, int32_t, int32_t))lv_func_ptr)(a, start, end);
-  
+  struct _lv_anim_t *aobj = jsvGetNativeFunctionPtr(a);
+  ((void (*)(lv_anim_t *, int32_t, int32_t))lv_func_ptr)(aobj, start, end);
 }
 
 
@@ -1581,9 +1390,8 @@ void jswrap_lv_anim_set_values(JsVar *a, int32_t start, int32_t end, void *lv_fu
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_set_repeat_count )
  */
 void jswrap_lv_anim_set_repeat_count(JsVar *a, uint16_t cnt, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_t *, uint16_t))lv_func_ptr)(a, cnt);
-  
+  struct _lv_anim_t *aobj = jsvGetNativeFunctionPtr(a);
+  ((void (*)(lv_anim_t *, uint16_t))lv_func_ptr)(aobj, cnt);
 }
 
 
@@ -1592,9 +1400,8 @@ void jswrap_lv_anim_set_repeat_count(JsVar *a, uint16_t cnt, void *lv_func_ptr) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_set_early_apply )
  */
 void jswrap_lv_anim_set_early_apply(JsVar *a, bool en, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_t *, bool))lv_func_ptr)(a, en);
-  
+  struct _lv_anim_t *aobj = jsvGetNativeFunctionPtr(a);
+  ((void (*)(lv_anim_t *, bool))lv_func_ptr)(aobj, en);
 }
 
 
@@ -1603,8 +1410,8 @@ void jswrap_lv_anim_set_early_apply(JsVar *a, bool en, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_get_delay )
  */
 int jswrap_lv_anim_get_delay(JsVar *a, void *lv_func_ptr) {
-  
-  uint32_t _res = ((uint32_t (*)(lv_anim_t *))lv_func_ptr)(a);
+  struct _lv_anim_t *aobj = jsvGetNativeFunctionPtr(a);
+  uint32_t _res = ((uint32_t (*)(lv_anim_t *))lv_func_ptr)(aobj);
   return _res;
 }
 
@@ -1614,8 +1421,8 @@ int jswrap_lv_anim_get_delay(JsVar *a, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_start )
  */
 JsVar *jswrap_lv_anim_start(JsVar *a, void *lv_func_ptr) {
-  
-  lv_anim_t * _res = ((lv_anim_t *(*)(const lv_anim_t *))lv_func_ptr)(a);
+  struct _lv_anim_t *aobj = jsvGetNativeFunctionPtr(a);
+  lv_anim_t * _res = ((lv_anim_t *(*)(const lv_anim_t *))lv_func_ptr)(aobj);
   return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
 }
 
@@ -1625,286 +1432,11 @@ JsVar *jswrap_lv_anim_start(JsVar *a, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_path_linear )
  */
 int jswrap_lv_anim_path_linear(JsVar *a, void *lv_func_ptr) {
-  
-  struct _lv_anim_t *obj = jsvGetNativeFunctionPtr(a);
-
-  int32_t _res = ((int32_t (*)(const lv_anim_t *))lv_func_ptr)(obj);
+  struct _lv_anim_t *aobj = jsvGetNativeFunctionPtr(a);
+  int32_t _res = ((int32_t (*)(const lv_anim_t *))lv_func_ptr)(aobj);
   return _res;
 }
 
-/*
- * inline static void lv_style_set_size(lv_style_t *style, lv_coord_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_size )
- */
-void jswrap_lv_style_set_size(lv_style_t *style, lv_coord_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_coord_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * bool lv_style_remove_prop(lv_style_t *style, lv_style_prop_t prop) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_remove_prop )
- */
-bool jswrap_lv_style_remove_prop(JsVar *style, lv_style_prop_t prop, void *lv_func_ptr) {
-  
-  bool _res = ((bool (*)(lv_style_t *, lv_style_prop_t))lv_func_ptr)(style, prop);
-  return _res;
-}
-
-
-/*
- * void lv_style_set_prop(lv_style_t *style, lv_style_prop_t prop, lv_style_value_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_prop )
- */
-void jswrap_lv_style_set_prop(JsVar *style, lv_style_prop_t prop, lv_style_value_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_style_prop_t, lv_style_value_t))lv_func_ptr)(style, prop, value);
-  
-}
-
-
-/*
- * bool lv_style_is_empty(const lv_style_t *style) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_is_empty )
- */
-bool jswrap_lv_style_is_empty(JsVar *style, void *lv_func_ptr) {
-  
-  bool _res = ((bool (*)(const lv_style_t *))lv_func_ptr)(style);
-  return _res;
-}
-
-
-/*
- * void lv_style_set_align(lv_style_t *style, lv_align_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_align )
- */
-void jswrap_lv_style_set_align(JsVar *style, lv_align_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_align_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_bg_color(lv_style_t *style, lv_color_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_bg_color )
- */
-void jswrap_lv_style_set_bg_color(JsVar *style, lv_color_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_color_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_bg_opa(lv_style_t *style, lv_opa_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_bg_opa )
- */
-void jswrap_lv_style_set_bg_opa(JsVar *style, lv_opa_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_opa_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_bg_grad_dir(lv_style_t *style, lv_grad_dir_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_bg_grad_dir )
- */
-void jswrap_lv_style_set_bg_grad_dir(JsVar *style, lv_grad_dir_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_grad_dir_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_bg_grad(lv_style_t *style, const lv_grad_dsc_t *value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_bg_grad )
- */
-void jswrap_lv_style_set_bg_grad(JsVar *style, JsVar *value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, const lv_grad_dsc_t *))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_bg_dither_mode(lv_style_t *style, lv_dither_mode_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_bg_dither_mode )
- */
-void jswrap_lv_style_set_bg_dither_mode(JsVar *style, lv_dither_mode_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_dither_mode_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_bg_img_src(lv_style_t *style, const void *value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_bg_img_src )
- */
-void jswrap_lv_style_set_bg_img_src(JsVar *style, JsVar *value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, const void *))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_bg_img_tiled(lv_style_t *style, bool value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_bg_img_tiled )
- */
-void jswrap_lv_style_set_bg_img_tiled(JsVar *style, bool value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, bool))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_border_side(lv_style_t *style, lv_border_side_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_border_side )
- */
-void jswrap_lv_style_set_border_side(JsVar *style, lv_border_side_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_border_side_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_text_font(lv_style_t *style, const lv_font_t *value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_text_font )
- */
-void jswrap_lv_style_set_text_font(JsVar *style, JsVar *value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, const lv_font_t *))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_text_decor(lv_style_t *style, lv_text_decor_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_text_decor )
- */
-void jswrap_lv_style_set_text_decor(JsVar *style, lv_text_decor_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_text_decor_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_text_align(lv_style_t *style, lv_text_align_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_text_align )
- */
-void jswrap_lv_style_set_text_align(JsVar *style, lv_text_align_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_text_align_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_anim(lv_style_t *style, const lv_anim_t *value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_anim )
- */
-void jswrap_lv_style_set_anim(JsVar *style, JsVar *value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, const lv_anim_t *))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_anim_time(lv_style_t *style, uint32_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_anim_time )
- */
-void jswrap_lv_style_set_anim_time(JsVar *style, uint32_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, uint32_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_transition(lv_style_t *style, const lv_style_transition_dsc_t *value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_transition )
- */
-void jswrap_lv_style_set_transition(JsVar *style, JsVar *value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, const lv_style_transition_dsc_t *))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_blend_mode(lv_style_t *style, lv_blend_mode_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_blend_mode )
- */
-void jswrap_lv_style_set_blend_mode(JsVar *style, lv_blend_mode_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_blend_mode_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_layout(lv_style_t *style, uint16_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_layout )
- */
-void jswrap_lv_style_set_layout(JsVar *style, uint16_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, uint16_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_base_dir(lv_style_t *style, lv_base_dir_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_base_dir )
- */
-void jswrap_lv_style_set_base_dir(JsVar *style, lv_base_dir_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_base_dir_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_flex_flow(lv_style_t *style, lv_flex_flow_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_flex_flow )
- */
-void jswrap_lv_style_set_flex_flow(JsVar *style, lv_flex_flow_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_flex_flow_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_flex_main_place(lv_style_t *style, lv_flex_align_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_flex_main_place )
- */
-void jswrap_lv_style_set_flex_main_place(JsVar *style, lv_flex_align_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, lv_flex_align_t))lv_func_ptr)(style, value);
-  
-}
-
-
-/*
- * void lv_style_set_flex_grow(lv_style_t *style, uint8_t value) 
- * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_set_flex_grow )
- */
-void jswrap_lv_style_set_flex_grow(JsVar *style, uint8_t value, void *lv_func_ptr) {
-  
-  ((void (*)(lv_style_t *, uint8_t))lv_func_ptr)(style, value);
-  
-}
 
 
 /*
@@ -1912,9 +1444,8 @@ void jswrap_lv_style_set_flex_grow(JsVar *style, uint8_t value, void *lv_func_pt
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_del )
  */
 void jswrap_lv_anim_timeline_del(JsVar *at, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_timeline_t *))lv_func_ptr)(at);
-  
+  struct _lv_anim_timeline_t *atobj = jsvGetNativeFunctionPtr(at);
+  ((void (*)(lv_anim_timeline_t *))lv_func_ptr)(atobj);
 }
 
 
@@ -1923,9 +1454,8 @@ void jswrap_lv_anim_timeline_del(JsVar *at, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_add )
  */
 void jswrap_lv_anim_timeline_add(JsVar *at, uint32_t start_time, JsVar *a, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_timeline_t *, uint32_t, lv_anim_t *))lv_func_ptr)(at, start_time, a);
-  
+  struct _lv_anim_timeline_t *atobj = jsvGetNativeFunctionPtr(at);
+  ((void (*)(lv_anim_timeline_t *, uint32_t, lv_anim_t *))lv_func_ptr)(atobj, start_time, a);
 }
 
 
@@ -1934,8 +1464,8 @@ void jswrap_lv_anim_timeline_add(JsVar *at, uint32_t start_time, JsVar *a, void 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_start )
  */
 int jswrap_lv_anim_timeline_start(JsVar *at, void *lv_func_ptr) {
-  
-  uint32_t _res = ((uint32_t (*)(lv_anim_timeline_t *))lv_func_ptr)(at);
+  struct _lv_anim_timeline_t *atobj = jsvGetNativeFunctionPtr(at);
+  uint32_t _res = ((uint32_t (*)(lv_anim_timeline_t *))lv_func_ptr)(atobj);
   return _res;
 }
 
@@ -1945,9 +1475,8 @@ int jswrap_lv_anim_timeline_start(JsVar *at, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_set_reverse )
  */
 void jswrap_lv_anim_timeline_set_reverse(JsVar *at, bool reverse, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_timeline_t *, bool))lv_func_ptr)(at, reverse);
-  
+  struct _lv_anim_timeline_t *atobj = jsvGetNativeFunctionPtr(at);
+  ((void (*)(lv_anim_timeline_t *, bool))lv_func_ptr)(atobj, reverse);
 }
 
 
@@ -1956,9 +1485,8 @@ void jswrap_lv_anim_timeline_set_reverse(JsVar *at, bool reverse, void *lv_func_
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_set_progress )
  */
 void jswrap_lv_anim_timeline_set_progress(JsVar *at, uint16_t progress, void *lv_func_ptr) {
-  
-  ((void (*)(lv_anim_timeline_t *, uint16_t))lv_func_ptr)(at, progress);
-  
+  struct _lv_anim_timeline_t *atobj = jsvGetNativeFunctionPtr(at);
+  ((void (*)(lv_anim_timeline_t *, uint16_t))lv_func_ptr)(atobj, progress);
 }
 
 
@@ -1967,8 +1495,8 @@ void jswrap_lv_anim_timeline_set_progress(JsVar *at, uint16_t progress, void *lv
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_get_reverse )
  */
 bool jswrap_lv_anim_timeline_get_reverse(JsVar *at, void *lv_func_ptr) {
-  
-  bool _res = ((bool (*)(lv_anim_timeline_t *))lv_func_ptr)(at);
+  struct _lv_anim_timeline_t *atobj = jsvGetNativeFunctionPtr(at);
+  bool _res = ((bool (*)(lv_anim_timeline_t *))lv_func_ptr)(atobj);
   return _res;
 }
 
@@ -1978,7 +1506,6 @@ bool jswrap_lv_anim_timeline_get_reverse(JsVar *at, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_color_make )
  */
 JsVar *jswrap_lv_color_make(uint8_t r, uint8_t g, uint8_t b, void *lv_func_ptr) {
-  
   lv_color_t _res = ((lv_color_t (*)(uint8_t, uint8_t, uint8_t))lv_func_ptr)(r, g, b);
   return jsvNewFromInteger(_res.full);
 }
@@ -2000,7 +1527,6 @@ JsVar *jswrap_lv_color_hex(uint32_t c, void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_color_chroma_key )
  */
 JsVar *jswrap_lv_color_chroma_key(void *lv_func_ptr) {
-  
   lv_color_t _res = ((lv_color_t (*)(void))lv_func_ptr)();
   return jsvNewFromInteger(_res.full);
 }
@@ -2011,7 +1537,6 @@ JsVar *jswrap_lv_color_chroma_key(void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_style_prop_has_flag )
  */
 bool jswrap_lv_style_prop_has_flag(lv_style_prop_t prop, uint8_t flag, void *lv_func_ptr) {
-  
   bool _res = ((bool (*)(lv_style_prop_t, uint8_t))lv_func_ptr)(prop, flag);
   return _res;
 }
@@ -2032,8 +1557,7 @@ JsVar *jswrap_lv_scr_act(void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_del )
  */
 bool jswrap_lv_anim_del(void *var, lv_anim_exec_xcb_t exec_cb, void *lv_func_ptr) {
-  
-  bool _res = ((bool (*)(void *, lv_anim_exec_xcb_t))lv_func_ptr)(var, exec_cb);
+  bool _res = ((bool (*)(void *, lv_anim_exec_xcb_t))lv_func_ptr)(jsvGetNativeFunctionPtr(var), (void *)(uintptr_t)exec_cb);
   return _res;
 }
 
@@ -2043,8 +1567,7 @@ bool jswrap_lv_anim_del(void *var, lv_anim_exec_xcb_t exec_cb, void *lv_func_ptr
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_get )
  */
 JsVar *jswrap_lv_anim_get(void *var, lv_anim_exec_xcb_t exec_cb, void *lv_func_ptr) {
-  
-  lv_anim_t * _res = ((lv_anim_t *(*)(void *, lv_anim_exec_xcb_t))lv_func_ptr)(var, exec_cb);
+  lv_anim_t * _res = ((lv_anim_t *(*)(void *, lv_anim_exec_xcb_t))lv_func_ptr)(var, (void *)(uintptr_t)exec_cb);
   return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
 }
 
@@ -2054,7 +1577,6 @@ JsVar *jswrap_lv_anim_get(void *var, lv_anim_exec_xcb_t exec_cb, void *lv_func_p
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_get_timer )
  */
 JsVar *jswrap_lv_anim_get_timer(void *lv_func_ptr) {
-  
   struct _lv_timer_t * _res = ((struct _lv_timer_t *(*)(void))lv_func_ptr)();
   return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
 }
@@ -2065,7 +1587,6 @@ JsVar *jswrap_lv_anim_get_timer(void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_count_running )
  */
 int jswrap_lv_anim_count_running(void *lv_func_ptr) {
-  
   uint16_t _res = ((uint16_t (*)(void))lv_func_ptr)();
   return _res;
 }
@@ -2076,7 +1597,6 @@ int jswrap_lv_anim_count_running(void *lv_func_ptr) {
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_speed_to_time )
  */
 int jswrap_lv_anim_speed_to_time(uint32_t speed, int32_t start, int32_t end, void *lv_func_ptr) {
-  
   uint32_t _res = ((uint32_t (*)(uint32_t, int32_t, int32_t))lv_func_ptr)(speed, start, end);
   return _res;
 }
@@ -2087,7 +1607,6 @@ int jswrap_lv_anim_speed_to_time(uint32_t speed, int32_t start, int32_t end, voi
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_anim_timeline_create )
  */
 JsVar *jswrap_lv_anim_timeline_create(void *lv_func_ptr) {
-  
   lv_anim_timeline_t * _res = ((lv_anim_timeline_t *(*)(void))lv_func_ptr)();
   return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
 }
@@ -2099,7 +1618,6 @@ JsVar *jswrap_lv_anim_timeline_create(void *lv_func_ptr) {
 void jswrap_lv_scr_load_anim(JsVar *jsobj, lv_scr_load_anim_t anim_type, uint32_t time, uint32_t delay, bool auto_del, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   ((void (*)(lv_obj_t *, lv_scr_load_anim_t, uint32_t, uint32_t, bool))lv_func_ptr)(obj, anim_type, time, delay, auto_del);
-  
 }
 
 
@@ -2108,8 +1626,9 @@ void jswrap_lv_scr_load_anim(JsVar *jsobj, lv_scr_load_anim_t anim_type, uint32_
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_font_load )
  */
 JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
-  
-  lv_font_t * _res = ((lv_font_t *(*)(const char *))lv_func_ptr)(fontName);
+  char buf[30]; // fix size ??
+  jsvGetString(fontName, buf, sizeof(buf));
+  lv_font_t * _res = ((lv_font_t *(*)(const char *))lv_func_ptr)(buf);
   return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
 }
 
@@ -2366,19 +1885,6 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   ]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_ext_click_area
-*/
-    
-// lv_obj_get_click_area
-/*JSON{
-  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
-  "name" : "lv_obj_get_click_area",
-  "generate_full" : "jswrap_lv_obj_get_coords(jsobj, coords, lv_obj_get_click_area)",
-  "params" : [
-    ["jsobj","JsVar"],
-    ["coords","int"]
-  ]
-}
-    https://docs.lvgl.io/8.3/search.html?q=lv_obj_get_click_area
 */
     
 // lv_obj_del
@@ -2640,7 +2146,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_obj_add_style(jsobj, style, selector, lv_obj_add_style)",
   "params" : [
     ["jsobj","JsVar"],
-    ["style","int"],
+    ["style","JsVar"],
     ["selector","int"]
   ]
 }
@@ -2654,7 +2160,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_obj_add_style(jsobj, style, selector, lv_obj_remove_style)",
   "params" : [
     ["jsobj","JsVar"],
-    ["style","int"],
+    ["style","JsVar"],
     ["selector","int"]
   ]
 }
@@ -2739,7 +2245,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_obj_set_style_bg_grad(jsobj, value, selector, lv_obj_set_style_bg_grad)",
   "params" : [
     ["jsobj","JsVar"],
-    ["value","int"],
+    ["value","JsVar"],
     ["selector","int"]
   ]
 }
@@ -3201,7 +2707,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_obj_set_style_anim(jsobj, value, selector, lv_obj_set_style_anim)",
   "params" : [
     ["jsobj","JsVar"],
-    ["value","int"],
+    ["value","JsVar"],
     ["selector","int"]
   ]
 }
@@ -3243,7 +2749,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_obj_set_style_transition(jsobj, value, selector, lv_obj_set_style_transition)",
   "params" : [
     ["jsobj","JsVar"],
-    ["value","int"],
+    ["value","JsVar"],
     ["selector","int"]
   ]
 }
@@ -3539,8 +3045,8 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_obj_set_tile",
   "generate_full" : "jswrap_lv_obj_set_tile(tv, tile_jsobj, anim_en, lv_obj_set_tile)",
   "params" : [
-    ["tv","int"],
-    ["tile_jsobj","int"],
+    ["tv","JsVar"],
+    ["tile_jsobj","JsVar"],
     ["anim_en","int"]
   ]
 }
@@ -3553,7 +3059,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "name" : "lv_obj_set_tile_id",
   "generate_full" : "jswrap_lv_obj_set_tile_id(tv, col_id, row_id, anim_en, lv_obj_set_tile_id)",
   "params" : [
-    ["tv","int"],
+    ["tv","JsVar"],
     ["col_id","int"],
     ["row_id","int"],
     ["anim_en","int"]
@@ -3980,7 +3486,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_line_set_points(jsobj, points, point_num, lv_line_set_points)",
   "params" : [
     ["jsobj","JsVar"],
-    ["points","int"],
+    ["points","JsVar"],
     ["point_num","int"]
   ]
 }
@@ -4443,33 +3949,6 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "return" : ["JsVar","lv_obj_t *"]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_tileview_create
-*/
-    
-      
-// lv_imgbtn_set_state
-/*JSON{
-  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
-  "name" : "lv_imgbtn_set_state",
-  "generate_full" : "jswrap_lv_imgbtn_set_state(jsobj, state, lv_imgbtn_set_state)",
-  "params" : [
-    ["jsobj","JsVar"],
-    ["state","int"]
-  ]
-}
-    https://docs.lvgl.io/8.3/search.html?q=lv_imgbtn_set_state
-*/
-    
-// lv_imgbtn_create
-/*JSON{
-  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
-  "name" : "lv_imgbtn_create",
-  "generate_full" : "jswrap_lv_obj_create(jsobj, lv_imgbtn_create)",
-  "params" : [
-    ["jsobj","JsVar"]
-  ],
-  "return" : ["JsVar","lv_obj_t *"]
-}
-    https://docs.lvgl.io/8.3/search.html?q=lv_imgbtn_create
 */
     
 // lv_color_to1
@@ -4979,7 +4458,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_anim_del(var, exec_cb, lv_anim_del)",
   "params" : [
     ["var","JsVar"],
-    ["exec_cb","int"]
+    ["exec_cb","JsVar"]
   ],
   "return" : ["bool","bool"]
 }
@@ -4993,7 +4472,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "generate_full" : "jswrap_lv_anim_get(var, exec_cb, lv_anim_get)",
   "params" : [
     ["var","JsVar"],
-    ["exec_cb","int"]
+    ["exec_cb","JsVar"]
   ],
   "return" : ["int","lv_anim_t *"]
 }
@@ -5068,6 +4547,18 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
     https://docs.lvgl.io/8.3/search.html?q=lv_scr_load_anim
 */
     
-
+    
+// lv_font_load
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_font_load",
+  "generate_full" : "jswrap_lv_font_load(fontName, lv_font_load)",
+  "params" : [
+    ["fontName","JsVar"]
+  ],
+  "return" : ["int","lv_font_t *"]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_font_load
+*/
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

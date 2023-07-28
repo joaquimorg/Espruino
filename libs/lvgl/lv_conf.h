@@ -546,7 +546,7 @@ LV_FONT_DECLARE(ui_font_OpenSans22Bold)
 
 #define LV_USE_COLORWHEEL 0
 
-#define LV_USE_IMGBTN     1
+#define LV_USE_IMGBTN     0
 
 #define LV_USE_KEYBOARD   0
 
