@@ -281,6 +281,39 @@ bool jswrap_lvgl_idle() {
 /*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_BORDER_SIDE_INTERNAL", "generate_full" : "LV_BORDER_SIDE_INTERNAL", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
+//lv_scr_load_anim_t
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_NONE", "generate_full" : "LV_SCR_LOAD_ANIM_NONE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OVER_LEFT", "generate_full" : "LV_SCR_LOAD_ANIM_OVER_LEFT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OVER_RIGHT", "generate_full" : "LV_SCR_LOAD_ANIM_OVER_RIGHT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OVER_TOP", "generate_full" : "LV_SCR_LOAD_ANIM_OVER_TOP", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OVER_BOTTOM", "generate_full" : "LV_SCR_LOAD_ANIM_OVER_BOTTOM", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_MOVE_LEFT", "generate_full" : "LV_SCR_LOAD_ANIM_MOVE_LEFT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_MOVE_RIGHT", "generate_full" : "LV_SCR_LOAD_ANIM_MOVE_RIGHT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_MOVE_TOP", "generate_full" : "LV_SCR_LOAD_ANIM_MOVE_TOP", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_MOVE_BOTTOM", "generate_full" : "LV_SCR_LOAD_ANIM_MOVE_BOTTOM", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_FADE_IN", "generate_full" : "LV_SCR_LOAD_ANIM_FADE_IN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_FADE_ON", "generate_full" : "LV_SCR_LOAD_ANIM_FADE_IN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_FADE_OUT", "generate_full" : "LV_SCR_LOAD_ANIM_FADE_OUT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OUT_LEFT", "generate_full" : "LV_SCR_LOAD_ANIM_OUT_LEFT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OUT_RIGHT", "generate_full" : "LV_SCR_LOAD_ANIM_OUT_RIGHT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OUT_TOP", "generate_full" : "LV_SCR_LOAD_ANIM_OUT_TOP", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OUT_BOTTOM", "generate_full" : "LV_SCR_LOAD_ANIM_OUT_BOTTOM", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // FONT
