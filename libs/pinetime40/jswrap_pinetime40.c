@@ -778,6 +778,8 @@ void touchHandler(bool state, IOEventFlags flags) {
   "generate" : "jswrap_pinetime40_hwinit"
 }*/
 NO_INLINE void jswrap_pinetime40_hwinit() {
+
+  jshPinOutput(VIBRATE_PIN,0);
   
   jshI2CInitInfo(&i2cTouch);
   i2cTouch.bitrate = 0x7FFFFFFF; // make it as fast as we can go

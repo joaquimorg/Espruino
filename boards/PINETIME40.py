@@ -103,7 +103,7 @@ chip = {
 
 devices = {
   'BTN1' : { 'pin' : 'D34', 'pinstate' : 'IN_PULLUP' }, # Pin negated in software  
-  'LED1' : { 'pin' : 'D36', 'novariable':True}, 
+  'LED1' : { 'pin' : 'D36', 'novariable' : True}, 
   'LCD' : {
             'width' : 240, 'height' : 240, 
             'bpp' : 16,
@@ -173,6 +173,7 @@ def get_pins():
   #pinutils.findpin(pins, "PD15", True)["functions"]["NEGATED"]=0;
   #pinutils.findpin(pins, "PD29", True)["functions"]["NEGATED"]=0;
   #pinutils.findpin(pins, "PD34", True)["functions"]["NEGATED"]=0;
+  pinutils.findpin(pins, "PD4", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD36", True)["functions"]["NEGATED"]=0;
 
   # everything is non-5v tolerant
