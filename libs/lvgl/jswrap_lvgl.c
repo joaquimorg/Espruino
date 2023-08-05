@@ -539,9 +539,14 @@ void jswrap_lv_obj_align(JsVar *jsobj, lv_align_t align, lv_coord_t x_ofs, lv_co
  * void lv_obj_align_to(struct _lv_obj_t *obj, const struct _lv_obj_t *base, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs) 
  * ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_align_to )
  */
-void jswrap_lv_obj_align_to(JsVar *jsobj, JsVar *base, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs, void *lv_func_ptr) {
+void jswrap_lv_obj_align_to(JsVar *jsobj, JsVar *base, JsVar *args, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   struct _lv_obj_t *objbase = jsvGetNativeFunctionPtr(base);
+
+  lv_align_t align = jsvGetInteger(jsvGetArrayItem(args, 0)); 
+  lv_coord_t x_ofs = jsvGetInteger(jsvGetArrayItem(args, 1));
+  lv_coord_t y_ofs = jsvGetInteger(jsvGetArrayItem(args, 2));
+
   ((void (*)(struct _lv_obj_t *, const struct _lv_obj_t *, lv_align_t, lv_coord_t, lv_coord_t))lv_func_ptr)(obj, objbase, align, x_ofs, y_ofs);
 }
 
@@ -4579,8 +4584,7 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_scr_load_anim
 */
-    
-    
+
 // lv_font_load
 /*JSON{
   "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
@@ -4592,6 +4596,20 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   "return" : ["int","lv_font_t *"]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_font_load
+*/
+
+// lv_obj_align_to
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_align_to",
+  "generate_full" : "jswrap_lv_obj_align_to(jsobj, base, args, lv_obj_align_to)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["base","JsVar"],
+    ["args","JsVarArray","{align, x_ofs, y_ofs}"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_align_to
 */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

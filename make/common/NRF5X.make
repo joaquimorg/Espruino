@@ -533,7 +533,7 @@ else
 	# nrfutil  pkg generate --help
 	@cp $(PROJ_NAME).app_hex $(PROJ_NAME)_app.hex
 ifdef BOOTLOADER
-	nrfutil pkg generate $(PROJ_NAME).zip --bootloader $(PROJ_NAME)_app.hex --bootloader-version 0xff --hw-version 52 --sd-req 0x8C,0x91 --key-file $(DFU_PRIVATE_KEY)
+	nrfutil pkg generate $(PROJ_NAME).zip --bootloader $(PROJ_NAME)_app.hex --bootloader-version 0xff --hw-version 52 --sd-req 0x8C,0x91,0xA9,0xAE,0xB6,0xB7 --key-file $(DFU_PRIVATE_KEY)
 else
 	nrfutil pkg generate $(PROJ_NAME).zip --application $(PROJ_NAME)_app.hex $(DFU_SETTINGS) --key-file $(DFU_PRIVATE_KEY)  
 endif

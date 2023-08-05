@@ -33,7 +33,7 @@ void jswrap_lv_obj_set_layout(JsVar *jsobj, uint32_t layout, void *lv_func_ptr);
 void jswrap_lv_obj_update_layout(JsVar *jsobj, void *lv_func_ptr);
 void jswrap_lv_obj_set_align(JsVar *jsobj, lv_align_t align, void *lv_func_ptr);
 void jswrap_lv_obj_align(JsVar *jsobj, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs, void *lv_func_ptr);
-void jswrap_lv_obj_align_to(JsVar *jsobj, JsVar *base, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs, void *lv_func_ptr);
+void jswrap_lv_obj_align_to(JsVar *jsobj, JsVar *base, JsVar *args, void *lv_func_ptr);
 void jswrap_lv_obj_get_coords(JsVar *jsobj, lv_area_t *coords, void *lv_func_ptr);
 int jswrap_lv_obj_get_x(JsVar *jsobj, void *lv_func_ptr);
 JsVar *jswrap_lv_obj_get_screen(JsVar *jsobj, void *lv_func_ptr);

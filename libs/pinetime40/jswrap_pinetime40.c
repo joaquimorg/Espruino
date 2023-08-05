@@ -849,6 +849,8 @@ NO_INLINE void jswrap_pinetime40_init() {
 
   if (!firstRun) {
     
+    jswrap_pinetime40_setLCDPower(1);
+    
     lv_obj_clean(lv_scr_act());
     lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_t *label = lv_label_create( lv_scr_act() );

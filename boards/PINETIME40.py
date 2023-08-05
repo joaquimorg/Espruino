@@ -34,7 +34,8 @@ info = {
    'optimizeflags' : '-Os -s -z noseparate-code',
    'libraries' : [
      'BLUETOOTH',
-     'LVGL'
+     'LVGL',
+     'JIT' # JIT compiler enabled
    ],
    'makefile' : [
      'DEFINES+=-DPINETIME40 -DESPR_HWVERSION=2',
@@ -63,7 +64,7 @@ info = {
      'JSMODULESOURCES += libs/js/pinetime40/locale.min.js',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
 
-     'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6,0xb7',
+     'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0x8C,0x91,0xA9,0xAE,0xB6,0xB7',
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key_40.pem',
      'DEFINES += -DNRF_BOOTLOADER_NO_WRITE_PROTECT=1', # By default the bootloader protects flash. Avoid this (a patch for NRF_BOOTLOADER_NO_WRITE_PROTECT must be applied first)
      'DEFINES += -DBUTTONPRESS_TO_REBOOT_BOOTLOADER',
