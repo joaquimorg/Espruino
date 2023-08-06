@@ -13,6 +13,7 @@ void jswrap_pinetime40_setLCDPower(bool isOn);
 void jswrap_pinetime40_setLCDTimeout(JsVarFloat timeout);
 
 JsVarInt jswrap_pinetime40_getBattery();
+JsVarFloat jswrap_pinetime40_battVoltage();
 
 int jswrap_pinetime40_isCharging();
 int jswrap_pinetime40_isLCDOn();

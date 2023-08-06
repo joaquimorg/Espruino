@@ -217,11 +217,7 @@ uint8_t lcdBrightness;
 */
 // emscripten bug means we can't use 'bool' as return value here!
 int jswrap_pinetime40_isCharging() {
-#ifdef BAT_PIN_CHARGING
-  return !jshPinGetValue(BAT_PIN_CHARGING);
-#else
-  return 0;
-#endif
+  return jshPinGetValue(BAT_PIN_CHARGING);
 }
 
 /// get battery percentage
@@ -236,6 +232,24 @@ JsVarInt jswrap_pinetime40_getBattery() {
   if (pc > 100) pc = 100;
   if (pc < 0) pc = 0;
   return pc;
+
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "battVoltage",
+    "generate" : "jswrap_pinetime40_battVoltage",
+    "return" : ["float","The battery voltage."],
+    "ifdef" : "PINETIME40"
+}
+*/
+JsVarFloat jswrap_pinetime40_battVoltage() {
+
+  JsVarFloat v = jshPinAnalog(BAT_PIN_VOLTAGE);
+
+  //int pc = v * 100;
+  return v;
 
 }
 
