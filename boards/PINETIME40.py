@@ -126,21 +126,20 @@ devices = {
           },
   'VIBRATE' : { 'pin' : 'D4' },
   'BAT' : {
-            'pin_charging' : 'D29', # active low
+            'pin_charging' : 'D29', # active low, input pullup
             'pin_voltage' : 'D31'
           },
-#  'HEARTRATE' : {
-#            'device' : 'VC31', 'addr' : 0x33,            
-#            'pin_sda' : 'D24', 
-#            'pin_scl' : 'D32', 
-#            'pin_en' : 'D21', 
-#            'pin_int' : 'D22'
-#          },
-#  'ACCEL' : {
-#            'device' : 'KX023', 'addr' : 0x1e,
-#            'pin_sda' : 'D38',
-#            'pin_scl' : 'D37'
-#          },
+  'HEARTRATE' : {
+            'device' : 'HRS3300', 'addr' : 0x44,            
+            'pin_sda' : 'D39', 
+            'pin_scl' : 'D38'
+          },
+  'ACCEL' : {
+            'device' : 'BMA400', 'addr' : 0x14,
+            'pin_sda' : 'D39',
+            'pin_scl' : 'D38',
+            'pin_int' : 'D33'
+          },
   'SPIFLASH' : {
             'pin_cs' : 'D17',
             'pin_sck' : 'D22',
@@ -162,18 +161,8 @@ def get_pins():
   pins = pinutils.generate_pins(0,47) # 48 General Purpose I/O Pins.
   pinutils.findpin(pins, "PD0", True)["functions"]["XL1"]=0;
   pinutils.findpin(pins, "PD1", True)["functions"]["XL2"]=0;
-  pinutils.findpin(pins, "PD2", True)["functions"]["ADC1_IN0"]=0;
-  pinutils.findpin(pins, "PD3", True)["functions"]["ADC1_IN1"]=0;
-  pinutils.findpin(pins, "PD4", True)["functions"]["ADC1_IN2"]=0;
-  pinutils.findpin(pins, "PD5", True)["functions"]["ADC1_IN3"]=0;
-  pinutils.findpin(pins, "PD28", True)["functions"]["ADC1_IN4"]=0;
-  pinutils.findpin(pins, "PD29", True)["functions"]["ADC1_IN5"]=0;
-  pinutils.findpin(pins, "PD30", True)["functions"]["ADC1_IN6"]=0;
   pinutils.findpin(pins, "PD31", True)["functions"]["ADC1_IN7"]=0;
   # Make buttons and LEDs negated
-  #pinutils.findpin(pins, "PD15", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD29", True)["functions"]["NEGATED"]=0;
-  #pinutils.findpin(pins, "PD34", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD4", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD36", True)["functions"]["NEGATED"]=0;
 

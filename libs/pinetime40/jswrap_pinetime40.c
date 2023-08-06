@@ -58,6 +58,16 @@ type ShortBoolean = boolean | 0 | 1;
 
 /*JSON{
   "type" : "variable",
+  "name" : "CHARGING",
+  "generate_full" : "BAT_PIN_CHARGING",
+  "ifdef" : "PINETIME40",
+  "return" : ["pin",""]
+}
+The Pinetime's CHARGING Pin.
+*/
+
+/*JSON{
+  "type" : "variable",
   "name" : "VIBRATE",
   "generate_full" : "VIBRATE_PIN",
   "ifdef" : "PINETIME40",
@@ -217,23 +227,10 @@ uint8_t lcdBrightness;
 */
 // emscripten bug means we can't use 'bool' as return value here!
 int jswrap_pinetime40_isCharging() {
-  return jshPinGetValue(BAT_PIN_CHARGING);
+  return !jshPinGetValue(BAT_PIN_CHARGING);
 }
 
-/// get battery percentage
-JsVarInt jswrap_pinetime40_getBattery() {
 
-  JsVarFloat v = jshPinAnalog(BAT_PIN_VOLTAGE);
-
-  const JsVarFloat vlo = 0.3100;
-  const JsVarFloat vhi = 0.4255;
-
-  int pc = (v - vlo) * 100 / (vhi - vlo);
-  if (pc > 100) pc = 100;
-  if (pc < 0) pc = 0;
-  return pc;
-
-}
 
 /*JSON{
     "type" : "staticmethod",
@@ -244,12 +241,87 @@ JsVarInt jswrap_pinetime40_getBattery() {
     "ifdef" : "PINETIME40"
 }
 */
+
+// 3.2V ADC range and 14-bit ADC resolution = 3288mV/16384
+#define VBAT_MV_PER_LSB   (0.20068359375F)
+
+// 1M + 1M voltage divider on VBAT = (1M / (1M + 1M))
+#define VBAT_DIVIDER      (0.5F)
+
+// Compensation factor for the VBAT divider
+#define VBAT_DIVIDER_COMP (2.10F)
+
+#define REAL_VBAT_MV_PER_LSB (VBAT_DIVIDER_COMP * VBAT_MV_PER_LSB)
+
+
 JsVarFloat jswrap_pinetime40_battVoltage() {
 
-  JsVarFloat v = jshPinAnalog(BAT_PIN_VOLTAGE);
+  JsVarFloat v = jshPinAnalog(BAT_PIN_VOLTAGE) * 16384.0;
 
   //int pc = v * 100;
-  return v;
+  return (v * REAL_VBAT_MV_PER_LSB) / 1000;
+
+}
+
+typedef struct {
+    float voltage;
+    int percentage;
+} VoltageToPercentageEntry;
+
+VoltageToPercentageEntry lookupTable[] = {
+    {4.20, 100.0},
+    {4.15, 95.0},
+    {4.10, 90.0},
+    {4.05, 85.0},
+    {4.00, 80.0},
+    {3.95, 75.0},
+    {3.90, 70.0},
+    {3.85, 65.0},
+    {3.80, 60.0},
+    {3.75, 55.0},
+    {3.70, 50.0},
+    {3.65, 45.0},
+    {3.60, 40.0},
+    {3.55, 35.0},
+    {3.50, 30.0},
+    {3.45, 25.0},
+    {3.40, 20.0},
+    {3.35, 15.0},
+    {3.30, 10.0},
+    {3.25, 5.0},
+    {3.10, 1.0}
+};
+
+#define TABLE_SIZE (sizeof(lookupTable) / sizeof(lookupTable[0]))
+
+int voltageToPercentage(float voltage) {
+    if (voltage >= lookupTable[0].voltage) {
+        return lookupTable[0].percentage;
+    }
+    if (voltage <= lookupTable[TABLE_SIZE - 1].voltage) {
+        return lookupTable[TABLE_SIZE - 1].percentage;
+    }
+
+    for (int i = 1; i < TABLE_SIZE; ++i) {
+        if (voltage >= lookupTable[i].voltage) {
+            VoltageToPercentageEntry prev = lookupTable[i - 1];
+            VoltageToPercentageEntry current = lookupTable[i];
+            return prev.percentage + (int)((voltage - prev.voltage) / (current.voltage - prev.voltage) * (current.percentage - prev.percentage));
+        }
+    }
+
+    return 0; // Shouldn't reach here
+}
+
+/// get battery percentage
+JsVarInt jswrap_pinetime40_getBattery() {
+
+  JsVarFloat v = jswrap_pinetime40_battVoltage();
+
+  int pc = voltageToPercentage(v);
+  if (pc > 100) pc = 100;
+  if (pc < 0) pc = 0;
+  return pc;
 
 }
 
@@ -833,6 +905,8 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   lcdInit_SPINRF();
 
   jswrap_pinetime40_lvglinit();
+
+  jshPinSetState(BAT_PIN_CHARGING, JSHPINSTATE_GPIO_IN_PULLUP);
 
   jsiConsolePrintf("HWINIT DONE\n");
 }
