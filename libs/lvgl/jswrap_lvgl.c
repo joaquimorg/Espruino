@@ -411,6 +411,10 @@ bool jswrap_lvgl_idle() {
 }*/
 
 
+// Other
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SIZE_CONTENT", "generate_full" : "LV_SIZE_CONTENT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // FONT
 
