@@ -391,6 +391,7 @@ NO_INLINE void _jswrap_drawImageSimple(JsGraphics *gfx, int xPos, int yPos, GfxD
   int bits=0;
   uint32_t colData=0;
   int x1 = xPos, y1 = yPos, x2 = xPos+img->width-1, y2 = yPos+img->height-1;
+  if (!jsvStringIteratorHasChar(it)) return; // no data
 #ifndef SAVE_ON_FLASH
   graphicsSetModifiedAndClip(gfx,&x1,&y1,&x2,&y2); // ensure we clip Y
   /* force a skip forward as many bytes as we need. Ideally we would use
@@ -3166,6 +3167,7 @@ scale or angle. If `options.rotate` is set it will center images at `x,y`.
   scale : float, // the amount to scale the image up (default 1)
   frame : int    // if specified and the image has frames of data
                  //  after the initial frame, draw one of those frames from the image
+  filter : bool  // (2v19+) when set, if scale<0.75 perform 2x2 supersampling to smoothly downscale the image
 }
 ```
 
@@ -3190,6 +3192,9 @@ JsVar *jswrap_graphics_drawImage(JsVar *parent, JsVar *image, int xPos, int yPos
 
   double scale = 1, rotate = 0;
   bool centerImage = false;
+#ifndef SAVE_ON_FLASH
+  bool filter = false;
+#endif
   if (jsvIsObject(options)) {
     // support for multi-frame rendering
     int frame = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(options,"frame"));
@@ -3201,6 +3206,9 @@ JsVar *jswrap_graphics_drawImage(JsVar *parent, JsVar *image, int xPos, int yPos
     rotate = jsvGetFloatAndUnLock(jsvObjectGetChildIfExists(options,"rotate"));
     centerImage = isfinite(rotate);
     if (!centerImage) rotate = 0;
+#ifndef SAVE_ON_FLASH
+    filter = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(options,"filter"));
+#endif
   }
 
   int x=0, y=0;
@@ -3304,7 +3312,7 @@ JsVar *jswrap_graphics_drawImage(JsVar *parent, JsVar *image, int xPos, int yPos
     } else { // handle rotation, and default to center the image
 #else
     if (true) {
-#endif
+#endif // GRAPHICS_FAST_PATHS
       GfxDrawImageLayer l;
       l.x1 = xPos;
       l.y1 = yPos;
@@ -3320,16 +3328,62 @@ JsVar *jswrap_graphics_drawImage(JsVar *parent, JsVar *image, int xPos, int yPos
       _jswrap_drawImageLayerSetStart(&l, x1, y1);
       JsGraphicsSetPixelFn setPixel = graphicsGetSetPixelFn(&gfx);
 
-      // scan across image
-      for (y = y1; y <= y2; y++) {
-        _jswrap_drawImageLayerStartX(&l);
-        for (x = x1; x <= x2 ; x++) {
-          if (_jswrap_drawImageLayerGetPixel(&l, &colData)) {
-            setPixel(&gfx, x, y, colData);
+#ifndef SAVE_ON_FLASH
+      if (filter && scale<0.75) { // 2x2 antialiasing
+        int sx = (int)(l.sx * scale); // use scale rather than 0.5, so if scaling dithered it still works nicely
+        int sy = (int)(l.sy * scale);
+        int s2x = l.sx - sx; // sx+s2x = l.sx
+        int s2y = l.sy - sy;
+        GfxDrawImageLayer l2;
+        memcpy(&l2, &l, sizeof(l));
+        jsvStringIteratorNew(&l2.it, l2.img.buffer, 0);
+        l2.px += sy;
+        l2.py += sx;
+         _jswrap_drawImageLayerNextY(&l2);
+         // scan across image
+        for (y = y1; y <= y2; y++) {
+          _jswrap_drawImageLayerStartX(&l);
+          _jswrap_drawImageLayerStartX(&l2);
+          for (x = x1; x <= x2 ; x++) {
+            uint32_t ca,cb,cc,cd;
+            bool nonTransparent = true;
+            nonTransparent &= _jswrap_drawImageLayerGetPixel(&l, &ca);
+            l.qx += sx;
+            l.qy -= sy;
+            nonTransparent &= _jswrap_drawImageLayerGetPixel(&l, &cb);
+            l.qx += s2x;
+            l.qy -= s2y;
+            nonTransparent &= _jswrap_drawImageLayerGetPixel(&l2, &cc);
+            l2.qx += sx;
+            l2.qy -= sy;
+            nonTransparent &= _jswrap_drawImageLayerGetPixel(&l2, &cd);
+            l2.qx += s2x;
+            l2.qy -= s2y;
+            if (true) {
+              ca = graphicsBlendColor(&gfx, ca, cb, 128);
+              cc = graphicsBlendColor(&gfx, cc, cd, 128);
+              colData = graphicsBlendColor(&gfx, ca, cc, 128);
+              setPixel(&gfx, x, y, colData);
+            }
           }
-          _jswrap_drawImageLayerNextX(&l);
+          _jswrap_drawImageLayerNextY(&l);
+          _jswrap_drawImageLayerNextY(&l2);
         }
-        _jswrap_drawImageLayerNextY(&l);
+        jsvStringIteratorFree(&l2.it);
+      } else
+#endif
+      {
+        // scan across image
+        for (y = y1; y <= y2; y++) {
+          _jswrap_drawImageLayerStartX(&l);
+          for (x = x1; x <= x2 ; x++) {
+            if (_jswrap_drawImageLayerGetPixel(&l, &colData)) {
+              setPixel(&gfx, x, y, colData);
+            }
+            _jswrap_drawImageLayerNextX(&l);
+          }
+          _jswrap_drawImageLayerNextY(&l);
+        }
       }
       it = l.it; // make sure it gets freed properly
     }
