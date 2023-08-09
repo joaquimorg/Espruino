@@ -158,6 +158,7 @@ int jswrap_lv_anim_speed_to_time(uint32_t speed, int32_t start, int32_t end, voi
 JsVar *jswrap_lv_anim_timeline_create(void *lv_func_ptr);
 void jswrap_lv_scr_load_anim(JsVar *jsobj, lv_scr_load_anim_t anim_type, uint32_t time, uint32_t delay, bool auto_del, void *lv_func_ptr);
 JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr);
+void jswrap_lv_obj_set_style_pad_all(JsVar *jsobj, lv_coord_t value, lv_style_selector_t selector, void *lv_func_ptr);
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 

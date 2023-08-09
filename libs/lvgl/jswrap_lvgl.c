@@ -1670,6 +1670,14 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
 }
 
+/*
+* inline static void lv_obj_set_style_pad_all(struct _lv_obj_t *obj, lv_coord_t value, lv_style_selector_t selector) 
+* ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_all )
+*/
+void jswrap_lv_obj_set_style_pad_all(JsVar *jsobj, lv_coord_t value, lv_style_selector_t selector, void *lv_func_ptr) {
+  struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
+  ((void (*)(struct _lv_obj_t *, lv_coord_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
+}
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -4610,6 +4618,330 @@ JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr) {
   ]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_obj_align_to
+*/
+
+
+// lv_obj_set_style_radius
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_radius",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_radius)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_radius
+*/
+
+
+// lv_obj_set_style_transform_width
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_transform_width",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_transform_width)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_transform_width
+*/
+    
+// lv_obj_set_style_transform_height
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_transform_height",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_transform_height)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_transform_height
+*/
+    
+// lv_obj_set_style_translate_x
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_translate_x",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_translate_x)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_translate_x
+*/
+    
+// lv_obj_set_style_translate_y
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_translate_y",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_translate_y)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_translate_y
+*/
+    
+// lv_obj_set_style_transform_zoom
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_transform_zoom",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_transform_zoom)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_transform_zoom
+*/
+    
+// lv_obj_set_style_transform_angle
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_transform_angle",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_transform_angle)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_transform_angle
+*/
+    
+// lv_obj_set_style_transform_pivot_x
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_transform_pivot_x",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_transform_pivot_x)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_transform_pivot_x
+*/
+    
+// lv_obj_set_style_transform_pivot_y
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_transform_pivot_y",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_transform_pivot_y)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_transform_pivot_y
+*/
+    
+// lv_obj_set_style_pad_top
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_pad_top",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_pad_top)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_top
+*/
+    
+// lv_obj_set_style_pad_bottom
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_pad_bottom",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_pad_bottom)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_bottom
+*/
+    
+// lv_obj_set_style_pad_left
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_pad_left",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_pad_left)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_left
+*/
+
+// lv_obj_set_style_pad_right
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_pad_right",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_pad_right)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_right
+*/
+
+// lv_obj_set_style_width
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_width",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_width)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_width
+*/
+    
+// lv_obj_set_style_min_width
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_min_width",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_min_width)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_min_width
+*/
+    
+// lv_obj_set_style_max_width
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_max_width",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_max_width)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_max_width
+*/
+    
+// lv_obj_set_style_height
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_height",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_height)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_height
+*/
+    
+// lv_obj_set_style_min_height
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_min_height",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_min_height)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_min_height
+*/
+    
+// lv_obj_set_style_max_height
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_max_height",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_max_height)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_max_height
+*/
+    
+// lv_obj_set_style_x
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_x",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_x)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_x
+*/
+    
+// lv_obj_set_style_y
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_y",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_y)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_y
+*/
+
+// lv_obj_set_style_pad_row
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_pad_row",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_pad_row)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_row
+*/
+    
+// lv_obj_set_style_pad_column
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_pad_column",
+  "generate_full" : "jswrap_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_pad_column)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_column
 */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
