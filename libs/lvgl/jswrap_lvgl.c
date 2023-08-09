@@ -315,6 +315,41 @@ bool jswrap_lvgl_idle() {
 /*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_SCR_LOAD_ANIM_OUT_BOTTOM", "generate_full" : "LV_SCR_LOAD_ANIM_OUT_BOTTOM", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
+
+//lv_flex_align_t
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_ALIGN_START", "generate_full" : "LV_FLEX_ALIGN_START", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_ALIGN_END", "generate_full" : "LV_FLEX_ALIGN_END", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_ALIGN_CENTER", "generate_full" : "LV_FLEX_ALIGN_CENTER", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_ALIGN_SPACE_EVENLY", "generate_full" : "LV_FLEX_ALIGN_SPACE_EVENLY", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_ALIGN_SPACE_AROUND", "generate_full" : "LV_FLEX_ALIGN_SPACE_AROUND", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_ALIGN_SPACE_BETWEEN", "generate_full" : "LV_FLEX_ALIGN_SPACE_BETWEEN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
+
+//lv_flex_flow_t
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW", "generate_full" : "0x00", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN", "generate_full" : "_LV_FLEX_COLUMN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_WRAP", "generate_full" : "LV_FLEX_FLOW_ROW | _LV_FLEX_WRAP", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_REVERSE", "generate_full" : "LV_FLEX_FLOW_ROW | _LV_FLEX_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_WRAP_REVERSE", "generate_full" : "LV_FLEX_FLOW_ROW | _LV_FLEX_WRAP | _LV_FLEX_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_WRAP", "generate_full" : "LV_FLEX_FLOW_COLUMN | _LV_FLEX_WRAP", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_REVERSE", "generate_full" : "LV_FLEX_FLOW_COLUMN | _LV_FLEX_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_WRAP_REVERSE", "generate_full" : "LV_FLEX_FLOW_COLUMN | _LV_FLEX_WRAP | _LV_FLEX_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // FONT
 
