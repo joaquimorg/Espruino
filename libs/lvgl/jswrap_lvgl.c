@@ -332,21 +332,82 @@ bool jswrap_lvgl_idle() {
 
 
 //lv_flex_flow_t
-/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW", "generate_full" : "0x00", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW", "generate_full" : "LV_FLEX_FLOW_ROW", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN", "generate_full" : "_LV_FLEX_COLUMN", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN", "generate_full" : "LV_FLEX_FLOW_COLUMN", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_WRAP", "generate_full" : "LV_FLEX_FLOW_ROW | _LV_FLEX_WRAP", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_WRAP", "generate_full" : "LV_FLEX_FLOW_ROW_WRAP", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_REVERSE", "generate_full" : "LV_FLEX_FLOW_ROW | _LV_FLEX_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_REVERSE", "generate_full" : "LV_FLEX_FLOW_ROW_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_WRAP_REVERSE", "generate_full" : "LV_FLEX_FLOW_ROW | _LV_FLEX_WRAP | _LV_FLEX_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_ROW_WRAP_REVERSE", "generate_full" : "LV_FLEX_FLOW_ROW_WRAP_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_WRAP", "generate_full" : "LV_FLEX_FLOW_COLUMN | _LV_FLEX_WRAP", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_WRAP", "generate_full" : "LV_FLEX_FLOW_COLUMN_WRAP", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_REVERSE", "generate_full" : "LV_FLEX_FLOW_COLUMN | _LV_FLEX_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_REVERSE", "generate_full" : "LV_FLEX_FLOW_COLUMN_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
-/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_WRAP_REVERSE", "generate_full" : "LV_FLEX_FLOW_COLUMN | _LV_FLEX_WRAP | _LV_FLEX_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_FLEX_FLOW_COLUMN_WRAP_REVERSE", "generate_full" : "LV_FLEX_FLOW_COLUMN_WRAP_REVERSE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+
+//lv_obj_flag_t
+
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_HIDDEN", "generate_full" : "LV_OBJ_FLAG_HIDDEN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_CLICKABLE", "generate_full" : "LV_OBJ_FLAG_CLICKABLE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_CLICK_FOCUSABLE", "generate_full" : "LV_OBJ_FLAG_CLICK_FOCUSABLE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_CHECKABLE", "generate_full" : "LV_OBJ_FLAG_CHECKABLE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLLABLE", "generate_full" : "LV_OBJ_FLAG_SCROLLABLE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLL_ELASTIC", "generate_full" : "LV_OBJ_FLAG_SCROLL_ELASTIC", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLL_MOMENTUM", "generate_full" : "LV_OBJ_FLAG_SCROLL_MOMENTUM", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLL_ONE", "generate_full" : "LV_OBJ_FLAG_SCROLL_ONE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLL_CHAIN_HOR", "generate_full" : "LV_OBJ_FLAG_SCROLL_CHAIN_HOR", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLL_CHAIN_VER", "generate_full" : "LV_OBJ_FLAG_SCROLL_CHAIN_VER", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLL_CHAIN", "generate_full" : "LV_OBJ_FLAG_SCROLL_CHAIN", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLL_ON_FOCUS", "generate_full" : "LV_OBJ_FLAG_SCROLL_ON_FOCUS", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SCROLL_WITH_ARROW", "generate_full" : "LV_OBJ_FLAG_SCROLL_WITH_ARROW", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_SNAPPABLE", "generate_full" : "LV_OBJ_FLAG_SNAPPABLE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_PRESS_LOCK", "generate_full" : "LV_OBJ_FLAG_PRESS_LOCK", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_EVENT_BUBBLE", "generate_full" : "LV_OBJ_FLAG_EVENT_BUBBLE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_GESTURE_BUBBLE", "generate_full" : "LV_OBJ_FLAG_GESTURE_BUBBLE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_ADV_HITTEST", "generate_full" : "LV_OBJ_FLAG_ADV_HITTEST", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_IGNORE_LAYOUT", "generate_full" : "LV_OBJ_FLAG_IGNORE_LAYOUT", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_FLOATING", "generate_full" : "LV_OBJ_FLAG_FLOATING", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_OVERFLOW_VISIBLE", "generate_full" : "LV_OBJ_FLAG_OVERFLOW_VISIBLE", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_LAYOUT_1", "generate_full" : "LV_OBJ_FLAG_LAYOUT_1", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_LAYOUT_2", "generate_full" : "LV_OBJ_FLAG_LAYOUT_2", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_WIDGET_1", "generate_full" : "LV_OBJ_FLAG_WIDGET_1", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_WIDGET_2", "generate_full" : "LV_OBJ_FLAG_WIDGET_2", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_USER_1", "generate_full" : "LV_OBJ_FLAG_USER_1", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_USER_2", "generate_full" : "LV_OBJ_FLAG_USER_2", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_USER_3", "generate_full" : "LV_OBJ_FLAG_USER_3", "ifdef" : "LVGL", "return" : ["int",""]
+}*/
+/*JSON{"type" : "staticproperty", "class" : "LVGL", "name" : "LV_OBJ_FLAG_USER_4", "generate_full" : "LV_OBJ_FLAG_USER_4", "ifdef" : "LVGL", "return" : ["int",""]
 }*/
 
 
