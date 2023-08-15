@@ -4,7 +4,6 @@
 #include "jsdevices.h"
 #include "jsnative.h"
 #include "jshardware.h"
-#include "jsdevices.h"
 #include "jspin.h"
 #include "jstimer.h"
 #include "jswrap_promise.h"
@@ -76,6 +75,17 @@ The Pinetime's CHARGING Pin.
 The Pinetime's vibration motor.
 */
 
+
+/*JSON{
+  "type" : "variable",
+  "name" : "ACCELPIN",
+  "generate_full" : "ACCEL_PIN_INT",
+  "ifdef" : "PINETIME40",
+  "return" : ["pin",""]
+}
+The Pinetime's Accel INT.
+*/
+
 /*TYPESCRIPT
 type AccelData = {
   x: number;
@@ -103,6 +113,7 @@ Accelerometer data available with `{x,y,z,diff,mag}` object as a parameter.
 
 You can also retrieve the most recent reading with `Pinetime.getAccel()`.
 */
+
 /*JSON{
   "type" : "event",
   "class" : "Pinetime",
@@ -112,6 +123,7 @@ You can also retrieve the most recent reading with `Pinetime.getAccel()`.
 }
 Called whenever a step is detected by Pinetime's pedometer.
 */
+
 /*JSON{
   "type" : "event",
   "class" : "Pinetime",
@@ -146,8 +158,8 @@ volatile uint16_t chargeTimer; // in ms
 volatile bool wasCharging;
 
 
-JsVar *promiseBeep;
-JsVar *promiseBuzz;
+JsVar* promiseBeep;
+JsVar* promiseBuzz;
 unsigned short beepFreq;
 unsigned char buzzAmt;
 
@@ -163,8 +175,29 @@ int twistTimeout = 1000;
 #define DEFAULT_LOCK_TIMEOUT 30000
 
 
-JshI2CInfo i2cTouch;
-#define TOUCH_I2C &i2cTouch
+JshI2CInfo i2cInternal;
+
+#define ACCEL_I2C &i2cInternal
+#define TOUCH_I2C &i2cInternal
+#define HRM_I2C &i2cInternal
+
+struct bma400_dev bma_sensor;
+
+
+/* Earth's gravity in m/s^2 */
+#define GRAVITY_EARTH     (9.80665f)
+
+static float lsb_to_ms2(int16_t accel_data, uint8_t g_range, uint8_t bit_width) {
+  float accel_ms2;
+  int16_t half_scale;
+
+  half_scale = 1 << (bit_width - 1);
+  accel_ms2 = (GRAVITY_EARTH * accel_data * g_range) / half_scale;
+
+  return accel_ms2;
+
+}
+
 
 typedef enum {
   JSPF_NONE,
@@ -264,8 +297,8 @@ JsVarFloat jswrap_pinetime40_battVoltage() {
 }
 
 typedef struct {
-    float voltage;
-    int percentage;
+  float voltage;
+  int percentage;
 } VoltageToPercentageEntry;
 
 VoltageToPercentageEntry lookupTable[] = {
@@ -295,22 +328,22 @@ VoltageToPercentageEntry lookupTable[] = {
 #define TABLE_SIZE (sizeof(lookupTable) / sizeof(lookupTable[0]))
 
 int voltageToPercentage(float voltage) {
-    if (voltage >= lookupTable[0].voltage) {
-        return lookupTable[0].percentage;
-    }
-    if (voltage <= lookupTable[TABLE_SIZE - 1].voltage) {
-        return lookupTable[TABLE_SIZE - 1].percentage;
-    }
+  if (voltage >= lookupTable[0].voltage) {
+    return lookupTable[0].percentage;
+  }
+  if (voltage <= lookupTable[TABLE_SIZE - 1].voltage) {
+    return lookupTable[TABLE_SIZE - 1].percentage;
+  }
 
-    for (int i = 1; i < TABLE_SIZE; ++i) {
-        if (voltage >= lookupTable[i].voltage) {
-            VoltageToPercentageEntry prev = lookupTable[i - 1];
-            VoltageToPercentageEntry current = lookupTable[i];
-            return prev.percentage + (int)((voltage - prev.voltage) / (current.voltage - prev.voltage) * (current.percentage - prev.percentage));
-        }
+  for (int i = 1; i < TABLE_SIZE; ++i) {
+    if (voltage >= lookupTable[i].voltage) {
+      VoltageToPercentageEntry prev = lookupTable[i - 1];
+      VoltageToPercentageEntry current = lookupTable[i];
+      return prev.percentage + (int)((voltage - prev.voltage) / (current.voltage - prev.voltage) * (current.percentage - prev.percentage));
     }
+  }
 
-    return 0; // Shouldn't reach here
+  return 0; // Shouldn't reach here
 }
 
 /// get battery percentage
@@ -326,17 +359,17 @@ JsVarInt jswrap_pinetime40_getBattery() {
 }
 
 void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
-// wake up IF LCD power or Lock has a timeout (so will turn off automatically)
+  // wake up IF LCD power or Lock has a timeout (so will turn off automatically)
   if (lcdPowerTimeout) {
-    if ((pinetimeFlags&JSPF_WAKEON_BTN1)&&(button==1)) {
+    if ((pinetimeFlags & JSPF_WAKEON_BTN1) && (button == 1)) {
       // if a 'hard' button, turn LCD on      
       inactivityTimer = 0;
       if (state) {
         bool ignoreBtnUp = false;
-        if (lcdPowerTimeout && !(pinetimeFlags&JSPF_LCD_ON) && state) {
+        if (lcdPowerTimeout && !(pinetimeFlags & JSPF_LCD_ON) && state) {
           pinetimeTasks |= JSPT_LCD_ON;
           ignoreBtnUp = true;
-        }        
+        }
         if (ignoreBtnUp) {
           // This allows us to ignore subsequent button
           // rising or 'bounce' events
@@ -345,9 +378,10 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
           return; // don't push button event if the LCD is off
         }
       }
-    } else {
+    }
+    else {
       // on touchscreen, keep LCD on if it was in previously
-      if (pinetimeFlags&JSPF_LCD_ON)
+      if (pinetimeFlags & JSPF_LCD_ON)
         inactivityTimer = 0;
       else // else don't push the event
         return;
@@ -365,7 +399,8 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
        * period, reset the debounce timer and ignore it */
       lcdWakeButtonTime = t + jshGetTimeFromMilliseconds(100);
       return;
-    } else {
+    }
+    else {
       /* if the next event is a 'down', > 100ms after the last event, we propogate it
        and subsequent events */
       lcdWakeButton = 0;
@@ -373,8 +408,8 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
     }
   }
   // if not off, add to the event queue for normal processing for watches
-  if (!(pinetimeFlags&JSPF_LCD_ON))
-    jshPushIOEvent(flags | (state?EV_EXTI_IS_HIGH:0), t);
+  if (!(pinetimeFlags & JSPF_LCD_ON))
+    jshPushIOEvent(flags | (state ? EV_EXTI_IS_HIGH : 0), t);
 }
 
 /* Scan peripherals for any data that's needed
@@ -412,14 +447,16 @@ void peripheralPollHandler() {
         jsiConsolePrintf("Button held down - interrupting JS execution...\n");
         execInfo.execute |= EXEC_INTERRUPTED;
       }
-    } else
+    }
+    else
       homeBtnInterruptTimer = 0;
-  } else {
+  }
+  else {
     homeBtnTimer = 0;
     homeBtnInterruptTimer = 0;
   }
 
-  if (lcdPowerTimeout && (pinetimeFlags&JSPF_LCD_ON) && inactivityTimer>=lcdPowerTimeout) {
+  if (lcdPowerTimeout && (pinetimeFlags & JSPF_LCD_ON) && inactivityTimer >= lcdPowerTimeout) {
     // 10 seconds of inactivity, turn off display
     pinetimeTasks |= JSPT_LCD_OFF;
     jshHadEvent();
@@ -436,6 +473,17 @@ void peripheralPollHandler() {
     jshHadEvent();
   }
 
+  int8_t rslt;
+  uint16_t int_status = 0;
+
+  rslt = bma400_get_interrupt_status(&int_status, &bma_sensor);
+  bma400_check_rslt("bma400_get_interrupt_status", rslt);
+
+  if (int_status != 0) {
+    jsiConsolePrintf("bma data %x\n", int_status);
+  }
+
+
 }
 
 void btn1Handler(bool state, IOEventFlags flags) {
@@ -447,29 +495,29 @@ void jswrap_pinetime40_pwrBacklight(bool on) {
 }
 
 static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
-/*
-  if (isOn) { // wake
-    lcdCmd_SPILCD(0x11, 0, NULL); // SLPOUT
-    jshDelayMicroseconds(20);
-    lcdCmd_SPILCD(0x29, 0, NULL); // DISPON
-  } else { // sleep
-    lcdCmd_SPILCD(0x28, 0, NULL); // DISPOFF
-    jshDelayMicroseconds(20);
-    lcdCmd_SPILCD(0x10, 0, NULL); // SLPIN
-  }
-#ifdef LCD_EN
-  jshPinOutput(LCD_EN, isOn); // enable off
-#endif
-*/
+  /*
+    if (isOn) { // wake
+      lcdCmd_SPILCD(0x11, 0, NULL); // SLPOUT
+      jshDelayMicroseconds(20);
+      lcdCmd_SPILCD(0x29, 0, NULL); // DISPON
+    } else { // sleep
+      lcdCmd_SPILCD(0x28, 0, NULL); // DISPOFF
+      jshDelayMicroseconds(20);
+      lcdCmd_SPILCD(0x10, 0, NULL); // SLPIN
+    }
+  #ifdef LCD_EN
+    jshPinOutput(LCD_EN, isOn); // enable off
+  #endif
+  */
 }
 
 
 void jswrap_pinetime40_setLCDPowerBacklight(bool isOn) {
 
-  jswrap_pinetime40_pwrBacklight(isOn && (lcdBrightness>0));
-  
+  jswrap_pinetime40_pwrBacklight(isOn && (lcdBrightness > 0));
+
   if (isOn && lcdBrightness > 0 && lcdBrightness < 255) {
-    jshPinAnalogOutput(LCD_BL, lcdBrightness/256.0, 200, JSAOF_NONE);
+    jshPinAnalogOutput(LCD_BL, lcdBrightness / 256.0, 200, JSAOF_NONE);
   }
 }
 
@@ -501,10 +549,10 @@ Pinetime.setLCDPower(1); // keep screen on
 using `Pinetime.setLCDBrightness`.
 */
 void jswrap_pinetime40_setLCDPower(bool isOn) {
-  
+
   jswrap_pinetime40_setLCDPowerController(isOn);
   jswrap_pinetime40_setLCDPowerBacklight(isOn);
-  
+
   if (((pinetimeFlags & JSPF_LCD_ON) != 0) != isOn) {
     JsVar* pinetime = jsvObjectGetChildIfExists(execInfo.root, "Pinetime");
     if (pinetime) {
@@ -581,9 +629,9 @@ which the touchscreen/buttons start being ignored). To set both separately, use
 */
 void jswrap_pinetime40_setLCDTimeout(JsVarFloat timeout) {
   if (!isfinite(timeout))
-    timeout=0;
-  else if (timeout<0) timeout=0;
-  lcdPowerTimeout = timeout*1000;  
+    timeout = 0;
+  else if (timeout < 0) timeout = 0;
+  lcdPowerTimeout = timeout * 1000;
 }
 
 
@@ -615,12 +663,12 @@ type PinetimeOptions<Boolean = boolean> = {
 Set internal options used for gestures, etc...
 
 */
-JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
-  bool wakeOnBTN1 = pinetimeFlags&JSPF_WAKEON_BTN1;
-  bool wakeOnFaceUp = pinetimeFlags&JSPF_WAKEON_FACEUP;
-  bool wakeOnTouch = pinetimeFlags&JSPF_WAKEON_TOUCH;
+JsVar* _jswrap_pinetime40_setOptions(JsVar* options, bool createObject) {
+  bool wakeOnBTN1 = pinetimeFlags & JSPF_WAKEON_BTN1;
+  bool wakeOnFaceUp = pinetimeFlags & JSPF_WAKEON_FACEUP;
+  bool wakeOnTouch = pinetimeFlags & JSPF_WAKEON_TOUCH;
   bool wakeOnTwist = false;//pinetimeFlags&JSPF_WAKEON_TWIST;
-  bool powerSave = pinetimeFlags&JSPF_POWER_SAVE;
+  bool powerSave = pinetimeFlags & JSPF_POWER_SAVE;
   int stepCounterThresholdLow, stepCounterThresholdHigh; // ignore these with new step counter
 
 
@@ -633,7 +681,7 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
       {"twistThreshold", JSV_INTEGER, &twistThreshold},
       {"twistTimeout", JSV_INTEGER, &twistTimeout},
       {"twistMaxY", JSV_INTEGER, &twistMaxY},
-      {"powerSave", JSV_BOOLEAN, &powerSave},      
+      {"powerSave", JSV_BOOLEAN, &powerSave},
       {"lcdPowerTimeout", JSV_INTEGER, &lcdPowerTimeout},
       {"btnLoadTimeout", JSV_INTEGER, &btnLoadTimeout},
   };
@@ -641,18 +689,18 @@ JsVar * _jswrap_pinetime40_setOptions(JsVar *options, bool createObject) {
     return jsvCreateConfigObject(configs, sizeof(configs) / sizeof(jsvConfigObject));
   }
   if (jsvReadConfigObject(options, configs, sizeof(configs) / sizeof(jsvConfigObject))) {
-    pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_BTN1) | (wakeOnBTN1?JSPF_WAKEON_BTN1:0);
-    pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_FACEUP) | (wakeOnFaceUp?JSPF_WAKEON_FACEUP:0);
-    pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_TOUCH) | (wakeOnTouch?JSPF_WAKEON_TOUCH:0);
+    pinetimeFlags = (pinetimeFlags & ~JSPF_WAKEON_BTN1) | (wakeOnBTN1 ? JSPF_WAKEON_BTN1 : 0);
+    pinetimeFlags = (pinetimeFlags & ~JSPF_WAKEON_FACEUP) | (wakeOnFaceUp ? JSPF_WAKEON_FACEUP : 0);
+    pinetimeFlags = (pinetimeFlags & ~JSPF_WAKEON_TOUCH) | (wakeOnTouch ? JSPF_WAKEON_TOUCH : 0);
     //pinetimeFlags = (pinetimeFlags&~JSPF_WAKEON_TWIST) | (wakeOnTwist?JSPF_WAKEON_TWIST:0);
-    pinetimeFlags = (pinetimeFlags&~JSPF_POWER_SAVE) | (powerSave?JSPF_POWER_SAVE:0);    
-    if (lcdPowerTimeout<0) lcdPowerTimeout=0;
+    pinetimeFlags = (pinetimeFlags & ~JSPF_POWER_SAVE) | (powerSave ? JSPF_POWER_SAVE : 0);
+    if (lcdPowerTimeout < 0) lcdPowerTimeout = 0;
 
   }
   return 0;
 }
 
-void jswrap_pinetime40_setOptions(JsVar *options) {
+void jswrap_pinetime40_setOptions(JsVar* options) {
   _jswrap_pinetime40_setOptions(options, false);
 }
 
@@ -667,7 +715,7 @@ void jswrap_pinetime40_setOptions(JsVar *options) {
 }
 Return the current state of options as set by `Pinetime.setOptions`
 */
-JsVar *jswrap_pinetime40_getOptions() {
+JsVar* jswrap_pinetime40_getOptions() {
   return _jswrap_pinetime40_setOptions(NULL, true);
 }
 
@@ -684,24 +732,24 @@ Also see the `Pinetime.lcdPower` event
 */
 // emscripten bug means we can't use 'bool' as return value here!
 int jswrap_pinetime40_isLCDOn() {
-  return (pinetimeFlags&JSPF_LCD_ON)!=0;
+  return (pinetimeFlags & JSPF_LCD_ON) != 0;
 }
 
 /* ----------------------------- LVGL --------------------------------- */
 
-void disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * color_p) {
+void disp_flush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color_p) {
 
   //if ((pinetimeFlags & JSPF_LCD_ON) == 0) return;
 
   uint32_t width = (area->x2 - area->x1) + 1;
-  uint32_t height = (area->y2 - area->y1) + 1;  
+  uint32_t height = (area->y2 - area->y1) + 1;
 
-  lcdFlip_SPINRF(area->x1, area->y1, width, height, (uint8_t *)color_p);
+  lcdFlip_SPINRF(area->x1, area->y1, width, height, (uint8_t*)color_p);
 
   lv_disp_flush_ready(disp);         /* Indicate you are ready with the flushing*/
 }
 
-void touchpad_read(lv_indev_t * indev, lv_indev_data_t * data) {
+void touchpad_read(lv_indev_t* indev, lv_indev_data_t* data) {
 
   if ((pinetimeFlags & JSPF_LCD_ON) == 0) return;
 
@@ -717,31 +765,32 @@ void touchpad_read(lv_indev_t * indev, lv_indev_data_t * data) {
   // 4: Y hi
   // 5: Y lo (0..160)
 
-  if(buf[1] == 1) {
+  if (buf[1] == 1) {
     data->state = LV_INDEV_STATE_PRESSED;
     data->point.x = buf[3];
     data->point.y = buf[5];
-  } else {
+  }
+  else {
     data->state = LV_INDEV_STATE_RELEASED;
   }
 }
 
 
-typedef struct _lvgl_file_header{
+typedef struct _lvgl_file_header {
   uint32_t size;
   uint32_t addr;
   uint32_t pos;
 } lvgl_file_header;
 
-void * fs_open_cb(struct _lv_fs_drv_t * drv, const char * path, lv_fs_mode_t mode) {  
+void* fs_open_cb(struct _lv_fs_drv_t* drv, const char* path, lv_fs_mode_t mode) {
   JsfFileName fn = jsfNameFromString(path);
 
   JsfFileHeader header;
   uint32_t addr = jsfFindFile(fn, &header);
   if (!addr) return NULL;
-  int fileLen = (int)jsfGetFileSize(&header);  
+  int fileLen = (int)jsfGetFileSize(&header);
 
-  lvgl_file_header *lv_file = (lvgl_file_header*) malloc(sizeof(lvgl_file_header));
+  lvgl_file_header* lv_file = (lvgl_file_header*)malloc(sizeof(lvgl_file_header));
   lv_file->size = fileLen;
   lv_file->addr = addr;
   lv_file->pos = 0;
@@ -752,31 +801,31 @@ void * fs_open_cb(struct _lv_fs_drv_t * drv, const char * path, lv_fs_mode_t mod
 }
 
 
-lv_fs_res_t fs_close_cb(struct _lv_fs_drv_t * drv, void * file_p) {
-  struct _lvgl_file_header *f = (lvgl_file_header*)file_p;
+lv_fs_res_t fs_close_cb(struct _lv_fs_drv_t* drv, void* file_p) {
+  struct _lvgl_file_header* f = (lvgl_file_header*)file_p;
   //jsiConsolePrintf("\n file close : %x : (a)%x : (l)%x \n", f, f->addr, f->size);
   free(f);
-  return LV_FS_RES_OK; 
+  return LV_FS_RES_OK;
 }
 
-lv_fs_res_t fs_read_cb(struct _lv_fs_drv_t * drv, void * file_p, void * buf, uint32_t btr, uint32_t * br) {
-  struct _lvgl_file_header *f = (lvgl_file_header*)file_p;
+lv_fs_res_t fs_read_cb(struct _lv_fs_drv_t* drv, void* file_p, void* buf, uint32_t btr, uint32_t* br) {
+  struct _lvgl_file_header* f = (lvgl_file_header*)file_p;
   //jsiConsolePrintf("\n file read : %x : (a)%x : (l)%x - %x \n", f, f->addr, f->size, btr);
   *br = btr;
   //buf = (unsigned char*) malloc(btr);
   jshFlashRead((unsigned char*)buf, f->addr + f->pos, btr);
   f->pos += btr;
-  return LV_FS_RES_OK; 
+  return LV_FS_RES_OK;
 }
 
-lv_fs_res_t fs_seek_cb(struct _lv_fs_drv_t * drv, void * file_p, uint32_t pos, lv_fs_whence_t whence) {
-  struct _lvgl_file_header *f = (lvgl_file_header*)file_p;
+lv_fs_res_t fs_seek_cb(struct _lv_fs_drv_t* drv, void* file_p, uint32_t pos, lv_fs_whence_t whence) {
+  struct _lvgl_file_header* f = (lvgl_file_header*)file_p;
   //jsiConsolePrintf("\n file seek : %x : (a)%x : (l)%x : (p)%x \n", f, f->addr, f->size, pos);
   f->pos = pos;
-  return LV_FS_RES_OK; 
+  return LV_FS_RES_OK;
 }
 
-void js_log_cb(const char * buf) {
+void js_log_cb(const char* buf) {
   jsiConsolePrintf("LVGL : %s\n", buf);
 }
 
@@ -829,15 +878,15 @@ void jswrap_pinetime40_lvglinit() {
 
   //drv.user_data = fs_user_data;             /*Any custom data if required*/
 
-  lv_fs_drv_register(&drv);   
+  lv_fs_drv_register(&drv);
 
   // Set default theme
-  lv_disp_t *dispp = lv_disp_get_default();
-  lv_theme_t *theme = lv_theme_default_init(
-    dispp, 
-    lv_palette_main(LV_PALETTE_BLUE), 
+  lv_disp_t* dispp = lv_disp_get_default();
+  lv_theme_t* theme = lv_theme_default_init(
+    dispp,
+    lv_palette_main(LV_PALETTE_BLUE),
     lv_palette_main(LV_PALETTE_RED),
-    true, 
+    true,
     LV_FONT_DEFAULT);
   lv_disp_set_theme(dispp, theme);
 
@@ -846,8 +895,223 @@ void jswrap_pinetime40_lvglinit() {
 
 /* ----------------------------- LVGL --------------------------------- */
 
+
+
+/* ----------------------------- I2C --------------------------------- */
+void _jswrap_pinetime40_i2cWr(JshI2CInfo *i2c, int i2cAddr, JsVarInt reg, JsVarInt data) {
+  unsigned char buf[2];
+  buf[0] = (unsigned char)reg;
+  buf[1] = (unsigned char)data;
+  //i2cBusy = true;
+  jsi2cWrite(i2c, i2cAddr, 2, buf, true);
+  //i2cBusy = false;
+}
+
+JsVar *_jswrap_pinetime40_i2cRd(JshI2CInfo *i2c, int i2cAddr, JsVarInt reg, JsVarInt cnt) {
+  if (cnt<0) cnt=0;
+  unsigned char buf[128];
+  if (cnt>(int)sizeof(buf)) cnt=sizeof(buf);
+  buf[0] = (unsigned char)reg;
+  //i2cBusy = true;
+  jsi2cWrite(i2c, i2cAddr, 1, buf, false);
+  jsi2cRead(i2c, i2cAddr, (cnt==0)?1:cnt, buf, true);
+  //i2cBusy = false;
+  if (cnt) {
+    JsVar *ab = jsvNewArrayBufferWithData(cnt, buf);
+    JsVar *d = jswrap_typedarray_constructor(ARRAYBUFFERVIEW_UINT8, ab,0,0);
+    jsvUnLock(ab);
+    return d;
+  } else return jsvNewFromInteger(buf[0]);
+}
+
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "accelWr",
+    "generate" : "jswrap_pinetime40_accelWr",
+    "params" : [
+      ["reg","int",""],
+      ["data","int",""]
+    ],
+    "ifdef" : "PINETIME40"
+}
+Writes a register on the accelerometer
+*/
+void jswrap_pinetime40_accelWr(JsVarInt reg, JsVarInt data) {
+  _jswrap_pinetime40_i2cWr(ACCEL_I2C, ACCEL_ADDR, reg, data);
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "accelRd",
+    "generate" : "jswrap_pinetime40_accelRd",
+    "params" : [
+      ["reg","int",""],
+      ["cnt","int","If specified, returns an array of the given length (max 128). If not (or 0) it returns a number"]
+    ],
+    "return" : ["JsVar",""],
+    "ifdef" : "PINETIME40",
+    "typescript" : [
+      "accelRd(reg: number, cnt?: 0): number;",
+      "accelRd(reg: number, cnt: number): number[];"
+    ]
+}
+Reads a register from the accelerometer
+*/
+
+
+JsVar *jswrap_pinetime40_accelRd(JsVarInt reg, JsVarInt cnt) {
+  return _jswrap_pinetime40_i2cRd(ACCEL_I2C, ACCEL_ADDR, reg, cnt);
+}
+
+
+/* ----------------------------- BMA400 --------------------------------- */
+/*! Read write length varies based on user requirement */
+#define READ_WRITE_LENGTH  UINT8_C(46)
+
+/*!
+ * @brief I2C read function
+ */
+BMA400_INTF_RET_TYPE bma400_i2c_read(uint8_t reg_addr, uint8_t* reg_data, uint32_t len, void* intf_ptr) {
+  uint8_t buf[1];
+  buf[0] = reg_addr;
+  jsi2cWrite(ACCEL_I2C, ACCEL_ADDR, 1, buf, false);
+  jsi2cRead(ACCEL_I2C, ACCEL_ADDR, (uint16_t)len, reg_data, true);
+  //jsiConsolePrintf("read i2c %x %x %x\n", reg_addr, len, reg_data);
+  return BMA400_OK;
+}
+
+/*!
+ * @brief I2C write function
+ */
+BMA400_INTF_RET_TYPE bma400_i2c_write(uint8_t reg_addr, const uint8_t* reg_data, uint32_t len, void* intf_ptr) {
+  uint8_t buf[1];
+  buf[0] = reg_addr;
+  jsi2cWrite(ACCEL_I2C, ACCEL_ADDR, 1, buf, false);
+  jsi2cWrite(ACCEL_I2C, ACCEL_ADDR, (uint16_t)len, (uint8_t*)reg_data, true);
+  //jsiConsolePrintf("write i2c %x %x\n", reg_addr, len);
+  return BMA400_OK;
+}
+
+/*!
+ * @brief Delay function
+ */
+void bma400_delay_us(uint32_t period, void* intf_ptr) {
+  jshDelayMicroseconds(period);
+}
+
+void bma400_check_rslt(const char api_name[], int8_t rslt) {
+  switch (rslt) {
+  case BMA400_OK:
+
+    /* Do nothing */
+    break;
+  case BMA400_E_NULL_PTR:
+    jsiConsolePrintf("Error [%d] : Null pointer (%s)\r\n", rslt, api_name);
+    break;
+  case BMA400_E_COM_FAIL:
+    jsiConsolePrintf("Error [%d] : Communication failure (%s)\r\n", rslt, api_name);
+    break;
+  case BMA400_E_INVALID_CONFIG:
+    jsiConsolePrintf("Error [%d] : Invalid configuration (%s)\r\n", rslt, api_name);
+    break;
+  case BMA400_E_DEV_NOT_FOUND:
+    jsiConsolePrintf("Error [%d] : Device not found (%s)\r\n", rslt, api_name);
+    break;
+  default:
+    jsiConsolePrintf("Error [%d] : Unknown error code (%s)\r\n", rslt, api_name);
+    break;
+  }
+}
+
+int8_t bma400_interface_init(struct bma400_dev* bma400, uint8_t intf) {
+  int8_t rslt = BMA400_OK;
+
+  if (bma400 != NULL) {
+    bma400->read = bma400_i2c_read;
+    bma400->write = bma400_i2c_write;
+    bma400->intf = BMA400_I2C_INTF;
+    bma400->intf_ptr = (void *)BMA400_I2C_ADDRESS_SDO_LOW;
+    bma400->delay_us = bma400_delay_us;
+    bma400->read_write_len = READ_WRITE_LENGTH;
+
+  } else {
+    rslt = BMA400_E_NULL_PTR;
+  }
+
+  return rslt;
+}
+
+void accelHandler(bool state, IOEventFlags flags) {
+
+  int8_t rslt = 0;
+  uint16_t int_status;
+  uint32_t step_count = 0;
+  uint8_t act_int;
+
+  rslt = bma400_get_interrupt_status(&int_status, &bma_sensor);
+  bma400_check_rslt("bma400_get_interrupt_status", rslt);
+
+  if (rslt == BMA400_OK) {
+
+    if (int_status != 0) {
+      jsiConsolePrintf("bma int %x\n", int_status);
+    }
+
+    if (int_status & BMA400_ASSERTED_STEP_INT) {
+      rslt = bma400_get_steps_counted(&step_count, &act_int, &bma_sensor);
+      bma400_check_rslt("bma400_get_steps_counted", rslt);
+      switch (act_int)
+      {
+        case BMA400_STILL_ACT:
+            jsiConsolePrintf("Steps counted : %ld\n", step_count);
+            jsiConsolePrintf("Still Activity detected\n");            
+            break;
+        case BMA400_WALK_ACT:
+            jsiConsolePrintf("Steps counted : %ld\n", step_count);
+            jsiConsolePrintf("Walking Activity detected\n");            
+            break;
+        case BMA400_RUN_ACT:
+            jsiConsolePrintf("Steps counted : %ld\n", step_count);
+            jsiConsolePrintf("Running Activity detected\n");            
+            break;
+      }
+    } else {
+      if (int_status & BMA400_ASSERTED_S_TAP_INT) {
+        jsiConsolePrintf("Single tap detected\n");
+      }
+
+      if (int_status & BMA400_ASSERTED_D_TAP_INT) {
+        jsiConsolePrintf("Double tap detected\n");
+      }
+
+      if (int_status & BMA400_ASSERTED_DRDY_INT) {
+        struct bma400_sensor_data data;
+        float x, y, z;
+
+        rslt = bma400_get_accel_data(BMA400_DATA_ONLY, &data, &bma_sensor);
+        bma400_check_rslt("bma400_get_accel_data", rslt);
+
+        /* 12-bit accelerometer at range 2G */
+        x = lsb_to_ms2(data.x, 2, 12);
+        y = lsb_to_ms2(data.y, 2, 12);
+        z = lsb_to_ms2(data.z, 2, 12);
+
+        jsiConsolePrintf("Gravity-x : %d,   Gravity-y : %d,  Gravity-z :  %d \r\n", x, y, z);
+
+      }
+    }
+  }
+}
+
+/* ----------------------------- BMA400 --------------------------------- */
+
+
+
 void touchHandler(bool state, IOEventFlags flags) {
-  
+
   if (state) return; // only interested in when low
   if ((pinetimeFlags & JSPF_LCD_ON) == 0) return;
 
@@ -865,13 +1129,14 @@ void touchHandler(bool state, IOEventFlags flags) {
 }*/
 NO_INLINE void jswrap_pinetime40_hwinit() {
 
-  jshPinOutput(VIBRATE_PIN,0);
-  
-  jshI2CInitInfo(&i2cTouch);
-  i2cTouch.bitrate = 0x7FFFFFFF; // make it as fast as we can go
-  i2cTouch.pinSDA = TOUCH_PIN_SDA;
-  i2cTouch.pinSCL = TOUCH_PIN_SCL;
-  jsi2cSetup(&i2cTouch);
+  jshPinOutput(VIBRATE_PIN, 0);
+
+  jshI2CInitInfo(&i2cInternal);
+  i2cInternal.bitrate = 0x7FFFFFFF; // make it as fast as we can go
+  i2cInternal.pinSDA = TOUCH_PIN_SDA; // all i2c in same pins
+  i2cInternal.pinSCL = TOUCH_PIN_SCL;
+  i2cInternal.clockStretch = false;
+  jsi2cSetup(&i2cInternal);
 
   // Touch init
   jshPinOutput(TOUCH_PIN_RST, 1);
@@ -882,25 +1147,110 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
 
   unsigned char buf[2];
   // 0xEE - CST816_REG_NOR_SCAN_PER - 0x01
-  buf[0]=0xEE;
-  buf[1]=0x01;
+  buf[0] = 0xEE;
+  buf[1] = 0x01;
   jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
   // 0xFA - CST816_REG_IRQ_CTL - 0x60
-  buf[0]=0xFA;
-  buf[1]=0x60;
+  buf[0] = 0xFA;
+  buf[1] = 0x60;
   jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
   // 0xFB - CST816_REG_AUTO_RESET - 0x0
-  buf[0]=0xFB;
-  buf[1]=0x0;
+  buf[0] = 0xFB;
+  buf[1] = 0x0;
   jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
   // 0xFC - CST816_REG_LONG_PRESS_TIME - 0x10
-  buf[0]=0xFC;
-  buf[1]=0x10;
+  buf[0] = 0xFC;
+  buf[1] = 0x10;
   jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
   // 0xED - CST816_REG_IRQ_PLUSE_WIDTH - 0x02  
-  buf[0]=0xED;
-  buf[1]=0x02;
+  buf[0] = 0xED;
+  buf[1] = 0x02;
   jsi2cWrite(TOUCH_I2C, TOUCH_ADDR, 2, buf, true);
+  // Touch init end ---
+
+  // BMA400 Init
+
+  jshPinSetState(ACCEL_PIN_INT, JSHPINSTATE_GPIO_IN);
+
+  int8_t rslt = 0;
+
+  struct bma400_sensor_conf accel_settin[4] = { { 0 } };
+  struct bma400_int_enable int_en[5];
+
+  rslt = bma400_interface_init(&bma_sensor, BMA400_I2C_INTF);
+  bma400_check_rslt("bma400_interface_init", rslt);
+
+  rslt = bma400_soft_reset(&bma_sensor);
+  bma400_check_rslt("bma400_soft_reset", rslt);
+
+  rslt = bma400_init(&bma_sensor);
+  bma400_check_rslt("bma400_init", rslt);
+
+  rslt = bma400_set_power_mode(BMA400_MODE_SLEEP, &bma_sensor);
+  bma400_check_rslt("bma400_set_power_mode", rslt);
+
+  /*accel_settin[0].type = BMA400_ACCEL;  
+  accel_settin[1].type = BMA400_TAP_INT;
+  accel_settin[2].type = BMA400_STEP_COUNTER_INT;
+  accel_settin[3].type = BMA400_ORIENT_CHANGE_INT;
+
+  rslt = bma400_get_sensor_conf(accel_settin, 3, &bma_sensor);
+  bma400_check_rslt("bma400_get_sensor_conf", rslt);
+
+  accel_settin[0].param.accel.odr = BMA400_ODR_100HZ;
+  accel_settin[0].param.accel.range = BMA400_RANGE_2G;
+  accel_settin[0].param.accel.data_src = BMA400_DATA_SRC_ACCEL_FILT_1;
+  accel_settin[0].param.accel.filt1_bw = BMA400_ACCEL_FILT1_BW_1;
+  accel_settin[0].param.accel.int_chan = BMA400_INT_CHANNEL_1;
+
+  accel_settin[1].param.tap.int_chan = BMA400_INT_CHANNEL_1;
+  accel_settin[1].param.tap.axes_sel = BMA400_TAP_Z_AXIS_EN;
+  accel_settin[1].param.tap.sensitivity = BMA400_TAP_SENSITIVITY_0;
+  accel_settin[1].param.tap.tics_th = BMA400_TICS_TH_18_DATA_SAMPLES;
+  accel_settin[1].param.tap.quiet = BMA400_QUIET_60_DATA_SAMPLES;
+  accel_settin[1].param.tap.quiet_dt = BMA400_QUIET_DT_4_DATA_SAMPLES;
+
+  accel_settin[2].param.step_cnt.int_chan = BMA400_INT_CHANNEL_1;
+
+  // Set the desired configurations to the sensor
+  rslt = bma400_set_sensor_conf(accel_settin, 3, &bma_sensor);
+  bma400_check_rslt("bma400_set_sensor_conf", rslt);
+
+  rslt = bma400_set_power_mode(BMA400_MODE_NORMAL, &bma_sensor);
+  bma400_check_rslt("bma400_set_power_mode", rslt);
+  
+  int_en[0].type = BMA400_DRDY_INT_EN;
+  int_en[0].conf = BMA400_ENABLE;
+
+  int_en[1].type = BMA400_STEP_COUNTER_INT_EN;
+  int_en[1].conf = BMA400_ENABLE;
+
+  int_en[2].type = BMA400_DOUBLE_TAP_INT_EN;
+  int_en[2].conf = BMA400_ENABLE;
+
+  int_en[3].type = BMA400_SINGLE_TAP_INT_EN;
+  int_en[3].conf = BMA400_ENABLE;  
+
+  rslt = bma400_enable_interrupt(int_en, 4, &bma_sensor);
+  bma400_check_rslt("bma400_enable_interrupt", rslt);
+
+  */
+  struct bma400_device_conf dev_settings[1];
+  
+  dev_settings[0].type = BMA400_INT_PIN_CONF;
+  dev_settings[0].param.int_conf.int_chan = BMA400_MAP_BOTH_INT_PINS;
+  dev_settings[0].param.int_conf.pin_conf = BMA400_INT_OPEN_DRIVE_ACTIVE_0;
+  
+  // Set the desired configurations to the sensor
+  rslt = bma400_set_device_conf(dev_settings, 1, &bma_sensor);
+  bma400_check_rslt("bma400_set_device_conf", rslt);
+  
+  //
+
+
+  // HRS3300 Init
+
+  //
 
   lcdInit_SPINRF();
 
@@ -916,7 +1266,7 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   "generate" : "jswrap_pinetime40_init"
 }*/
 NO_INLINE void jswrap_pinetime40_init() {
-  
+
   IOEventFlags channel;
 
   bool firstRun = jsiStatus & JSIS_FIRST_BOOT; // is this the first time jswrap_pinetime40_init was called?
@@ -929,6 +1279,10 @@ NO_INLINE void jswrap_pinetime40_init() {
   channel = jshPinWatch(TOUCH_PIN_IRQ, true, JSPW_NONE);
   if (channel != EV_NONE) jshSetEventCallback(channel, touchHandler);
 
+  jshSetPinShouldStayWatched(ACCEL_PIN_INT, true);
+  channel = jshPinWatch(ACCEL_PIN_INT, true, JSPW_NONE);
+  if (channel != EV_NONE) jshSetEventCallback(channel, accelHandler);
+
   /*JsVar *settingsFN = jsvNewFromString("setting.json");
   JsVar *settings = jswrap_storage_readJSON(settingsFN,true);
   jsvUnLock(settingsFN);
@@ -936,13 +1290,13 @@ NO_INLINE void jswrap_pinetime40_init() {
   jsvUnLock(settings);*/
 
   if (!firstRun) {
-    
+
     jswrap_pinetime40_setLCDPower(1);
-    
+
     lv_obj_clean(lv_scr_act());
     lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_t *label = lv_label_create( lv_scr_act() );
-    lv_label_set_text( label, "Loading..." );
+    lv_obj_t* label = lv_label_create(lv_scr_act());
+    lv_label_set_text(label, "Loading...");
     lv_obj_center(label);
 
     /*lv_obj_t * spinner = lv_spinner_create(lv_scr_act(), 1000, 60);
@@ -950,8 +1304,9 @@ NO_INLINE void jswrap_pinetime40_init() {
     lv_obj_center(spinner);*/
     //lv_timer_handler();
 
-  } else {
-  
+  }
+  else {
+
     char addrStr[20];
     JsVar* addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
     jsvGetString(addr, addrStr, sizeof(addrStr));
@@ -960,23 +1315,23 @@ NO_INLINE void jswrap_pinetime40_init() {
     /* Create simple label */
     //lv_obj_clean(lv_scr_act());    
     lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000055), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_t *label = lv_label_create( lv_scr_act() );
-    lv_label_set_text_fmt( label, "Pinetime 40 - LVGL\n\nEspruino %s\n%s\n\njoaquim.org", JS_VERSION, addrStr);
+    lv_obj_t* label = lv_label_create(lv_scr_act());
+    lv_label_set_text_fmt(label, "Pinetime 40 - LVGL\n\nEspruino %s\n%s\n\njoaquim.org", JS_VERSION, addrStr);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(label);
     //lv_obj_t *img1= lv_img_create(lv_scr_act());
     //lv_img_set_src(img1, "F:mario.bin");
 
     //lv_timer_handler();
-  }  
-  
+  }
+
 
   buzzAmt = 0;
   beepFreq = 0;
 
   if (firstRun) {
 
-    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON ; // includes pinetimeFlags
+    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON; // includes pinetimeFlags
     lcdBrightness = 128;
 
     jshEnableWatchDog(10); // 5 second watchdog
@@ -987,7 +1342,7 @@ NO_INLINE void jswrap_pinetime40_init() {
       APP_TIMER_MODE_REPEATED,
       peripheralPollHandler);
     jsble_check_error(err_code);
-    app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);    
+    app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);
 
     //jsiConsolePrintf("FIRST INIT DONE\n");
 
@@ -1001,7 +1356,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   pinetimeFlags |= JSPF_LCD_ON;
   inactivityTimer = 0; // reset the LCD timeout timer
   btnLoadTimeout = DEFAULT_BTN_LOAD_TIMEOUT;
-  lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;  
+  lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;
   lcdWakeButton = 0;
 
 
@@ -1009,7 +1364,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   // lcdWakeButton so the event for button release is 'eaten'
   if (jshPinGetValue(HOME_BTN_PININDEX))
     lcdWakeButton = HOME_BTN;
-  
+
   //jsiConsolePrintf("pinetimeFlags %d\n",pinetimeFlags);
 
   //JsSysTime period = jshGetTimeFromMilliseconds(50);
@@ -1024,7 +1379,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   "generate" : "jswrap_pinetime40_idle"
 }*/
 bool jswrap_pinetime40_idle() {
-  JsVar *pinetime =jsvObjectGetChildIfExists(execInfo.root, "Pinetime");
+  JsVar* pinetime = jsvObjectGetChildIfExists(execInfo.root, "Pinetime");
 
   if (!pinetime) {
     pinetimeTasks = JSPT_NONE;
@@ -1037,15 +1392,15 @@ bool jswrap_pinetime40_idle() {
     if (pinetimeTasks & JSPT_MIDNIGHT) {
       jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"midnight", NULL, 0);
     }
-  
+
     if (pinetimeTasks & JSPT_CHARGE_EVENT) {
-      JsVar *charging = jsvNewFromBool(wasCharging);
+      JsVar* charging = jsvNewFromBool(wasCharging);
       jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"charging", &charging, 1);
       jsvUnLock(charging);
     }
 
   }
-  
+
   jsvUnLock(pinetime);
   pinetimeTasks = JSPT_NONE;
 
@@ -1059,7 +1414,7 @@ bool jswrap_pinetime40_idle() {
     jspromise_resolve(promiseBeep, 0);
     jsvUnLock(promiseBeep);
     promiseBeep = 0;
-  }  
+  }
 
   return false;
 }
@@ -1086,12 +1441,13 @@ static NO_INLINE void _jswrap_pinetime40_setVibration() {
   if (pinetimeFlags & JSPF_BEEP_VIBRATE)
     beep = beepFreq;
 
-  if (buzzAmt==0 && beep==0)
-    jshPinOutput(VIBRATE_PIN,0); // vibrate off
-  else if (beep==0) { // vibrate only
-    jshPinAnalogOutput(VIBRATE_PIN, 0.4 + buzzAmt*0.6/255, 1000, JSAOF_NONE);
-  } else { // beep and vibrate
-    jshPinAnalogOutput(VIBRATE_PIN, 0.2 + buzzAmt*0.6/255, beep, JSAOF_NONE);
+  if (buzzAmt == 0 && beep == 0)
+    jshPinOutput(VIBRATE_PIN, 0); // vibrate off
+  else if (beep == 0) { // vibrate only
+    jshPinAnalogOutput(VIBRATE_PIN, 0.4 + buzzAmt * 0.6 / 255, 1000, JSAOF_NONE);
+  }
+  else { // beep and vibrate
+    jshPinAnalogOutput(VIBRATE_PIN, 0.2 + buzzAmt * 0.6 / 255, beep, JSAOF_NONE);
   }
 }
 
@@ -1118,17 +1474,17 @@ void jswrap_pinetime40_beep_callback() {
   jshHadEvent();
 }
 
-JsVar *jswrap_pinetime40_beep(int time, int freq) {
-  if (freq<=0) freq=4000;
-  if (freq>60000) freq=60000;
-  if (time<=0) time=200;
-  if (time>5000) time=5000;
+JsVar* jswrap_pinetime40_beep(int time, int freq) {
+  if (freq <= 0) freq = 4000;
+  if (freq > 60000) freq = 60000;
+  if (time <= 0) time = 200;
+  if (time > 5000) time = 5000;
   if (promiseBeep) {
-    JsVar *fn = jsvNewNativeFunction((void (*)(void))jswrap_pinetime40_beep, JSWAT_JSVAR|(JSWAT_INT32<<JSWAT_BITS)|(JSWAT_INT32<<(JSWAT_BITS*2)));
-    JsVar *v;
-    v=jsvNewFromInteger(time);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 1
-    v=jsvNewFromInteger(freq);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 2
-    JsVar *promise = jswrap_promise_then(promiseBeep, fn, NULL);
+    JsVar* fn = jsvNewNativeFunction((void (*)(void))jswrap_pinetime40_beep, JSWAT_JSVAR | (JSWAT_INT32 << JSWAT_BITS) | (JSWAT_INT32 << (JSWAT_BITS * 2)));
+    JsVar* v;
+    v = jsvNewFromInteger(time);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 1
+    v = jsvNewFromInteger(freq);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 2
+    JsVar* promise = jswrap_promise_then(promiseBeep, fn, NULL);
     jsvUnLock(fn);
     return promise;
   }
@@ -1166,30 +1522,31 @@ void jswrap_pinetime40_buzz_callback() {
   jshHadEvent();
 }
 
-JsVar *jswrap_pinetime40_buzz(int time, JsVarFloat amt) {
-  if (!isfinite(amt)|| amt>1) amt=1;
-  if (amt<0) amt=0;
-  if (time<=0) time=200;
-  if (time>5000) time=5000;
+JsVar* jswrap_pinetime40_buzz(int time, JsVarFloat amt) {
+  if (!isfinite(amt) || amt > 1) amt = 1;
+  if (amt < 0) amt = 0;
+  if (time <= 0) time = 200;
+  if (time > 5000) time = 5000;
   if (promiseBuzz) {
-    JsVar *fn = jsvNewNativeFunction((void (*)(void))jswrap_pinetime40_buzz, JSWAT_JSVAR|(JSWAT_INT32<<JSWAT_BITS)|(JSWAT_JSVARFLOAT<<(JSWAT_BITS*2)));
-    JsVar *v;
-    v=jsvNewFromInteger(time);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 1
-    v=jsvNewFromFloat(amt);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 2
-    JsVar *promise = jswrap_promise_then(promiseBuzz, fn, NULL);
+    JsVar* fn = jsvNewNativeFunction((void (*)(void))jswrap_pinetime40_buzz, JSWAT_JSVAR | (JSWAT_INT32 << JSWAT_BITS) | (JSWAT_JSVARFLOAT << (JSWAT_BITS * 2)));
+    JsVar* v;
+    v = jsvNewFromInteger(time);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 1
+    v = jsvNewFromFloat(amt);jsvAddFunctionParameter(fn, 0, v);jsvUnLock(v); // bind param 2
+    JsVar* promise = jswrap_promise_then(promiseBuzz, fn, NULL);
     jsvUnLock(fn);
     return promise;
   }
   promiseBuzz = jspromise_create();
   if (!promiseBuzz) return 0;
 
-  buzzAmt = (unsigned char)(amt*255);
+  buzzAmt = (unsigned char)(amt * 255);
   if (jstExecuteFn(jswrap_pinetime40_buzz_callback, NULL, jshGetTimeFromMilliseconds(time), 0, NULL)) {
     // task schedule succeeded - start buzz
     if (pinetimeFlags & JSPF_ENABLE_BUZZ) {
       _jswrap_pinetime40_setVibration();
     }
-  } else
+  }
+  else
     buzzAmt = 0;
 
   return jsvLockAgain(promiseBuzz);
@@ -1219,7 +1576,7 @@ Pinetime.on('HRM',print);
 
 *When on, the Heart rate monitor draws roughly 5mA*
 */
-bool jswrap_pinetime40_setHRMPower(bool isOn, JsVar *appId) {
+bool jswrap_pinetime40_setHRMPower(bool isOn, JsVar* appId) {
 
   return false;
 
