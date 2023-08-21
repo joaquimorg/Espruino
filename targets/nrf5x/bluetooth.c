@@ -2438,8 +2438,9 @@ static void services_init() {
 #if (NRF_SD_BLE_API_VERSION==3) || (NRF_SD_BLE_API_VERSION==6)
       if (bleStatus & BLE_ENCRYPT_UART)
         nus_init.encrypt = true;
-      if (bleStatus & BLE_SECURITY_MITM)
-        nus_init.mitmProtect = true;
+// not found in nrf 15.3        
+//      if (bleStatus & BLE_SECURITY_MITM)
+//        nus_init.mitmProtect = true;
 #else
 #if PEER_MANAGER_ENABLED
 #warning "No security on Nordic UART for this softdevice"

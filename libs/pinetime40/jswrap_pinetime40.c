@@ -183,6 +183,8 @@ JshI2CInfo i2cInternal;
 
 struct bma400_dev bma_sensor;
 
+/// Current steps since reset
+uint32_t stepCounter;
 
 /* Earth's gravity in m/s^2 */
 #define GRAVITY_EARTH     (9.80665f)
@@ -412,6 +414,7 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
     jshPushIOEvent(flags | (state ? EV_EXTI_IS_HIGH : 0), t);
 }
 
+
 /* Scan peripherals for any data that's needed
  * Also, holding down both buttons will reboot */
 void peripheralPollHandler() {
@@ -472,17 +475,6 @@ void peripheralPollHandler() {
     chargeTimer = 0;
     jshHadEvent();
   }
-
-  int8_t rslt;
-  uint16_t int_status = 0;
-
-  rslt = bma400_get_interrupt_status(&int_status, &bma_sensor);
-  bma400_check_rslt("bma400_get_interrupt_status", rslt);
-
-  if (int_status != 0) {
-    jsiConsolePrintf("bma data %x\n", int_status);
-  }
-
 
 }
 
@@ -968,6 +960,22 @@ JsVar *jswrap_pinetime40_accelRd(JsVarInt reg, JsVarInt cnt) {
 
 
 /* ----------------------------- BMA400 --------------------------------- */
+
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "getStepCount",
+    "generate" : "jswrap_pinetime40_getStepCount",
+    "return" : ["int","The number of steps recorded by the step counter"],
+    "ifdef" : "PINETIME40"
+}
+Returns the current amount of steps recorded by the step counter
+*/
+int jswrap_pinetime40_getStepCount() {
+  return stepCounter;
+}
+
 /*! Read write length varies based on user requirement */
 #define READ_WRITE_LENGTH  UINT8_C(46)
 
@@ -975,10 +983,9 @@ JsVar *jswrap_pinetime40_accelRd(JsVarInt reg, JsVarInt cnt) {
  * @brief I2C read function
  */
 BMA400_INTF_RET_TYPE bma400_i2c_read(uint8_t reg_addr, uint8_t* reg_data, uint32_t len, void* intf_ptr) {
-  uint8_t buf[1];
-  buf[0] = reg_addr;
+  uint8_t buf[1] = {reg_addr};
   jsi2cWrite(ACCEL_I2C, ACCEL_ADDR, 1, buf, false);
-  jsi2cRead(ACCEL_I2C, ACCEL_ADDR, (uint16_t)len, reg_data, true);
+  jsi2cRead(ACCEL_I2C, ACCEL_ADDR, len, reg_data, true);
   //jsiConsolePrintf("read i2c %x %x %x\n", reg_addr, len, reg_data);
   return BMA400_OK;
 }
@@ -986,11 +993,17 @@ BMA400_INTF_RET_TYPE bma400_i2c_read(uint8_t reg_addr, uint8_t* reg_data, uint32
 /*!
  * @brief I2C write function
  */
+
+static void i2c_wx(uint8_t reg, uint8_t *data, int cnt) {
+  uint8_t buf[READ_WRITE_LENGTH+1];
+  buf[0] = reg;
+  memcpy(&buf[1], data, cnt);
+  jsi2cWrite(ACCEL_I2C, ACCEL_ADDR, cnt+1, buf, true);
+}
+
 BMA400_INTF_RET_TYPE bma400_i2c_write(uint8_t reg_addr, const uint8_t* reg_data, uint32_t len, void* intf_ptr) {
-  uint8_t buf[1];
-  buf[0] = reg_addr;
-  jsi2cWrite(ACCEL_I2C, ACCEL_ADDR, 1, buf, false);
-  jsi2cWrite(ACCEL_I2C, ACCEL_ADDR, (uint16_t)len, (uint8_t*)reg_data, true);
+
+  i2c_wx(reg_addr, reg_data, len);
   //jsiConsolePrintf("write i2c %x %x\n", reg_addr, len);
   return BMA400_OK;
 }
@@ -1003,6 +1016,8 @@ void bma400_delay_us(uint32_t period, void* intf_ptr) {
 }
 
 void bma400_check_rslt(const char api_name[], int8_t rslt) {
+
+
   switch (rslt) {
   case BMA400_OK:
 
@@ -1020,6 +1035,9 @@ void bma400_check_rslt(const char api_name[], int8_t rslt) {
   case BMA400_E_DEV_NOT_FOUND:
     jsiConsolePrintf("Error [%d] : Device not found (%s)\r\n", rslt, api_name);
     break;
+  case BMA400_W_SELF_TEST_FAIL:
+    jsiConsolePrintf("Error [%d] : BMA400 Self-test fail!!!\r\n", rslt);
+    break;
   default:
     jsiConsolePrintf("Error [%d] : Unknown error code (%s)\r\n", rslt, api_name);
     break;
@@ -1032,8 +1050,8 @@ int8_t bma400_interface_init(struct bma400_dev* bma400, uint8_t intf) {
   if (bma400 != NULL) {
     bma400->read = bma400_i2c_read;
     bma400->write = bma400_i2c_write;
-    bma400->intf = BMA400_I2C_INTF;
-    bma400->intf_ptr = (void *)BMA400_I2C_ADDRESS_SDO_LOW;
+    bma400->intf = intf;
+    bma400->intf_ptr = ACCEL_I2C;
     bma400->delay_us = bma400_delay_us;
     bma400->read_write_len = READ_WRITE_LENGTH;
 
@@ -1046,6 +1064,8 @@ int8_t bma400_interface_init(struct bma400_dev* bma400, uint8_t intf) {
 
 void accelHandler(bool state, IOEventFlags flags) {
 
+  if (state) return; // only interested in when low
+
   int8_t rslt = 0;
   uint16_t int_status;
   uint32_t step_count = 0;
@@ -1056,53 +1076,61 @@ void accelHandler(bool state, IOEventFlags flags) {
 
   if (rslt == BMA400_OK) {
 
-    if (int_status != 0) {
-      jsiConsolePrintf("bma int %x\n", int_status);
-    }
+    /*if (int_status != 0) {
+      jsiConsolePrintf("int_status %x\n", int_status);
+    }*/
 
-    if (int_status & BMA400_ASSERTED_STEP_INT) {
+    if (int_status & /*BMA400_ASSERTED_STEP_INT*/ 0x0100) {
       rslt = bma400_get_steps_counted(&step_count, &act_int, &bma_sensor);
       bma400_check_rslt("bma400_get_steps_counted", rslt);
+
+      stepCounter = step_count;      
+
       switch (act_int)
       {
         case BMA400_STILL_ACT:
-            jsiConsolePrintf("Steps counted : %ld\n", step_count);
-            jsiConsolePrintf("Still Activity detected\n");            
+            //jsiConsolePrintf("Steps counted : %d\n", step_count);
+            //jsiConsolePrintf("Still Activity detected\n");            
             break;
         case BMA400_WALK_ACT:
-            jsiConsolePrintf("Steps counted : %ld\n", step_count);
-            jsiConsolePrintf("Walking Activity detected\n");            
+            //jsiConsolePrintf("Steps counted : %d\n", step_count);
+            //jsiConsolePrintf("Walking Activity detected\n");            
             break;
         case BMA400_RUN_ACT:
-            jsiConsolePrintf("Steps counted : %ld\n", step_count);
-            jsiConsolePrintf("Running Activity detected\n");            
+            //jsiConsolePrintf("Steps counted : %d\n", step_count);
+            //jsiConsolePrintf("Running Activity detected\n");            
             break;
       }
-    } else {
-      if (int_status & BMA400_ASSERTED_S_TAP_INT) {
-        jsiConsolePrintf("Single tap detected\n");
-      }
 
-      if (int_status & BMA400_ASSERTED_D_TAP_INT) {
-        jsiConsolePrintf("Double tap detected\n");
-      }
+      pinetimeTasks |= JSPT_STEP_EVENT;
+      jshHadEvent();
 
-      if (int_status & BMA400_ASSERTED_DRDY_INT) {
-        struct bma400_sensor_data data;
-        float x, y, z;
-
-        rslt = bma400_get_accel_data(BMA400_DATA_ONLY, &data, &bma_sensor);
-        bma400_check_rslt("bma400_get_accel_data", rslt);
-
-        /* 12-bit accelerometer at range 2G */
-        x = lsb_to_ms2(data.x, 2, 12);
-        y = lsb_to_ms2(data.y, 2, 12);
-        z = lsb_to_ms2(data.z, 2, 12);
-
-        jsiConsolePrintf("Gravity-x : %d,   Gravity-y : %d,  Gravity-z :  %d \r\n", x, y, z);
-
-      }
     }
+
+    if (int_status & BMA400_ASSERTED_D_TAP_INT) {
+      //jsiConsolePrintf("Double tap detected\n");    
+      if (!jswrap_pinetime40_isLCDOn()) {
+        pinetimeTasks |= JSPT_LCD_ON;
+        inactivityTimer = 0;
+      }      
+    }
+
+    if (int_status & BMA400_ASSERTED_ACT_CH_X | BMA400_ASSERTED_ACT_CH_Y | BMA400_ASSERTED_ACT_CH_Z) {
+      struct bma400_sensor_data data;
+      float x, y, z;
+
+      rslt = bma400_get_accel_data(BMA400_DATA_ONLY, &data, &bma_sensor);
+      bma400_check_rslt("bma400_get_accel_data", rslt);
+
+      /* 12-bit accelerometer at range 2G */
+      x = lsb_to_ms2(data.x, 2, 12);
+      y = lsb_to_ms2(data.y, 2, 12);
+      z = lsb_to_ms2(data.z, 2, 12);
+
+      //jsiConsolePrintf("Gravity-x : %d,   Gravity-y : %d,  Gravity-z :  %d \r\n", x, y, z);
+
+    }
+    
   }
 }
 
@@ -1172,36 +1200,50 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
 
   jshPinSetState(ACCEL_PIN_INT, JSHPINSTATE_GPIO_IN);
 
+  jshDelayMicroseconds(1000);
+
+  stepCounter = 0;
+
   int8_t rslt = 0;
 
   struct bma400_sensor_conf accel_settin[4] = { { 0 } };
-  struct bma400_int_enable int_en[5];
-
+  struct bma400_int_enable int_en[3] = { { 0 } };
+  struct bma400_device_conf dev_settings[1] = { { 0 } };
+  
   rslt = bma400_interface_init(&bma_sensor, BMA400_I2C_INTF);
   bma400_check_rslt("bma400_interface_init", rslt);
 
   rslt = bma400_soft_reset(&bma_sensor);
-  bma400_check_rslt("bma400_soft_reset", rslt);
+  bma400_check_rslt("bma400_soft_reset 1", rslt);
 
   rslt = bma400_init(&bma_sensor);
   bma400_check_rslt("bma400_init", rslt);
 
-  rslt = bma400_set_power_mode(BMA400_MODE_SLEEP, &bma_sensor);
+  //rslt = bma400_set_power_mode(BMA400_MODE_SLEEP, &bma_sensor);
+  rslt = bma400_set_power_mode(BMA400_MODE_NORMAL, &bma_sensor);
   bma400_check_rslt("bma400_set_power_mode", rslt);
+  
+  dev_settings[0].type = BMA400_INT_PIN_CONF;
+  dev_settings[0].param.int_conf.int_chan = BMA400_INT_CHANNEL_1;
+  dev_settings[0].param.int_conf.pin_conf = BMA400_INT_OPEN_DRIVE_ACTIVE_0;
+  
+  // Set the desired configurations to the sensor
+  rslt = bma400_set_device_conf(dev_settings, 1, &bma_sensor);
+  bma400_check_rslt("bma400_set_device_conf", rslt);
 
-  /*accel_settin[0].type = BMA400_ACCEL;  
+  accel_settin[0].type = BMA400_ACCEL;
   accel_settin[1].type = BMA400_TAP_INT;
-  accel_settin[2].type = BMA400_STEP_COUNTER_INT;
-  accel_settin[3].type = BMA400_ORIENT_CHANGE_INT;
+  accel_settin[2].type = BMA400_ACTIVITY_CHANGE_INT;
+  accel_settin[3].type = BMA400_STEP_COUNTER_INT;
 
-  rslt = bma400_get_sensor_conf(accel_settin, 3, &bma_sensor);
+  rslt = bma400_get_sensor_conf(accel_settin, 4, &bma_sensor);
   bma400_check_rslt("bma400_get_sensor_conf", rslt);
 
-  accel_settin[0].param.accel.odr = BMA400_ODR_100HZ;
+  accel_settin[0].param.accel.int_chan = BMA400_INT_CHANNEL_1;
+  accel_settin[0].param.accel.odr = BMA400_ODR_200HZ;
   accel_settin[0].param.accel.range = BMA400_RANGE_2G;
   accel_settin[0].param.accel.data_src = BMA400_DATA_SRC_ACCEL_FILT_1;
   accel_settin[0].param.accel.filt1_bw = BMA400_ACCEL_FILT1_BW_1;
-  accel_settin[0].param.accel.int_chan = BMA400_INT_CHANNEL_1;
 
   accel_settin[1].param.tap.int_chan = BMA400_INT_CHANNEL_1;
   accel_settin[1].param.tap.axes_sel = BMA400_TAP_Z_AXIS_EN;
@@ -1210,41 +1252,31 @@ NO_INLINE void jswrap_pinetime40_hwinit() {
   accel_settin[1].param.tap.quiet = BMA400_QUIET_60_DATA_SAMPLES;
   accel_settin[1].param.tap.quiet_dt = BMA400_QUIET_DT_4_DATA_SAMPLES;
 
-  accel_settin[2].param.step_cnt.int_chan = BMA400_INT_CHANNEL_1;
+  accel_settin[2].param.act_ch.int_chan = BMA400_INT_CHANNEL_1;
+  accel_settin[2].param.act_ch.axes_sel = BMA400_AXIS_XYZ_EN;
+  accel_settin[2].param.act_ch.act_ch_ntps = BMA400_ACT_CH_SAMPLE_CNT_64;
+  accel_settin[2].param.act_ch.data_source = BMA400_DATA_SRC_ACC_FILT1;
+  accel_settin[2].param.act_ch.act_ch_thres = 10;
+
+  accel_settin[3].param.step_cnt.int_chan = BMA400_INT_CHANNEL_1;
 
   // Set the desired configurations to the sensor
-  rslt = bma400_set_sensor_conf(accel_settin, 3, &bma_sensor);
+  rslt = bma400_set_sensor_conf(accel_settin, 4, &bma_sensor);
   bma400_check_rslt("bma400_set_sensor_conf", rslt);
-
-  rslt = bma400_set_power_mode(BMA400_MODE_NORMAL, &bma_sensor);
-  bma400_check_rslt("bma400_set_power_mode", rslt);
   
-  int_en[0].type = BMA400_DRDY_INT_EN;
+  int_en[0].type = BMA400_DOUBLE_TAP_INT_EN;
   int_en[0].conf = BMA400_ENABLE;
 
-  int_en[1].type = BMA400_STEP_COUNTER_INT_EN;
+  int_en[1].type = BMA400_ACTIVITY_CHANGE_INT_EN;
   int_en[1].conf = BMA400_ENABLE;
 
-  int_en[2].type = BMA400_DOUBLE_TAP_INT_EN;
+  int_en[2].type = BMA400_STEP_COUNTER_INT_EN;
   int_en[2].conf = BMA400_ENABLE;
 
-  int_en[3].type = BMA400_SINGLE_TAP_INT_EN;
-  int_en[3].conf = BMA400_ENABLE;  
-
-  rslt = bma400_enable_interrupt(int_en, 4, &bma_sensor);
+  rslt = bma400_enable_interrupt(int_en, 3, &bma_sensor);
   bma400_check_rslt("bma400_enable_interrupt", rslt);
 
-  */
-  struct bma400_device_conf dev_settings[1];
-  
-  dev_settings[0].type = BMA400_INT_PIN_CONF;
-  dev_settings[0].param.int_conf.int_chan = BMA400_MAP_BOTH_INT_PINS;
-  dev_settings[0].param.int_conf.pin_conf = BMA400_INT_OPEN_DRIVE_ACTIVE_0;
-  
-  // Set the desired configurations to the sensor
-  rslt = bma400_set_device_conf(dev_settings, 1, &bma_sensor);
-  bma400_check_rslt("bma400_set_device_conf", rslt);
-  
+
   //
 
 
@@ -1397,6 +1429,12 @@ bool jswrap_pinetime40_idle() {
       JsVar* charging = jsvNewFromBool(wasCharging);
       jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"charging", &charging, 1);
       jsvUnLock(charging);
+    }
+
+    if (pinetimeTasks & JSPT_STEP_EVENT) {
+      JsVar *steps = jsvNewFromInteger(stepCounter);
+      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"step", &steps, 1);
+      jsvUnLock(steps);
     }
 
   }
