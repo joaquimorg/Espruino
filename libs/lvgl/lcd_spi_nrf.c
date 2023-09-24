@@ -43,6 +43,7 @@ void lcdCmd_SPINRF(int cmd, int dataLen, const unsigned char *data) {
   *(volatile uint32_t *)0x4002F004 = 1;
 #endif
 }
+
 void lcdSendInitCmd_SPINRF() {
   // Send initialization commands to ST7735
   const unsigned char *cmd = SPILCD_INIT_CODE;

@@ -487,20 +487,18 @@ void jswrap_pinetime40_pwrBacklight(bool on) {
 }
 
 static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
-  /*
     if (isOn) { // wake
-      lcdCmd_SPILCD(0x11, 0, NULL); // SLPOUT
+      lcdCmd_SPINRF(0x11, 0, NULL); // SLPOUT
       jshDelayMicroseconds(20);
-      lcdCmd_SPILCD(0x29, 0, NULL); // DISPON
+      lcdCmd_SPINRF(0x29, 0, NULL); // DISPON
     } else { // sleep
-      lcdCmd_SPILCD(0x28, 0, NULL); // DISPOFF
+      lcdCmd_SPINRF(0x28, 0, NULL); // DISPOFF
       jshDelayMicroseconds(20);
-      lcdCmd_SPILCD(0x10, 0, NULL); // SLPIN
+      lcdCmd_SPINRF(0x10, 0, NULL); // SLPIN
     }
   #ifdef LCD_EN
     jshPinOutput(LCD_EN, isOn); // enable off
-  #endif
-  */
+  #endif  
 }
 
 
