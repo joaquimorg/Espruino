@@ -1,3 +1,13 @@
+     2v20 : Ensure String.charCodeAt returns NaN for out of bounds chars
+            Bangle.js2: When rendering overlays, *do not* use the current FG/BG color for 1 bit overlays
+            nRF52 SDK15: Fix UART when >1 central link enabled
+            Bangle.js2: Allow 2 central links at once
+            Fix `if (0);"test"||fail()` 2v19 regression - strings after if(0) didn't get interpreted 
+            Ensure eval("1;;;")==1 - eval("1;")==1 before, but not eval("1;;")            
+            Ensure AssignmentExpr returns the value of LHS, not the LHS. `(a=2)=3` now fails (as per spec)
+            Ensure default args for arrow functions fail with error `(a,b=3)=>a+b` now fails (until default args get added)
+            nRF52: bootloader asks for connection interval 7.5->30ms now, not just 15ms. Should improve DFU on iOS 16 which doesn't honour 15ms request
+
      2v19 : Fix Object.values/entries for numeric keys after 2v18 regression (fix #2375)
             nRF52: for SD>5 use static buffers for advertising and scan response data (#2367)
             Bangle.js: Add Bangle.showRecoveryMenu, and if storage is corrupt then show it rather than automatically doing factory reset
@@ -46,8 +56,10 @@
             nRF5x: Add `NRF.on("passkey", ...)` to allow passkey pairing with `NRF.setSecurity({mitm:1, display:1});`
             nrf52: Allow disabling pairing with `NRF.setSecurity({pair:0})`
             Allow E.pipe to pipe from Strings, remove pipe's internal `position` counter (fix #2352)
-            Bangle.js 1: remove OneWire and JIT as it uses too much flash space to exist alongside UTF8+Tensorflow on nRF52
+            Bangle.js 1: remove OneWire,I2C,SPI as it uses too much flash space to exist alongside UTF8+Tensorflow+JIT on nRF52
             ARM: Apply -fmerge-all-constants to the build (saves ~1kb)
+            Bangle.js: If screen is rotated, also rotate accelerometer and magnetometer values
+            Microbit1: don't include text versions of Bluetooth error messages (just the error number) to save some memory
             
      2v18 : Fix drawString with setClipRect with 90/270-degree rotation (fix #2343)
             Pico/Wifi: Enabled JIT compiler

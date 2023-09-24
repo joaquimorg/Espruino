@@ -1301,6 +1301,15 @@ void peripheralPollHandler() {
     }
 #endif
     if (newReading) {
+      // if the graphics instance is rotated, also rotate magnetometer values
+      if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_SWAP_XY) {
+        short t = mag.x;
+        mag.x = mag.y;
+        mag.y = t;
+      }
+      if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_INVERT_X) mag.x = -mag.x;
+      if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_INVERT_Y) mag.y = -mag.y;
+      // Work out min and max values for auto-calibration
       if (mag.x<magmin.x) {
         magmin.x=mag.x;
         if (magmax.x-magmin.x > MAG_MAX_RANGE)
@@ -1429,6 +1438,15 @@ void peripheralPollHandler() {
 #ifdef ACCEL_DEVICE_KX126
     newy = -newy;
 #endif
+    // if the graphics instance is rotated, also rotate accelerometer values
+    if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_INVERT_X) newx = -newx;
+    if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_INVERT_Y) newy = -newy;
+    if (graphicsInternal.data.flags & JSGRAPHICSFLAGS_SWAP_XY) {
+      short t = newx;
+      newx = newy;
+      newy = t;
+    }
+
     int dx = newx-acc.x;
     int dy = newy-acc.y;
     int dz = newz-acc.z;
@@ -6044,7 +6062,7 @@ JsVar *jswrap_banglejs_appRect() {
 
 /// Called from jsinteractive when an event is parsed from the event queue for Bangle.js (executed outside IRQ)
 void jsbangle_exec_pending(IOEvent *evt) {
-  assert(event=>type == EV_BANGLEJS);
+  assert(evt->flags & EV_BANGLEJS);
   uint16_t value = ((uint8_t)evt->data.chars[1])<<8 | (uint8_t)evt->data.chars[2];
   switch ((JsBangleEvent)evt->data.chars[0]) {
     case JSBE_HRM_ENV: {

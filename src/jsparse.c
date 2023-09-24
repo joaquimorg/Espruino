@@ -2205,6 +2205,7 @@ NO_INLINE JsVar *__jspeAssignmentExpression(JsVar *lhs) {
       }
     }
     jsvUnLock(rhs);
+    lhs = jsvSkipNameAndUnLock(lhs);
   }
   return lhs;
 }
