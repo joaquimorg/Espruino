@@ -31,7 +31,7 @@
 #include "lvgl.h"
 
 static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf1[LCD_WIDTH * LCD_HEIGHT / 10];                        /*Declare a buffer for 1/10 screen size*/
+static lv_color_t lvgl_buf[LCD_WIDTH * LCD_HEIGHT / 8];                        /*Declare a buffer for 1/10 screen size*/
 
 
 /*TYPESCRIPT
@@ -844,7 +844,7 @@ void jswrap_pinetime40_lvglinit() {
 #endif
 
   //Initialize the display
-  lv_disp_draw_buf_init(&draw_buf, buf1, NULL, LCD_WIDTH * LCD_HEIGHT / 10);  /*Initialize the display buffer.*/
+  lv_disp_draw_buf_init(&draw_buf, lvgl_buf, NULL, LCD_WIDTH * LCD_HEIGHT / 8);  /*Initialize the display buffer.*/
 
   lv_disp_drv_init(&disp_drv);        /*Basic initialization*/
   disp_drv.flush_cb = disp_flush;     /*Set your driver function*/
