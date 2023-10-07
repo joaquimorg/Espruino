@@ -275,6 +275,7 @@ JsVar *jsble_get_error_string(uint32_t err_code) {
    case BLE_ERROR_GAP_INVALID_BLE_ADDR
                                 : name="INVALID_BLE_ADDR"; break;
    case NRF_ERROR_CONN_COUNT    : name="CONN_COUNT"; break;
+   case BLE_ERROR_NOT_ENABLED   : name="NOT_ENABLED"; break;
 
 #if NRF_SD_BLE_API_VERSION<5
    case BLE_ERROR_NO_TX_PACKETS : name="NO_TX_PACKETS"; break;
@@ -528,16 +529,21 @@ int jsble_exec_pending(IOEvent *event) {
 #ifdef LINK_SECURITY
       case BLEP_TASK_PASSKEY_DISPLAY: { // data = connection handle
         uint16_t conn_handle = data;
+#if CENTRAL_LINK_COUNT>0
         /* TODO: yes/no passkey
 uint8_t match_request : 1;               If 1 requires the application to report the match using @ref sd_ble_gap_auth_key_reply
                                          with either @ref BLE_GAP_AUTH_KEY_TYPE_NONE if there is no match or
                                          @ref BLE_GAP_AUTH_KEY_TYPE_PASSKEY if there is a match. */
         int centralIdx = jsble_get_central_connection_idx(conn_handle);
+#endif
         if (bufferLen==BLE_GAP_PASSKEY_LEN) {
           buffer[BLE_GAP_PASSKEY_LEN] = 0;
           JsVar *passkey = jsvNewFromString((char*)buffer);
+#if CENTRAL_LINK_COUNT>0
           if (centralIdx<0) { // it's on the peripheral connection
+#endif
             bleQueueEventAndUnLock(JS_EVENT_PREFIX"passkey", passkey);
+#if CENTRAL_LINK_COUNT>0
           } else { // it's on a central connection
             JsVar *gattServer = bleGetActiveBluetoothGattServer(centralIdx);
             if (gattServer) {
@@ -549,6 +555,7 @@ uint8_t match_request : 1;               If 1 requires the application to report
               jsvUnLock2(bluetoothDevice, gattServer);
             }
           }
+#endif
           jsvUnLock(passkey);
         }
         break;
@@ -666,9 +673,13 @@ uint8_t match_request : 1;               If 1 requires the application to report
         ble_cts_handle_time(blep, (char *)buffer, bufferLen);
         break;
 #endif
+#ifndef SAVE_ON_FLASH
    default:
      jsWarn("jsble_exec_pending: Unknown enum type %d",(int)blep);
+#endif
  }
+ if (jspIsInterrupted())
+   jsWarn("Interrupted processing event %d",(int)blep);
  return eventsHandled;
 }
 
@@ -1834,8 +1845,10 @@ static void pm_evt_handler(pm_evt_t const * p_evt) {
 
         case PM_EVT_STORAGE_FULL:
         {
+            jsWarn("PM: PM_EVT_STORAGE_FULL - running garbage collection");
             // Run garbage collection on the flash.
             err_code = fds_gc();
+            jsWarn("Garbage collection result: %d", err_code);
             if (err_code == FDS_ERR_BUSY || err_code == FDS_ERR_NO_SPACE_IN_QUEUES)
             {
                 // Retry.
@@ -3240,7 +3253,7 @@ void jsble_send_hid_input_report(uint8_t *data, int length) {
     return;
   }
   if (!jsble_has_peripheral_connection()) {
-    jsExceptionHere(JSET_ERROR, "Not connected!");
+    jsExceptionHere(JSET_ERROR, "Not connected");
     return;
   }
   if (bleStatus & BLE_IS_SENDING_HID) {
@@ -3248,7 +3261,7 @@ void jsble_send_hid_input_report(uint8_t *data, int length) {
     return;
   }
   if (length > HID_KEYS_MAX_LEN) {
-    jsExceptionHere(JSET_ERROR, "BLE HID report too long - max length = %d\n", HID_KEYS_MAX_LEN);
+    jsExceptionHere(JSET_ERROR, "BLE HID report too long - max length = %d", HID_KEYS_MAX_LEN);
     return;
   }
 
@@ -3380,9 +3393,11 @@ void jsble_set_tx_power(int8_t pwr) {
 #if NRF_SD_BLE_API_VERSION > 5
   if (m_peripheral_conn_handle != BLE_CONN_HANDLE_INVALID)
     err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_CONN, m_peripheral_conn_handle, pwr);
+#if CENTRAL_LINK_COUNT>0
   for (int i=0;i<CENTRAL_LINK_COUNT;i++)
     if (m_central_conn_handles[i] != BLE_CONN_HANDLE_INVALID)
       err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_CONN, m_central_conn_handles[i], pwr);
+#endif
   if (m_adv_handle != BLE_GAP_ADV_SET_HANDLE_NOT_SET)
     err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, m_adv_handle, pwr);
   err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_SCAN_INIT, 0/*ignored*/, pwr);

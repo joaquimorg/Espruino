@@ -248,7 +248,7 @@ anything over a few milliseconds, use setTimeout instead.
  */
 void jswrap_io_digitalPulse(Pin pin, bool value, JsVar *times) {
   if (!jshIsPinValid(pin)) {
-    jsExceptionHere(JSET_ERROR, "Invalid pin!");
+    jsExceptionHere(JSET_ERROR, "Invalid pin");
     return;
   }
   // check for currently running timer tasks
@@ -260,7 +260,7 @@ void jswrap_io_digitalPulse(Pin pin, bool value, JsVar *times) {
   if (jsvIsNumeric(times)) {
     JsVarFloat pulseTime = jsvGetFloat(times);
     if (pulseTime<0 || isnan(pulseTime)) {
-      jsExceptionHere(JSET_ERROR, "Pulse Time given for digitalPulse is less than 0, or not a number");
+      jsExceptionHere(JSET_ERROR, "Pulse Time is less than 0 or not a number");
     } else if (pulseTime>0) {
       if (!hasTimer) jshPinOutput(pin, value);
       task.time += jshGetTimeFromMilliseconds(pulseTime);
@@ -284,7 +284,7 @@ void jswrap_io_digitalPulse(Pin pin, bool value, JsVar *times) {
     }
     jsvIteratorFree(&it);
   } else {
-    jsExceptionHere(JSET_ERROR, "Expecting a number or array, got %t", times);
+    jsExceptionHere(JSET_ERROR, "Expecting Number or Array, got %t", times);
   }
 }
 
@@ -337,7 +337,7 @@ void jswrap_io_digitalWrite(
       JsVar *v = jsvNewFromInteger(value);
       jsvUnLock(jspeFunctionCall(w,0,pinVar,false,1,&v));
       jsvUnLock(v);
-    } else jsExceptionHere(JSET_ERROR, "Invalid pin!");
+    } else jsExceptionHere(JSET_ERROR, "Invalid pin");
     jsvUnLock(w);
   } else {
     // Handle the case where it is a single pin.
@@ -391,7 +391,7 @@ JsVarInt jswrap_io_digitalRead(JsVar *pinVar) {
     JsVar *r = jspGetNamedField(pinVar, "read", false);
     if (jsvIsFunction(r)) {
       v = jsvGetIntegerAndUnLock(jspeFunctionCall(r,0,pinVar,false,0,0));
-    } else jsExceptionHere(JSET_ERROR, "Invalid pin!");
+    } else jsExceptionHere(JSET_ERROR, "Invalid pin");
     jsvUnLock(r);
     return v;
   } else {
@@ -629,7 +629,7 @@ void jswrap_io_shiftOut(JsVar *pins, JsVar *options, JsVar *data) {
     jsvObjectIteratorNew(&it, pins);
     while (jsvObjectIteratorHasValue(&it)) {
       if (d.cnt>=jswrap_io_shiftOutDataMax) {
-        jsExceptionHere(JSET_ERROR, "Too many pins! %d Maximum.", jswrap_io_shiftOutDataMax);
+        jsExceptionHere(JSET_ERROR, "Too many pins! %d Maximum", jswrap_io_shiftOutDataMax);
         return;
       }
       d.pins[d.cnt] = jshGetPinFromVarAndUnLock(jsvObjectIteratorGetValue(&it));
@@ -888,7 +888,7 @@ void jswrap_interface_clearWatch(JsVar *idVarArr) {
   } else {
     JsVar *idVar = jsvGetArrayItem(idVarArr, 0);
     if (jsvIsUndefined(idVar)) {
-      jsExceptionHere(JSET_ERROR, "clearWatch(undefined) not allowed. Use clearWatch() instead.");
+      jsExceptionHere(JSET_ERROR, "clearWatch(undefined) not allowed. Use clearWatch() instead");
       return;
     }
     JsVar *watchArrayPtr = jsvLock(watchArray);

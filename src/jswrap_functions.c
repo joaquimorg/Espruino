@@ -182,7 +182,7 @@ JsVar *jswrap_parseInt(JsVar *v, JsVar *radixVar) {
   // probably had to miss some stuff off the end of the string
   // in jsvGetString
   if (endOfInteger == &buffer[sizeof(buffer)-1]) {
-    jsExceptionHere(JSET_ERROR, "String too big to convert to integer\n");
+    jsExceptionHere(JSET_ERROR, "String too big to convert to number");
     return jsvNewFromFloat(NAN);
   }
   return jsvNewFromLongInteger(i);
@@ -210,7 +210,7 @@ JsVarFloat jswrap_parseFloat(JsVar *v) {
   // probably had to miss some stuff off the end of the string
   // in jsvGetString
   if (endOfFloat == &buffer[sizeof(buffer)-1]) {
-    jsExceptionHere(JSET_ERROR, "String too big to convert to float\n");
+    jsExceptionHere(JSET_ERROR, "String too big to convert to number");
     return NAN;
   }
   return f;
@@ -300,7 +300,7 @@ Encode the supplied string (or array) into a base64 string
  */
 JsVar *jswrap_btoa(JsVar *binaryData) {
   if (!jsvIsIterable(binaryData)) {
-    jsExceptionHere(JSET_ERROR, "Expecting a string or array, got %t", binaryData);
+    jsExceptionHere(JSET_ERROR, "Expecting String or Array, got %t", binaryData);
     return 0;
   }
   size_t inputLength = (size_t)jsvGetLength(binaryData);
@@ -358,7 +358,7 @@ Decode the supplied base64 string into a normal string
  */
 JsVar *jswrap_atob(JsVar *base64Data) {
   if (!jsvIsString(base64Data)) {
-    jsExceptionHere(JSET_ERROR, "Expecting a string, got %t", base64Data);
+    jsExceptionHere(JSET_ERROR, "Expecting String, got %t", base64Data);
     return 0;
   }
   // work out input length (ignoring whitespace)
@@ -486,7 +486,7 @@ JsVar *jswrap_decodeURIComponent(JsVar *arg) {
     while (jsvStringIteratorHasChar(&it)) {
       char ch = jsvStringIteratorGetCharAndNext(&it);
       if (ch>>7) {
-        jsExceptionHere(JSET_ERROR, "ASCII only\n");
+        jsExceptionHere(JSET_ERROR, "ASCII only");
         break;
       }
       if (ch!='%') {
@@ -496,7 +496,7 @@ JsVar *jswrap_decodeURIComponent(JsVar *arg) {
         char lo = (char)jsvStringIteratorGetCharAndNext(&it);
         int v = (char)hexToByte(hi,lo);
         if (v<0) {
-          jsExceptionHere(JSET_ERROR, "Invalid URI\n");
+          jsExceptionHere(JSET_ERROR, "Invalid URI");
           break;
         }
         ch = (char)v;

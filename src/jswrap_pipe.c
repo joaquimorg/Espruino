@@ -125,9 +125,9 @@ static bool handlePipe(JsVar *arr, JsvObjectIterator *it, JsVar* pipe) {
       }
     } else {
       if(!jsvIsFunction(readFunc))
-        jsExceptionHere(JSET_ERROR, "Source Stream does not implement the required read(length) method.");
+        jsExceptionHere(JSET_ERROR, "Source Stream does not implement the required read(length) method");
       if(!jsvIsFunction(writeFunc))
-        jsExceptionHere(JSET_ERROR, "Destination Stream does not implement the required write(buffer) method.");
+        jsExceptionHere(JSET_ERROR, "Destination Stream does not implement the required write(buffer) method");
     }
     jsvUnLock2(readFunc, writeFunc);
   }
@@ -272,14 +272,14 @@ void jswrap_pipe(JsVar* source, JsVar* dest, JsVar* options) {
         // parse Options Object
         if (jsvIsObject(options)) {
           JsVar *c;
-          c = jsvObjectGetChild(options, "complete", false);
+          c = jsvObjectGetChildIfExists(options, "complete");
           if (c) {
             jsvObjectSetChild(pipe, JS_EVENT_PREFIX"complete", c);
             jsvUnLock(c);
           }
-          c = jsvObjectGetChild(options, "end", false);
+          c = jsvObjectGetChildIfExists(options, "end");
           if (c) callEnd = jsvGetBoolAndUnLock(c);
-          c = jsvObjectGetChild(options, "chunkSize", false);
+          c = jsvObjectGetChildIfExists(options, "chunkSize");
           if (c) {
             if (jsvIsNumeric(c) && jsvGetInteger(c)>0)
               chunkSize = jsvGetInteger(c);
@@ -302,10 +302,10 @@ void jswrap_pipe(JsVar* source, JsVar* dest, JsVar* options) {
         // add the pipe to our list
         jsvArrayPush(arr, pipe);
       } else {
-        jsExceptionHere(JSET_ERROR, "Destination object does not implement the required write(buffer, length) method.");
+        jsExceptionHere(JSET_ERROR, "Destination object does not implement the required write(buffer, length) method");
       }
     } else {
-      jsExceptionHere(JSET_ERROR, "Source object does not implement the required read(buffer, length) method.");
+      jsExceptionHere(JSET_ERROR, "Source object does not implement the required read(buffer, length) method");
     }
     jsvUnLock2(readFunc, writeFunc);
   }

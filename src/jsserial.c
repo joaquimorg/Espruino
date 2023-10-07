@@ -118,7 +118,7 @@ bool jsserialPopulateUSARTInfo(
   if (!jsvIsUndefined(baud)) {
     int b = (int)jsvGetInteger(baud);
     if (b<=100 || b > 10000000)
-      jsExceptionHere(JSET_ERROR, "Invalid baud rate specified");
+      jsExceptionHere(JSET_ERROR, "Invalid baud rate %d", b);
     else
       inf->baudRate = b;
   }
@@ -230,7 +230,7 @@ bool jsserialEventCallbackInit(JsVar *parent, JshUSARTInfo *inf) {
     jsvUnLock(list);
     jshSetEventCallback(exti, jsserialEventCallback);
   } else {
-    jsExceptionHere(JSET_ERROR, "Unable to watch pin %p, no Software Serial RX\n", inf->pinRX);
+    jsExceptionHere(JSET_ERROR, "Unable to watch pin %p, no Software Serial RX", inf->pinRX);
     return false;
   }
 

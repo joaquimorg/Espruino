@@ -247,7 +247,7 @@ void jswrap_interface_edit(JsVar *funcName) {
 
   if (jsvIsString(funcName)) {
     if (jsvIsFunction(func)) {
-      JsVar *scopeVar = jsvFindChildFromString(func, JSPARSE_FUNCTION_SCOPE_NAME, false);
+      JsVar *scopeVar = jsvFindChildFromString(func, JSPARSE_FUNCTION_SCOPE_NAME);
       JsVar *inRoot = jsvGetIndexOf(execInfo.root, func, true);
       bool normalDecl = scopeVar==0 && inRoot!=0;
       jsvUnLock2(inRoot, scopeVar);
@@ -556,7 +556,7 @@ void _jswrap_interface_clearTimeoutOrInterval(JsVar *idVarArr, bool isTimeout) {
       if (!watchPtr)
         jsvObjectIteratorRemoveAndGotoNext(&it, timerArrayPtr);
       else
-        jsvObjectIteratorNext(&it); 
+        jsvObjectIteratorNext(&it);
       jsvUnLock2(watchPtr, timerPtr);
     }
     jsvObjectIteratorFree(&it);
@@ -564,7 +564,7 @@ void _jswrap_interface_clearTimeoutOrInterval(JsVar *idVarArr, bool isTimeout) {
     JsVar *idVar = jsvGetArrayItem(idVarArr, 0);
     if (jsvIsUndefined(idVar)) {
       const char *name = isTimeout?"Timeout":"Interval";
-      jsExceptionHere(JSET_ERROR, "clear%s(undefined) not allowed. Use clear%s() instead.", name, name);
+      jsExceptionHere(JSET_ERROR, "clear%s(undefined) not allowed. Use clear%s() instead", name, name);
     } else {
       JsVar *child = jsvIsBasic(idVar) ? jsvFindChildFromVar(timerArrayPtr, idVar, false) : 0;
       if (child) {

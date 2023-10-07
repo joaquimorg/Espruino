@@ -64,7 +64,7 @@ and how you can use them.
  */
 JsVar *jswrap_require(JsVar *moduleName) {
   if (!jsvIsString(moduleName)) {
-    jsExceptionHere(JSET_TYPEERROR, "Expecting a module name as a string, but got %t", moduleName);
+    jsExceptionHere(JSET_TYPEERROR, "Expecting module name as a string, got %t", moduleName);
     return 0;
   }
   char moduleNameBuf[128];
@@ -76,7 +76,7 @@ JsVar *jswrap_require(JsVar *moduleName) {
   // Search to see if we have already loaded this module
   JsVar *moduleList = jswrap_modules_getModuleList();
   if (!moduleList) return 0; // out of memory
-  JsVar *moduleExport = jsvSkipNameAndUnLock(jsvFindChildFromString(moduleList, moduleNameBuf, false));
+  JsVar *moduleExport = jsvSkipNameAndUnLock(jsvFindChildFromString(moduleList, moduleNameBuf));
   jsvUnLock(moduleList);
   if (moduleExport) {
     // Found the module!
@@ -109,7 +109,7 @@ JsVar *jswrap_require(JsVar *moduleName) {
   if (!moduleExport) {
     const char *builtInJS = jswGetBuiltInJSLibrary(moduleNameBuf);
     if (builtInJS) {
-      JsVar *fileContents = jsvNewNativeString((char*)builtInJS, strlen(builtInJS));       
+      JsVar *fileContents = jsvNewNativeString((char*)builtInJS, strlen(builtInJS));
       if (fileContents) {
         moduleExport = jspEvaluateModule(fileContents);
         jsvUnLock(fileContents);
@@ -120,7 +120,7 @@ JsVar *jswrap_require(JsVar *moduleName) {
   // If we have filesystem support, look on the filesystem
 #ifdef USE_FILESYSTEM
   if (!moduleExport) {
-    JsVar *fileContents = 0;        
+    JsVar *fileContents = 0;
     JsVar *modulePath = jsvNewFromString("node_modules/");
     if (modulePath) { // out of memory
       jsvAppendString(modulePath, moduleNameBuf);
@@ -138,8 +138,8 @@ JsVar *jswrap_require(JsVar *moduleName) {
       jsvUnLock(fileContents);
     }
   }
-#endif    
-   
+#endif
+
 
   if (moduleExport) { // Found - now save module
     JsVar *moduleList = jswrap_modules_getModuleList();
@@ -157,7 +157,7 @@ JsVar *jswrap_require(JsVar *moduleName) {
     }
 #endif
     // nope. no module
-    jsExceptionHere(JSET_ERROR, "Module %s not found", moduleNameBuf);
+    jsExceptionHere(JSET_ERROR, "Module %q not found", moduleName);
   }
 
   return moduleExport;
@@ -206,7 +206,7 @@ Remove the given module from the list of cached modules
  */
 void jswrap_modules_removeCached(JsVar *id) {
   if (!jsvIsString(id)) {
-    jsExceptionHere(JSET_ERROR, "The argument to removeCached must be a string");
+    jsExceptionHere(JSET_ERROR, "First argument must be String");
     return;
   }
   JsVar *moduleList = jswrap_modules_getModuleList();

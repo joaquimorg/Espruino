@@ -231,8 +231,8 @@ void _socketConnectionKill(JsNetwork *net, JsVar *connection) {
 }
 
 bool _socketConnectionOpen(JsVar *connection) {
-  return !(jsvGetBoolAndUnLock(jsvObjectGetChild(connection, HTTP_NAME_CLOSENOW, false)) ||
-           jsvGetBoolAndUnLock(jsvObjectGetChild(connection, HTTP_NAME_CLOSE, false)));
+  return !(jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(connection, HTTP_NAME_CLOSENOW)) ||
+           jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(connection, HTTP_NAME_CLOSE)));
 }
 
 // -----------------------------
@@ -270,7 +270,7 @@ int socketSendData(JsNetwork *net, JsVar *connection, int sckt, JsVar **sendData
   if ((socketType&ST_TYPE_MASK)==ST_UDP) {
       sndBufLen = (size_t)jsvGetStringLength(*sendData);
       if (sndBufLen+1024 > jsuGetFreeStack()) {
-          jsExceptionHere(JSET_ERROR, "Not enough free stack to send this amount of data");
+          jsExceptionHere(JSET_ERROR, "Not enough stack memory for data");
           return -1;
       }
   } else {
@@ -505,7 +505,7 @@ bool socketServerConnectionsIdle(JsNetwork *net) {
     JsVar *socket = isHttp ? jsvObjectGetChildIfExists(connection,HTTP_NAME_RESPONSE_VAR) : jsvLockAgain(connection);
 
     int sckt = (int)jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(connection,HTTP_NAME_SOCKET))-1; // so -1 if undefined
-    bool closeConnectionNow = jsvGetBoolAndUnLock(jsvObjectGetChild(connection, HTTP_NAME_CLOSENOW, false));
+    bool closeConnectionNow = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(connection, HTTP_NAME_CLOSENOW));
     int error = 0;
 
     if (!closeConnectionNow) {
@@ -624,8 +624,8 @@ bool socketClientConnectionsIdle(JsNetwork *net) {
 
     bool hadHeaders = false;
     int error = 0; // error code received from netXxxx functions
-    bool closeConnectionNow = jsvGetBoolAndUnLock(jsvObjectGetChild(connection, HTTP_NAME_CLOSENOW, false));
-    bool alreadyConnected = jsvGetBoolAndUnLock(jsvObjectGetChild(connection, HTTP_NAME_CONNECTED, false));
+    bool closeConnectionNow = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(connection, HTTP_NAME_CLOSENOW));
+    bool alreadyConnected = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(connection, HTTP_NAME_CONNECTED));
     int sckt = (int)jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(connection,HTTP_NAME_SOCKET))-1; // so -1 if undefined
     if (sckt>=0) {
       if (isHttp)
@@ -660,7 +660,7 @@ bool socketClientConnectionsIdle(JsNetwork *net) {
           jsvObjectSetChild(connection, HTTP_NAME_SEND_DATA, sendData); // socketSendData updated sendData
         } else {
           // no data to send, do we want to close? do so.
-          if (jsvGetBoolAndUnLock(jsvObjectGetChild(connection, HTTP_NAME_CLOSE, false)))
+          if (jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(connection, HTTP_NAME_CLOSE)))
             closeConnectionNow = true;
           if (isHttp) {
             JsVarInt contentToReceive = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(socket, HTTP_NAME_RECEIVE_COUNT));
@@ -864,11 +864,11 @@ void serverListen(JsNetwork *net, JsVar *server, unsigned short port, SocketType
   if (!arr) return; // out of memory
 
   jsvObjectSetChildAndUnLock(server, HTTP_NAME_PORT, jsvNewFromInteger(port));
-  JsVar *options = jsvObjectGetChild(server, HTTP_NAME_OPTIONS_VAR, false);
+  JsVar *options = jsvObjectGetChildIfExists(server, HTTP_NAME_OPTIONS_VAR);
 
   int sckt = netCreateSocket(net, socketType, 0/*server*/, port, options);
   if (sckt<0) {
-    jsExceptionHere(JSET_INTERNALERROR, "Unable to create socket\n");
+    jsExceptionHere(JSET_INTERNALERROR, "Unable to create socket");
     jsvObjectSetChildAndUnLock(server, HTTP_NAME_CLOSENOW, jsvNewFromBool(true));
   } else {
     jsvObjectSetChildAndUnLock(server, HTTP_NAME_SOCKET, jsvNewFromInteger(sckt+1));
@@ -935,7 +935,7 @@ JsVar *clientRequestNew(SocketType socketType, JsVar *options, JsVar *callback) 
 
 void clientRequestWrite(JsNetwork *net, JsVar *httpClientReqVar, JsVar *data, JsVar *host, unsigned short portNumber) {
   if (!_socketConnectionOpen(httpClientReqVar)) {
-    jsExceptionHere(JSET_ERROR, "This socket is closed.");
+    jsExceptionHere(JSET_ERROR, "This socket is closed");
     return;
   }
   SocketType socketType = socketGetType(httpClientReqVar);
@@ -1043,7 +1043,7 @@ void clientRequestConnect(JsNetwork *net, JsVar *httpClientReqVar) {
 
 
   if(!host_addr) {
-    jsExceptionHere(JSET_INTERNALERROR, "Unable to locate host\n");
+    jsExceptionHere(JSET_INTERNALERROR, "Unable to locate host");
     // As this is already in the list of connections, an error will be thrown on idle anyway
     jsvObjectSetChildAndUnLock(httpClientReqVar, HTTP_NAME_CLOSENOW, jsvNewFromBool(true));
     jsvUnLock(options);
@@ -1062,7 +1062,7 @@ void clientRequestConnect(JsNetwork *net, JsVar *httpClientReqVar) {
 
   int sckt =  netCreateSocket(net, socketType, host_addr, port, options);
   if (sckt<0) {
-    jsExceptionHere(JSET_INTERNALERROR, "Unable to create socket\n");
+    jsExceptionHere(JSET_INTERNALERROR, "Unable to create socket");
     // As this is already in the list of connections, an error will be thrown on idle anyway
     jsvObjectSetChildAndUnLock(httpClientReqVar, HTTP_NAME_CLOSENOW, jsvNewFromBool(true));
   } else {
@@ -1148,7 +1148,7 @@ void serverResponseWriteHead(JsVar *httpServerResponseVar, int statusCode, JsVar
 
 void serverResponseWrite(JsVar *httpServerResponseVar, JsVar *data) {
   if (!_socketConnectionOpen(httpServerResponseVar)) {
-    jsExceptionHere(JSET_ERROR, "This socket is closed.");
+    jsExceptionHere(JSET_ERROR, "This socket is closed");
     return;
   }
   // Append data to sendData

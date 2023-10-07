@@ -157,7 +157,7 @@ JsVar *jswrap_json_parse_internal() {
   default: {
     char buf[32];
     jslTokenAsString(lex->tk, buf, 32);
-    jsExceptionHere(JSET_SYNTAXERROR, "Expecting a valid value, got %s", buf);
+    jsExceptionHere(JSET_SYNTAXERROR, "Expecting valid value, got %s", buf);
     return 0; // undefined = error
   }
   }
@@ -224,7 +224,7 @@ void jsfGetJSONForFunctionWithCallback(JsVar *var, JSONFlags flags, vcbprintf_ca
   if (jsvIsNativeFunction(var)) {
     cbprintf(user_callback, user_data, "{ [native code] }");
 #ifdef ESPR_JIT
-  } else if ((jitCode = jsvFindChildFromString(var, JSPARSE_FUNCTION_JIT_CODE_NAME, false))) {
+  } else if ((jitCode = jsvFindChildFromString(var, JSPARSE_FUNCTION_JIT_CODE_NAME))) {
     jsvUnLock(jitCode);
     cbprintf(user_callback, user_data, "{ [JIT] }");
 #endif

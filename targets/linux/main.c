@@ -194,7 +194,7 @@ bool run_test(const char *filename) {
   while (isRunning && (jsiHasTimers() || isBusy))
     isBusy = jsiLoop();
 
-  JsVar *result = jsvObjectGetChild(execInfo.root, "result", 0 /*no create*/);
+  JsVar *result = jsvObjectGetChildIfExists(execInfo.root, "result");
   bool pass = jsvGetBool(result);
   jsvUnLock(result);
 
@@ -440,7 +440,7 @@ int main(int argc, char **argv) {
       } else if (!strcmp(a, "--test")) {
         bool ok;
         if (i + 1 >= argc) {
-          fatal(1, "Expecting an extra arguments");
+          fatal(1, "Expecting extra arguments");
         } else if (i + 2 == argc) {
           ok = run_test(argv[i + 1]);
         } else {

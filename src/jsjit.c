@@ -106,7 +106,7 @@ NO_INLINE JsVar *_jsxMathsOpSkipNamesAndUnLock(JsVar *a, JsVar *b, int op) {
 // Add a variable to the current scope (eg VAR statement), and return it
 NO_INLINE JsVar *_jsxAddVar(const char *name) {
   JsVar *scope = jspeiGetTopScope();
-  JsVar *a = jsvFindChildFromString(scope, name, true);
+  JsVar *a = jsvFindOrAddChildFromString(scope, name);
   jsvUnLock(scope);
   return a;
 }
@@ -718,7 +718,7 @@ void __jsjBinaryExpression(unsigned int lastPrecedence) {
             }
             a = jsvNewFromBool(found);
           } else { // not built-in, just assume we can't do it
-            jsExceptionHere(JSET_ERROR, "Cannot use 'in' operator to search a %t", bv);
+            jsExceptionHere(JSET_ERROR, "Can't use 'in' operator to search a %t", bv);
             jsvUnLock(a);
             a = 0;
           }

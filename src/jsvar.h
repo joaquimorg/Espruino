@@ -65,7 +65,10 @@ typedef enum {
   _JSV_STRING_START =  JSV_NAME_STRING_INT_0,
     JSV_NAME_STRING_INT_MAX  = JSV_NAME_STRING_INT_0+JSVAR_DATA_STRING_NAME_LEN,
   _JSV_NAME_WITH_VALUE_END = JSV_NAME_STRING_INT_MAX, ///< ---------- End of names that have literal values, NOT references, in firstChild
-    JSV_NAME_STRING_0    = JSV_NAME_STRING_INT_MAX+1, // array/object index as string of length 0
+#ifdef ESPR_UNICODE_SUPPORT
+    JSV_NAME_UTF8_STRING, ///< UTF8 name that just points to a normal string with lastChild, but just tag that the string is a unicode one
+#endif
+    JSV_NAME_STRING_0, // array/object index as string of length 0
     JSV_NAME_STRING_MAX  = JSV_NAME_STRING_0+JSVAR_DATA_STRING_NAME_LEN,
   _JSV_NAME_END    = JSV_NAME_STRING_MAX, ///< ---------- End of NAMEs (names of variables, object fields/etc)
     JSV_STRING_0    = JSV_NAME_STRING_MAX+1, // simple string value of length 0
@@ -73,7 +76,7 @@ typedef enum {
     JSV_FLAT_STRING = JSV_STRING_MAX+1, ///< Flat strings store the length (in chars) as an int, and then the subsequent JsVars (in memory) store data
     JSV_NATIVE_STRING = JSV_FLAT_STRING+1, ///< Native strings store an address and length, and reference the underlying data directly
 #ifdef ESPR_UNICODE_SUPPORT
-    JSV_UTF8_STRING, ///< UTF8 just point to a normal string with firstChild, but just tag that the string is a unicode one
+    JSV_UTF8_STRING, ///< UTF8 that just pointss to a normal string with lastChild, but just tag that the string is a unicode one
 #endif
 #ifdef SPIFLASH_BASE
     JSV_FLASH_STRING, ///< Like a native String, but not writable and uses jshFlashRead
@@ -439,6 +442,7 @@ bool jsvIsStringNumericStrict(const JsVar *var);
 
 // TODO: maybe isName shouldn't include ArrayBufferName?
 bool jsvHasCharacterData(const JsVar *v); ///< does the v->data union contain character data?
+/// Does this variable use lastChild to point to a StringExt?
 bool jsvHasStringExt(const JsVar *v);
 /// Does this variable use firstChild/lastChild to point to multiple children
 bool jsvHasChildren(const JsVar *v);
@@ -659,7 +663,8 @@ void jsvAddName(JsVar *parent, JsVar *nameChild); // Add a child, which is itsel
 JsVar *jsvAddNamedChild(JsVar *parent, JsVar *value, const char *name); // Add a child, and create a name for it. Returns a LOCKED var. DOES NOT CHECK FOR DUPLICATES
 void jsvAddNamedChildAndUnLock(JsVar *parent, JsVar *value, const char *name); // Add a child, and create a name for it AND unlock the value and name. DOES NOT CHECK FOR DUPLICATES
 JsVar *jsvSetValueOfName(JsVar *name, JsVar *src); // Set the value of a child created with jsvAddName,jsvAddNamedChild. Returns the UNLOCKED name argument
-JsVar *jsvFindChildFromString(JsVar *parent, const char *name, bool createIfNotFound); // Non-recursive finding of child with name. Returns a LOCKED var
+JsVar *jsvFindChildFromString(JsVar *parent, const char *name); // Non-recursive finding of child with name. Returns a LOCKED var
+JsVar *jsvFindOrAddChildFromString(JsVar *parent, const char *name); // Non-recursive finding of child with name. Returns a LOCKED var
 JsVar *jsvFindChildFromStringI(JsVar *parent, const char *name); ///< Find a child with a matching name using a case insensitive search
 JsVar *jsvFindChildFromVar(JsVar *parent, JsVar *childName, bool addIfNotFound); ///< Non-recursive finding of child with name. Returns a LOCKED var
 
@@ -801,7 +806,7 @@ void jsvFree(void *ptr);
   if (DATA && !TARGET_PTR) {                                                          \
    TARGET_LENGTH = (size_t)jsvIterateCallbackCount(DATA);                     \
     if (TARGET_LENGTH+256 > jsuGetFreeStack()) {                              \
-      jsExceptionHere(JSET_ERROR, "Not enough stack memory to decode data");  \
+      jsExceptionHere(JSET_ERROR, "Not enough stack memory for data");  \
     } else {                                                                  \
       TARGET_PTR = (char *)alloca(TARGET_LENGTH);                             \
       jsvIterateCallbackToBytes(DATA, (unsigned char *)TARGET_PTR,            \
