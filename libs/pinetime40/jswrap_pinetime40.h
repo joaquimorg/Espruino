@@ -6,6 +6,7 @@ void jswrap_pinetime40_init();
 void jswrap_pinetime40_kill();
 bool jswrap_pinetime40_idle();
 
+void jswrap_pinetime40_setBootCode(JsVar *code, bool alwaysExec);
 
 void jswrap_pinetime40_setLCDOffset(int y);
 

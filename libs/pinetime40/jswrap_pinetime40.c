@@ -1392,7 +1392,7 @@ NO_INLINE void jswrap_pinetime40_init() {
     // hack for lvgl update...
     //jsvUnLock(jspEvaluate("setInterval(lvgl.timerHandler,50)", true));
 
-    jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,5000)", true));
+    //jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,5000)", true));
 
   }
 
@@ -1646,3 +1646,36 @@ bool jswrap_pinetime40_setHRMPower(bool isOn, JsVar* appId) {
     ]
 }
 */
+
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "E",
+  "name" : "setBootCode",
+  "generate" : "jswrap_pinetime40_setBootCode",
+  "params" : [
+    ["code","JsVar","The code to execute (as a string)"],
+    ["alwaysExec","bool","Whether to always execute the code (even after a reset)"]
+  ],
+  "typescript" : "setBootCode(code: string, alwaysExec?: boolean): void;"
+}
+This writes JavaScript code into Pinetime's flash memory, to be executed on
+startup. It differs from `save()` in that `save()` saves the whole state of the
+interpreter, whereas this just saves JS code that is executed at boot.
+
+Code will be executed before `onInit()` and `E.on('init', ...)`.
+
+If `alwaysExec` is `true`, the code will be executed even after a call to
+`reset()`. This is useful if you're making something that you want to program,
+but you want some code that is always built in (for instance setting up a
+display or keyboard).
+
+To remove boot code that has been saved previously, use `E.setBootCode("")`
+
+**Note:** this removes any code that was previously saved with `save()`
+*/
+void jswrap_pinetime40_setBootCode(JsVar *code, bool alwaysExec) {
+  if (jsvIsString(code)) code = jsvLockAgain(code);
+  else code = jsvNewFromEmptyString();
+  jsfSaveBootCodeToFlash(code, alwaysExec);
+  jsvUnLock(code);
+}
