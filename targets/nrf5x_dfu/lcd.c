@@ -383,20 +383,29 @@ void lcd_init() {
   //lcd_cmd(0x3A, 1, "\x55"); // COLMOD - 16bpp
   lcd_cmd(0x3A, 1, "\x03"); // COLMOD - 12bpp
   jshDelayMicroseconds(10000);
+#if !defined(PINETIME)   
   lcd_cmd(0xC6, 1, "\x01"); // Frame rate control in normal mode, 111Hz
   jshDelayMicroseconds(10000);
   lcd_cmd(0x36, 1, "\x08"); // MADCTL
+#endif  
   jshDelayMicroseconds(10000);
   lcd_cmd(0x21, 0, NULL); // INVON
   jshDelayMicroseconds(10000);
   lcd_cmd(0x13, 0, NULL); // NORON
   jshDelayMicroseconds(10000);
+#if defined(PINETIME)
+  lcd_cmd(0x36, 1, "\x00"); // MADCTL
+  jshDelayMicroseconds(10000);
+  lcd_cmd(0x37, 2, "\x00\x00"); // VSCRSADD - vertical scroll
+  jshDelayMicroseconds(10000);
+#else
   lcd_cmd(0x36, 1, "\xC0"); // MADCTL
   jshDelayMicroseconds(10000);
   lcd_cmd(0x37, 2, "\0\x50"); // VSCRSADD - vertical scroll
   jshDelayMicroseconds(10000);
   lcd_cmd(0x35, 0, NULL); // Tear on
   jshDelayMicroseconds(10000);
+#endif  
   lcd_cmd(0x29, 0, NULL); // DISPON
   jshDelayMicroseconds(10000);
 }

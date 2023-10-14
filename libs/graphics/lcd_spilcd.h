@@ -13,7 +13,13 @@
  */
 #include "graphics.h"
 
-#define LCD_STRIDE ((LCD_WIDTH*LCD_BPP+7)>>3)
+#ifdef PINETIME  
+  #define BUF_WIDTH 10
+  #define LCD_STRIDE ((BUF_WIDTH*LCD_BPP+7)>>3)
+#else
+  #define LCD_STRIDE ((LCD_WIDTH*LCD_BPP+7)>>3)
+#endif
+
 unsigned char lcdBuffer[LCD_STRIDE*LCD_HEIGHT];
 
 void lcdInit_SPILCD(JsGraphics *gfx);

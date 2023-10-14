@@ -59,7 +59,7 @@ static void __attribute__((noinline)) nrf_gpio_pin_write_output(uint32_t pin, bo
 
 static void set_led_state(bool btn, bool progress)
 {
-#if defined(PIXLJS) || defined(BANGLEJS)
+#if defined(PIXLJS) || defined(BANGLEJS) || defined(PINETIME)
   // LED1 is backlight/HRM - don't use it!
 #elif defined(PUCKJS_LITE)
   jshPinOutput(LED1_PININDEX, progress);
@@ -93,9 +93,17 @@ static void print_fw_version(void) {
 }
 
 static void hardware_init(void) {
+
+#ifdef PINETIME  
+  // BT1 Enable
+  jshPinOutput(15, false);
+  NRF_GPIO_PIN_CNF(BTN1_PININDEX,0x0000000c);     // BTN1 input (with pullup)  
+  NRF_GPIO_PIN_CNF(BAT_PIN_CHARGING,0x0000000c);     // Charge input (with pullup)
+#endif
+
 #if defined(PIXLJS)
   // LED1 is backlight - don't use it, but ensure it's off
-  jshPinOutput(LED1_PININDEX, 0);
+  jshPinOutput(LED1_PININDEX, 0);  
 #endif
   set_led_state(false, false);
 #ifdef DICKENS // Simpler setup of BTN1 and BTN2 to save 48 bytes of code space
@@ -110,6 +118,8 @@ static void hardware_init(void) {
 #ifdef BTN1_PININDEX
   bool polarity;
   uint32_t pin;
+
+#ifndef PINETIME
   if (pinInfo[BTN1_PININDEX].port&JSH_PIN_NEGATED)
     polarity = BTN1_ONSTATE!=1;
   else
@@ -117,6 +127,7 @@ static void hardware_init(void) {
   pin = pinInfo[BTN1_PININDEX].pin;
   nrf_gpio_cfg_input(pin,
           polarity ? NRF_GPIO_PIN_PULLDOWN : NRF_GPIO_PIN_PULLUP);
+#endif
 #endif
 #ifdef BTN2_PININDEX
   if (pinInfo[BTN2_PININDEX].port&JSH_PIN_NEGATED)

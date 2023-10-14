@@ -56,8 +56,13 @@
 
 #include "dfu_status.h"
 
-#define DEVICE_NAME                          "DfuTarg"                                              /**< Name of device. Will be included in the advertising data. */
-#define MANUFACTURER_NAME                    "NordicSemiconductor"                                  /**< Manufacturer. Will be passed to Device Information Service. */
+#ifdef PINETIME
+    #define DEVICE_NAME                          "DFUPineTime"                                              /**< Name of device. Will be included in the advertising data. */
+    #define MANUFACTURER_NAME                    "Pine64"                                  /**< Manufacturer. Will be passed to Device Information Service. */
+#else
+    #define DEVICE_NAME                          "DfuTarg"                                              /**< Name of device. Will be included in the advertising data. */
+    #define MANUFACTURER_NAME                    "NordicSemiconductor"                                  /**< Manufacturer. Will be passed to Device Information Service. */
+#endif
 
 #define MIN_CONN_INTERVAL                    (uint16_t)(MSEC_TO_UNITS(15, UNIT_1_25_MS))            /**< Minimum acceptable connection interval. */
 #define MAX_CONN_INTERVAL_MS                 30                                                     /**< Maximum acceptable connection interval in milliseconds. */

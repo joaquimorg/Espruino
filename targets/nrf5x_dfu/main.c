@@ -201,7 +201,7 @@ bool dfu_enter_check(void) {
     if (!dfu_start) {
 #ifdef LCD
       lcd_println("\r\nBOOTING...");
-#ifdef BANGLEJS
+#if defined(BANGLEJS) || defined(PINETIME)
       nrf_delay_us(100000);
 #endif
 #endif
@@ -361,7 +361,7 @@ int main(void)
     int r = NRF_POWER->RESETREAS;
     dfuIsColdBoot = (r&0xF)==0;
 
-#if defined(DICKENS) || defined(BANGLEJS)  
+#if defined(DICKENS) || defined(BANGLEJS) || defined(PINETIME)
     // On smartwatches, turn on only if BTN1 held for >1 second (or charging on Dickens)
     // This may help in cases where battery is TOTALLY flat
     if ((r&0b1011)==0) {
@@ -419,7 +419,7 @@ int main(void)
 #ifdef ESPR_BOOTLOADER_SPIFLASH
     if (!get_btn1_state()) flashCheckAndRun();
 #endif
-#ifdef BANGLEJS
+#if defined(BANGLEJS) || defined(PINETIME)
     nrf_delay_us(500000); // 500ms delay
 #endif
 #endif
