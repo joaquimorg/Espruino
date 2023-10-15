@@ -19,8 +19,13 @@ info = {
  'name' : "PineTime.js",
  'link' :  [ "https://www.pine64.org/pinetime/" ],
  #'espruino_page_link' : 'Bangle.js',
- 'default_console' : "EV_BLUETOOTH",
- 'variables' : 2500, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
+ #'default_console' : "EV_BLUETOOTH",
+ 'default_console' : "EV_SERIAL1",
+ 'default_console_tx' : "D11",
+ 'default_console_rx' : "D30",
+ 'default_console_baudrate' : "115200",
+
+ 'variables' : 3500, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
  'bootloader' : 1,
  'binary_name' : 'espruino_pinetime32.hex',
  'build' : {
@@ -28,51 +33,60 @@ info = {
    'libraries' : [
      'BLUETOOTH',
      #'TERMINAL',
-     'GRAPHICS', 
-     'LCD_SPI_UNBUF',
+     'GRAPHICS',
+     #'LCD_SPI',
      #'TENSORFLOW',
      #'JIT'
    ],
-   'makefile' : [
-     'BLACKLIST=boards/BANGLEJS.blocklist', # force some stuff to be removed to save space   
-     #'DEFINES += -DESPR_HWVERSION=1',
+   'makefile' : [     
+     #'BLACKLIST=boards/BANGLEJS.blocklist', # force some stuff to be removed to save space   
+     #'DEFINES += -DESPR_HWVERSION=2',
      #'DEFINES += -DBANGLEJS_F18',
      'DEFINES += -DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
      #'DEFINES += -DESPR_HWVERSION=2 -DBANGLEJS -DBANGLEJS_Q3',
-     'DEFINES += -DSPISENDMANY_BUFFER_SIZE=126',
-     'DEFINES +=-DSPIFLASH_SHARED_SPI',
+     'DEFINES += -DESPR_DCDC_ENABLE', # Ensure DCDC converter is enabled
+     'DEFINES += -DSPISENDMANY_BUFFER_SIZE=32',
+     'DEFINES += -DSPIFLASH_SHARED_SPI',
      'DEFINES += -DPINETIME',
+     'DEFINES += -DUSE_LCD_ST7789V',
      'DEFINES += -DBUTTONPRESS_TO_REBOOT_BOOTLOADER',
      #'DEFINES += -DESPR_BOOTLOADER_SPIFLASH', # Allow bootloader to flash direct from SPI flash
      'DEFINES += -DDFU_APP_DATA_RESERVED=0', # allow firmware updates right up to the amount of available flash
-     'DEFINES+=-DNRF_BLE_GATT_MAX_MTU_SIZE=53 -DNRF_BLE_MAX_MTU_SIZE=53', # increase MTU from default of 23
-     'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x2c40', # set RAM base to match MTU
-     'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"PineTime.js"\'',
-     'DEFINES+=-DBLUETOOTH_ADVERTISING_INTERVAL=200', # since we don't care as much about ~20uA battery usage, raise this to make getting a connection faster
-     'ESPR_BLUETOOTH_ANCS=1', # Enable ANCS (Apple notifications) support
-     'DEFINES+=-DCUSTOM_GETBATTERY=jswrap_pinetime_getBattery',
-     'DEFINES+=-DESPR_UNICODE_SUPPORT=1',
-     'DEFINES+=-DESPR_NO_SOFTWARE_SERIAL=1',
-     'DEFINES+=-DDUMP_IGNORE_VARIABLES=\'"g\\0"\'',
-     'DEFINES+=-DESPR_GRAPHICS_INTERNAL=1',
-     'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DGRAPHICS_ANTIALIAS -DESPR_PBF_FONTS',
-     'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves 1k of flash
-     'DEFINES+=-DESPR_NO_LINE_NUMBERS=1', # we execute mainly from flash, so line numbers can be worked out
-     'DEFINES+=-DAPP_TIMER_OP_QUEUE_SIZE=6', # Bangle.js accelerometer poll handler needs something else in queue size
-     'DEFINES+=-DNRF_DFU_BLE_ADV_NAME=\'"DFU PineTime"\'',
+     'DEFINES += -DNRF_BLE_GATT_MAX_MTU_SIZE=53 -DNRF_BLE_MAX_MTU_SIZE=53', # increase MTU from default of 23
+     #'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x2c40', # set RAM base to match MTU
+     'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3000', # set RAM base to match MTU
+     #'DEFINES += -DCENTRAL_LINK_COUNT=2 -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=2', # allow two outgoing connections at once  
+     #'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3290', # set RAM base to match MTU=53 + CENTRAL_LINK_COUNT=2
+     'DEFINES += -DBLUETOOTH_NAME_PREFIX=\'"PineTime.js"\'',
+     'DEFINES += -DBLUETOOTH_ADVERTISING_INTERVAL=400', # since we don't care as much about ~20uA battery usage, raise this to make getting a connection faster
+     #'ESPR_BLUETOOTH_ANCS=1', # Enable ANCS (Apple notifications) support
+     'DEFINES += -DCUSTOM_GETBATTERY=jswrap_pinetime_getBattery',
+     #'DEFINES += -DESPR_UNICODE_SUPPORT=1',
+     'DEFINES += -DESPR_NO_SOFTWARE_SERIAL=1',
+     'DEFINES += -DDUMP_IGNORE_VARIABLES=\'"g\\0"\'',
+     'DEFINES += -DESPR_GRAPHICS_INTERNAL=1',
+     'DEFINES += -DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES',
+     'DEFINES += -DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves 1k of flash
+     'DEFINES += -DESPR_NO_LINE_NUMBERS=1', # we execute mainly from flash, so line numbers can be worked out
+     'DEFINES += -DAPP_TIMER_OP_QUEUE_SIZE=4', # Bangle.js accelerometer poll handler needs something else in queue size
+     'DEFINES += -DNRF_DFU_BLE_ADV_NAME=\'"DFU PineTime"\'',
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key.pem',
      'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0x8C,0x91',
-     'INCLUDE += -I$(ROOT)/libs/pinetime32 -I$(ROOT)/libs/misc',
-     'WRAPPERSOURCES += libs/pinetime32/jswrap_pinetime.c',
+     'INCLUDE += -I$(ROOT)/libs/pinetime -I$(ROOT)/libs/misc',
+     'WRAPPERSOURCES += libs/pinetime/lcd_st7789v.c',
+     'WRAPPERSOURCES += libs/pinetime/jswrap_pinetime.c',     
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
+     'WRAPPERSOURCES += libs/pinetime/jswrap_font_24.c',
      #'SOURCES += libs/misc/nmea.c',
      #'SOURCES += libs/misc/stepcount.c',
      #'SOURCES += libs/misc/heartrate.c',
      #'SOURCES += libs/misc/hrm_analog.c',
+     'JSMODULESOURCES += libs/js/pinetime/locale.min.js',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
      'NRF_BL_DFU_INSECURE=1',
      'LINKER_BOOTLOADER=targetlibs/nrf5x_12/nrf5x_linkers/banglejs_dfu.ld',
      'LINKER_ESPRUINO=targetlibs/nrf5x_12/nrf5x_linkers/banglejs_espruino.ld',
-     'NRF_SDK12=1'
+     #'NRF_SDK15=1'
    ]
  }
 };
@@ -161,7 +175,7 @@ def get_pins():
   # negate buttons
   pinutils.findpin(pins, "PD16", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD12", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD14", True)["functions"]["NEGATED"]=0;
+  #pinutils.findpin(pins, "PD14", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD13", True)["functions"]["NEGATED"]=0;
   
 

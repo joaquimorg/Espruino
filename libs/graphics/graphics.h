@@ -42,7 +42,8 @@ typedef enum {
   JSGRAPHICSTYPE_SPILCD,      ///< SPI LCD library
   JSGRAPHICSTYPE_ST7789_8BIT, ///< ST7789 in 8 bit mode
   JSGRAPHICSTYPE_MEMLCD,      ///< Memory LCD
-  JSGRAPHICSTYPE_LCD_SPI_UNBUF ///< LCD SPI unbuffered 16 bit driver
+  JSGRAPHICSTYPE_LCD_SPI_UNBUF, ///< LCD SPI unbuffered 16 bit driver
+  JSGRAPHICSTYPE_ST7789 ///< ST7789 SPI
 } JsGraphicsType;
 
 typedef enum {
