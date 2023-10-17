@@ -16,7 +16,7 @@
 
 #include "jsvar.h"
 
-#ifdef BANGLEJS
+#if defined(BANGLEJS) || defined(PINETIME)
 #define ESPR_NO_VARIMAGE // don't allow saving an image of current state to flash - no use on Bangle.js
 #define ESPR_STORAGE_FILENAME_TABLE // on non-Bangle.js boards without external flash this doesn't make much sense
 #endif

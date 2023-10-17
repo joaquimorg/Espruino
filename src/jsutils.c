@@ -931,6 +931,9 @@ extern uint32_t LINKER_END_VAR; // should be 'void', but 'int' avoids warnings
 
 /** get the amount of free stack we have, in bytes */
 size_t jsuGetFreeStack() {
+//#ifdef PINETIME
+//  return 1000000;
+//#endif
 #ifdef ARM
   void *frame = __builtin_frame_address(0);
   size_t stackPos = (size_t)((char*)frame);

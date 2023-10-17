@@ -13,13 +13,9 @@
  */
 #include "graphics.h"
 
-#ifdef PINETIME  
-  #define BUF_WIDTH 25
-  //#define BUF_WIDTH LCD_WIDTH
-  #define LCD_STRIDE ((BUF_WIDTH*LCD_BPP+7)>>3)
-#else
-  #define LCD_STRIDE ((LCD_WIDTH*LCD_BPP+7)>>3)
-#endif
+
+#define LCD_STRIDE ((LCD_WIDTH*LCD_BPP+7)>>3)
+
 
 unsigned char lcdBuffer[LCD_STRIDE*LCD_HEIGHT];
 

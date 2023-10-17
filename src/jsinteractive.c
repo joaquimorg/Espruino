@@ -791,7 +791,7 @@ void jsiSemiInit(bool autoLoad, JsfFileName *loadedFilename) {
 #ifndef SAVE_ON_FLASH
   pinBusyIndicator = DEFAULT_BUSY_PIN_INDICATOR;
 #endif
-#ifdef BANGLEJS
+#if defined(BANGLEJS) || defined(PINETIME)
   bool recoveryMode = false;
 #endif
   // Set __FILE__ if we have a filename available
@@ -803,19 +803,19 @@ void jsiSemiInit(bool autoLoad, JsfFileName *loadedFilename) {
 #if !defined(EMSCRIPTEN) && !defined(SAVE_ON_FLASH)
   bool fullTest = jsiStatus & JSIS_FIRST_BOOT;
   if (fullTest) {
-#ifdef BANGLEJS
+#if defined(BANGLEJS) || defined(PINETIME)
     jsiConsolePrintf("Checking storage...\n");
 #endif
     if (!jsfIsStorageValid(JSFSTT_NORMAL | JSFSTT_FIND_FILENAME_TABLE)) {
       jsiConsolePrintf("Storage is corrupt.\n");
-#ifdef BANGLEJS // On Bangle.js if Storage is corrupt, show a recovery menu
+#if defined(BANGLEJS)// || defined(PINETIME) // On Bangle.js if Storage is corrupt, show a recovery menu
       autoLoad = false; // don't load code
       recoveryMode = true; // start recovery menu at end of init
 #else
       jsfResetStorage();
 #endif
     } else {
-#ifdef BANGLEJS
+#if defined(BANGLEJS) || defined(PINETIME)
       jsiConsolePrintf("Storage Ok.\n");
 #endif
     }
