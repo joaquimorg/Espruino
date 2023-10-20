@@ -28,6 +28,7 @@
 #include "jsi2c.h" // accelerometer/etc
 
 //#if defined(LCD_CONTROLLER_ST7789V)
+//#include "lcd_spi_unbuf.h"
 //#include "lcd_spilcd.h"
 #include "lcd_st7789v.h"
 //#endif
@@ -168,6 +169,7 @@ Has the screen been locked? Also see `Pinetime.isLocked()`
 void graphicsInternalFlip() {
   //lcdFlip_SPILCD(&graphicsInternal);
   lcdST7789_flip();
+  //jswrap_lcd_spi_unbuf_idle();
 }
 
 /// Flip buffer contents with the screen.
@@ -202,7 +204,7 @@ NO_INLINE void jswrap_pinetime_hwinit() {
   //lcdInit_SPILCD(&graphicsInternal);
 
   lcdST7789_init(&graphicsInternal);
-  lcdST7789_setMode( LCDST7789_MODE_UNBUFFERED );
+  //lcdST7789_setMode( LCDST7789_MODE_UNBUFFERED );
   //lcdST7789_setCallbacks(&graphicsInternal);
 
   graphicsSetCallbacks(&graphicsInternal);
@@ -217,6 +219,7 @@ NO_INLINE void jswrap_pinetime_hwinit() {
 NO_INLINE void jswrap_pinetime_init() {
 
 
+  
   // Reset global graphics instance
   graphicsStructResetState(&graphicsInternal);
 
@@ -232,7 +235,6 @@ NO_INLINE void jswrap_pinetime_init() {
   // Create 'flip' fn
   JsVar *fn = jsvNewNativeFunction((void (*)(void))lcd_flip, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_BOOL << (JSWAT_BITS*1)));
   jsvObjectSetChildAndUnLock(graphics,"flip",fn);
-
 
 
 

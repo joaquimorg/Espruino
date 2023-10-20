@@ -46,7 +46,7 @@ info = {
      'DEFINES += -DCONFIG_NFCT_PINS_AS_GPIOS', # Allow the reset pin to work
      #'DEFINES += -DESPR_HWVERSION=2 -DBANGLEJS -DBANGLEJS_Q3',
      #'DEFINES += -DESPR_DCDC_ENABLE', # Ensure DCDC converter is enabled
-     'DEFINES += -DSPISENDMANY_BUFFER_SIZE=256',
+     'DEFINES += -DSPISENDMANY_BUFFER_SIZE=2048',
      'DEFINES += -DSPIFLASH_SHARED_SPI',
      'DEFINES += -DPINETIME',
      'USE_LCD_SPI_UNBUF=1',
@@ -136,13 +136,13 @@ devices = {
             'pin_rst' : 'D26',
             'pin_bl' : 'D14',
           },
-  #'TOUCH' : {
-  #          'device' : 'CST816S', 'addr' : 0x15,
-  #          'pin_sda' : 'D6',
-  #          'pin_scl' : 'D7',
-  #          'pin_rst' : 'D10',
-  #          'pin_irq' : 'D28'
-  #        },
+  'TOUCH' : {
+            'device' : 'CST816S', 'addr' : 0x15,
+            'pin_sda' : 'D6',
+            'pin_scl' : 'D7',
+            'pin_rst' : 'D10',
+            'pin_irq' : 'D28'
+          },
   'BAT' : {
             'pin_charging' : 'D12', # active low, input pullup
             'pin_voltage' : 'D31'
