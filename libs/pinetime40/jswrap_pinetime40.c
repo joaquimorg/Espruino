@@ -30,8 +30,10 @@
 #include "lcd_spi_nrf.h"
 #include "lvgl.h"
 
+#define LVGLBUf_SIZE LCD_WIDTH * LCD_HEIGHT / 5
+
 static lv_disp_draw_buf_t draw_buf;
-static lv_color_t lvgl_buf[LCD_WIDTH * LCD_HEIGHT / 8];                        /*Declare a buffer for 1/10 screen size*/
+static lv_color_t lvgl_buf1[LVGLBUf_SIZE];
 
 
 /*TYPESCRIPT
@@ -86,34 +88,6 @@ The Pinetime's vibration motor.
 The Pinetime's Accel INT.
 */
 
-/*TYPESCRIPT
-type AccelData = {
-  x: number;
-  y: number;
-  z: number;
-  diff: number;
-  mag: number;
-};
-*/
-/*JSON{
-  "type" : "event",
-  "class" : "Pinetime",
-  "name" : "accel",
-  "params" : [["xyz","JsVar",""]],
-  "ifdef" : "PINETIME40",
-  "typescript": "on(event: \"accel\", callback: (xyz: AccelData) => void): void;"
-}
-Accelerometer data available with `{x,y,z,diff,mag}` object as a parameter.
-
-* `x` is X axis (left-right) in `g`
-* `y` is Y axis (up-down) in `g`
-* `z` is Z axis (in-out) in `g`
-* `diff` is difference between this and the last reading in `g`
-* `mag` is the magnitude of the acceleration in `g`
-
-You can also retrieve the most recent reading with `Pinetime.getAccel()`.
-*/
-
 /*JSON{
   "type" : "event",
   "class" : "Pinetime",
@@ -123,6 +97,16 @@ You can also retrieve the most recent reading with `Pinetime.getAccel()`.
 }
 Called whenever a step is detected by Pinetime's pedometer.
 */
+/*JSON{
+  "type" : "event",
+  "class" : "Pinetime",
+  "name" : "step",
+  "params" : [["up","int","The number of steps since Pinetime was last reset"]],
+  "ifdef" : "PINETIME40"
+}
+Called whenever a step is detected by Pinetime's pedometer.
+*/
+
 
 /*JSON{
   "type" : "event",
@@ -201,19 +185,37 @@ static float lsb_to_ms2(int16_t accel_data, uint8_t g_range, uint8_t bit_width) 
 }
 
 
+/// How often should we fire 'health' events?
+#define HEALTH_INTERVAL 600000 // 10 minutes (600 seconds)
+/// Struct with currently tracked health info
+typedef struct {
+  uint8_t index; ///< time_in_ms / HEALTH_INTERVAL - we fire a new Health event when this changes
+  uint16_t stepCount; ///< steps during current period
+  uint16_t bpm10;  ///< beats per minute (x10)
+  uint8_t bpmConfidence; ///< confidence of current BPM figure
+} HealthState;
+/// Currently tracked health info during this period
+HealthState healthCurrent;
+/// Health info during the last period, used when firing a health event
+HealthState healthLast;
+/// Health data so far this day
+HealthState healthDaily;
+
+
+
 typedef enum {
   JSPF_NONE,
-  JSPF_WAKEON_FACEUP = 1 << 0,
-  JSPF_WAKEON_BTN1 = 1 << 1,
-  JSPF_WAKEON_TOUCH = 1 << 2,
-  JSPF_BEEP_VIBRATE = 1 << 3,
-  JSPF_ACCEL_LISTENER = 1 << 4, ///< we have a listener for accelerometer data
-  JSPF_POWER_SAVE = 1 << 5, ///< if no movement detected for a while, lower the accelerometer poll interval
-  JSPF_HRM_ON = 1 << 6,
-  JSPF_LCD_ON = 1 << 7,
-  JSPF_HRM_INSTANT_LISTENER = 1 << 9,
-  JSPF_ENABLE_BEEP = 1 << 10,
-  JSPF_ENABLE_BUZZ = 1 << 11,
+  JSPF_WAKEON_FACEUP        = 1 << 0,
+  JSPF_WAKEON_BTN1          = 1 << 1,
+  JSPF_WAKEON_TOUCH         = 1 << 2,
+  JSPF_BEEP_VIBRATE         = 1 << 3,
+  JSPF_ACCEL_LISTENER       = 1 << 4, ///< we have a listener for accelerometer data
+  JSPF_POWER_SAVE           = 1 << 5, ///< if no movement detected for a while, lower the accelerometer poll interval
+  JSPF_HRM_ON               = 1 << 6,
+  JSPF_LCD_ON               = 1 << 7,
+  JSPF_HRM_INSTANT_LISTENER = 1 << 8,
+  JSPF_ENABLE_BEEP          = 1 << 9,
+  JSPF_ENABLE_BUZZ          = 1 << 10,
 
   JSPF_DEFAULT = ///< default at power-on
   JSPF_WAKEON_BTN1 | JSPF_WAKEON_FACEUP
@@ -223,22 +225,19 @@ volatile JsPinetimeFlags pinetimeFlags = JSPF_NONE;
 
 typedef enum {
   JSPT_NONE,
-  JSPT_RESET = 1 << 0, ///< reset the watch and reload code from flash
-  JSPT_LCD_ON = 1 << 1, ///< LCD controller
-  JSPT_LCD_OFF = 1 << 2,
-  JSPT_ACCEL_DATA = 1 << 7, ///< need to push xyz data to JS
-  JSPT_ACCEL_TAPPED = 1 << 8, ///< tap event detected
-  JSPT_MAG_DATA = 1 << 9, ///< need to push magnetometer data to JS
-  JSPT_GESTURE_DATA = 1 << 10, ///< we have data from a gesture
-  JSPT_HRM_DATA = 1 << 11, ///< Heart rate data is ready for analysis
-  JSPT_CHARGE_EVENT = 1 << 12, ///< we need to fire a charging event
-  JSPT_STEP_EVENT = 1 << 13, ///< we've detected a step via the pedometer
-  JSPT_FACE_UP = 1 << 14, ///< Watch was turned face up/down (faceUp holds the actual state)
-  JSPT_ACCEL_INTERVAL_DEFAULT = 1 << 15, ///< reschedule accelerometer poll handler to default speed
-  JSPT_ACCEL_INTERVAL_POWERSAVE = 1 << 16, ///< reschedule accelerometer poll handler to powersave speed
-  JSPT_HRM_INSTANT_DATA = 1 << 17, ///< Instant heart rate data
-  JSPT_HEALTH = 1 << 18, ///< New 'health' event
-  JSPT_MIDNIGHT = 1 << 19, ///< Fired at midnight each day - for housekeeping tasks
+  JSPT_RESET        = 1 << 0, ///< reset the watch and reload code from flash
+  JSPT_LCD_ON       = 1 << 1, ///< LCD controller
+  JSPT_LCD_OFF      = 1 << 2,
+  JSPT_ACCEL_TAPPED = 1 << 3, ///< tap event detected
+  JSPT_GESTURE_DATA = 1 << 4, ///< we have data from a gesture
+  JSPT_HRM_DATA     = 1 << 5, ///< Heart rate data is ready for analysis
+  JSPT_CHARGE_EVENT = 1 << 6, ///< we need to fire a charging event
+  JSPT_STEP_EVENT   = 1 << 7, ///< we've detected a step via the pedometer
+  JSPT_STILL_EVENT  = 1 << 8, ///< we've detected still
+  JSPT_RUN_EVENT    = 1 << 9, ///< we've detected run
+  JSPT_FACE_UP      = 1 << 10, ///< Watch was turned face up/down (faceUp holds the actual state)
+  JSPT_HEALTH       = 1 << 11, ///< New 'health' event
+  JSPT_MIDNIGHT     = 1 << 12, ///< Fired at midnight each day - for housekeeping tasks
 } JsPinetimeTasks;
 JsPinetimeTasks pinetimeTasks;
 
@@ -322,14 +321,13 @@ Voltage (V)	Approximate Charge (%)
 3.32	0% (Considered Empty)
 */
 
-VoltageToPercentageEntry lookupTable[] = {
-    {4.20, 100.0},
-    {4.12,	90.0},
-    {4.04,	80.0},
-    {3.96,	70.0},
-    {3.88,	60.0},
-    {3.80,	50.0},
-    {3.75,	45.0},
+VoltageToPercentageEntry lookupTable[] = {    
+    {4.10, 100.0},
+    {4.04,	90.0},
+    {3.96,	80.0},
+    {3.88,	70.0},
+    {3.80,	60.0},
+    {3.75,	50.0},
     {3.70,	40.0},
     {3.65,	35.0},
     {3.60,	30.0},
@@ -337,7 +335,7 @@ VoltageToPercentageEntry lookupTable[] = {
     {3.50,	20.0},
     {3.45,	15.0},
     {3.40,	10.0},
-    {3.32,	0.0}
+    {3.30,	0.0}
 };
 
 #define TABLE_SIZE (sizeof(lookupTable) / sizeof(lookupTable[0]))
@@ -372,6 +370,8 @@ JsVarInt jswrap_pinetime40_getBattery() {
   return pc;
 
 }
+
+// -------------------------------------------------------------------------------------------------------
 
 void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
   // wake up IF LCD power or Lock has a timeout (so will turn off automatically)
@@ -427,6 +427,11 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
     jshPushIOEvent(flags | (state ? EV_EXTI_IS_HIGH : 0), t);
 }
 
+
+/// Clear the given health state back to defaults
+static void healthStateClear(HealthState *health) {
+  memset(health, 0, sizeof(HealthState));
+}
 
 /* Scan peripherals for any data that's needed
  * Also, holding down both buttons will reboot */
@@ -487,6 +492,29 @@ void peripheralPollHandler() {
     pinetimeTasks |= JSPT_CHARGE_EVENT;
     chargeTimer = 0;
     jshHadEvent();
+  }
+
+
+  // Health tracking + midnight event
+  // Did we enter a new 10 minute interval?
+  JsVarFloat msecs = jshGetMillisecondsFromTime(time);
+  uint8_t healthIndex = (uint8_t)(msecs/HEALTH_INTERVAL);
+
+  if (healthIndex != healthCurrent.index) {
+    // we did - fire 'Bangle.health' event
+    healthLast = healthCurrent;
+    healthStateClear(&healthCurrent);
+    healthCurrent.index = healthIndex;
+    pinetimeTasks |= JSPT_HEALTH;
+    jshHadEvent();
+    // What if we've changed day?
+    TimeInDay td = getTimeFromMilliSeconds(msecs, false/*forceGMT*/);
+    uint8_t dayIndex = (uint8_t)td.daysSinceEpoch;
+    if (dayIndex != healthDaily.index) {
+      pinetimeTasks |= JSPT_MIDNIGHT;
+      healthStateClear(&healthDaily);
+      healthDaily.index = dayIndex;
+    }
   }
 
 }
@@ -738,6 +766,7 @@ int jswrap_pinetime40_isLCDOn() {
   return (pinetimeFlags & JSPF_LCD_ON) != 0;
 }
 
+// ----------------------------------------------------------------------------------------------------------------
 /* ----------------------------- LVGL --------------------------------- */
 
 void disp_flush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color_p) {
@@ -844,7 +873,7 @@ void jswrap_pinetime40_lvglinit() {
 #endif
 
   //Initialize the display
-  lv_disp_draw_buf_init(&draw_buf, lvgl_buf, NULL, LCD_WIDTH * LCD_HEIGHT / 8);  /*Initialize the display buffer.*/
+  lv_disp_draw_buf_init(&draw_buf, lvgl_buf1, NULL, LVGLBUf_SIZE);  /*Initialize the display buffer.*/
 
   lv_disp_drv_init(&disp_drv);        /*Basic initialization*/
   disp_drv.flush_cb = disp_flush;     /*Set your driver function*/
@@ -897,9 +926,10 @@ void jswrap_pinetime40_lvglinit() {
 }
 
 /* ----------------------------- LVGL --------------------------------- */
+// ----------------------------------------------------------------------------------------------------------------
 
 
-
+// ----------------------------------------------------------------------------------------------------------------
 /* ----------------------------- I2C --------------------------------- */
 void _jswrap_pinetime40_i2cWr(JshI2CInfo *i2c, int i2cAddr, JsVarInt reg, JsVarInt data) {
   unsigned char buf[2];
@@ -926,6 +956,7 @@ JsVar *_jswrap_pinetime40_i2cRd(JshI2CInfo *i2c, int i2cAddr, JsVarInt reg, JsVa
     return d;
   } else return jsvNewFromInteger(buf[0]);
 }
+// ----------------------------------------------------------------------------------------------------------------
 
 
 /*JSON{
@@ -984,7 +1015,7 @@ JsVar *jswrap_pinetime40_accelRd(JsVarInt reg, JsVarInt cnt) {
 Returns the current amount of steps recorded by the step counter
 */
 int jswrap_pinetime40_getStepCount() {
-  return stepCounter;
+  return healthDaily.stepCount;
 }
 
 /*! Read write length varies based on user requirement */
@@ -1075,7 +1106,7 @@ int8_t bma400_interface_init(struct bma400_dev* bma400, uint8_t intf) {
 
 void accelHandler(bool state, IOEventFlags flags) {
 
-  if (state) return; // only interested in when low
+  if (state) return; // only interested in when low  
 
   int8_t rslt = 0;
   uint16_t int_status;
@@ -1087,37 +1118,6 @@ void accelHandler(bool state, IOEventFlags flags) {
 
   if (rslt == BMA400_OK) {
 
-    /*if (int_status != 0) {
-      jsiConsolePrintf("int_status %x\n", int_status);
-    }*/
-
-    if (int_status & /*BMA400_ASSERTED_STEP_INT*/ 0x0100) {
-      rslt = bma400_get_steps_counted(&step_count, &act_int, &bma_sensor);
-      bma400_check_rslt("bma400_get_steps_counted", rslt);
-
-      stepCounter = step_count;      
-
-      switch (act_int)
-      {
-        case BMA400_STILL_ACT:
-            //jsiConsolePrintf("Steps counted : %d\n", step_count);
-            //jsiConsolePrintf("Still Activity detected\n");            
-            break;
-        case BMA400_WALK_ACT:
-            //jsiConsolePrintf("Steps counted : %d\n", step_count);
-            //jsiConsolePrintf("Walking Activity detected\n");            
-            break;
-        case BMA400_RUN_ACT:
-            //jsiConsolePrintf("Steps counted : %d\n", step_count);
-            //jsiConsolePrintf("Running Activity detected\n");            
-            break;
-      }
-
-      pinetimeTasks |= JSPT_STEP_EVENT;
-      jshHadEvent();
-
-    }
-
     if (int_status & BMA400_ASSERTED_D_TAP_INT) {
       //jsiConsolePrintf("Double tap detected\n");    
       if (!jswrap_pinetime40_isLCDOn()) {
@@ -1126,21 +1126,62 @@ void accelHandler(bool state, IOEventFlags flags) {
       }      
     }
 
-    if (int_status & BMA400_ASSERTED_ACT_CH_X | BMA400_ASSERTED_ACT_CH_Y | BMA400_ASSERTED_ACT_CH_Z) {
-      struct bma400_sensor_data data;
-      float x, y, z;
+    //if ((pinetimeFlags & JSPF_LCD_ON) == 1) {
 
-      rslt = bma400_get_accel_data(BMA400_DATA_ONLY, &data, &bma_sensor);
-      bma400_check_rslt("bma400_get_accel_data", rslt);
+      if (int_status & /*BMA400_ASSERTED_STEP_INT*/ 0x0100) {
+        rslt = bma400_get_steps_counted(&step_count, &act_int, &bma_sensor);
+        bma400_check_rslt("bma400_get_steps_counted", rslt);
 
-      /* 12-bit accelerometer at range 2G */
-      x = lsb_to_ms2(data.x, 2, 12);
-      y = lsb_to_ms2(data.y, 2, 12);
-      z = lsb_to_ms2(data.z, 2, 12);
+        //stepCounter = step_count;
 
-      //jsiConsolePrintf("Gravity-x : %d,   Gravity-y : %d,  Gravity-z :  %d \r\n", x, y, z);
+        int newSteps = step_count - stepCounter;
+        if (newSteps>0) {
+          stepCounter = step_count;
+          healthCurrent.stepCount += newSteps;
+          healthDaily.stepCount += newSteps;        
+        }
 
-    }
+        switch (act_int)
+        {
+          case BMA400_STILL_ACT:
+              //jsiConsolePrintf("Steps counted : %d\n", step_count);
+              //jsiConsolePrintf("Still Activity detected\n");
+              pinetimeTasks |= JSPT_STILL_EVENT;
+              jshHadEvent();
+              break;
+          case BMA400_WALK_ACT:
+              //jsiConsolePrintf("Steps counted : %d\n", step_count);
+              //jsiConsolePrintf("Walking Activity detected\n");
+              pinetimeTasks |= JSPT_STEP_EVENT;
+              jshHadEvent();
+              break;
+          case BMA400_RUN_ACT:
+              //jsiConsolePrintf("Steps counted : %d\n", step_count);
+              //jsiConsolePrintf("Running Activity detected\n");
+              pinetimeTasks |= JSPT_RUN_EVENT;
+              jshHadEvent();
+              break;
+        }      
+
+      }    
+
+      /*if (int_status & BMA400_ASSERTED_ACT_CH_X | BMA400_ASSERTED_ACT_CH_Y | BMA400_ASSERTED_ACT_CH_Z) {
+        struct bma400_sensor_data data;
+        float x, y, z;
+
+        rslt = bma400_get_accel_data(BMA400_DATA_ONLY, &data, &bma_sensor);
+        bma400_check_rslt("bma400_get_accel_data", rslt);
+
+        // 12-bit accelerometer at range 2G
+        x = lsb_to_ms2(data.x, 2, 12);
+        y = lsb_to_ms2(data.y, 2, 12);
+        z = lsb_to_ms2(data.z, 2, 12);
+
+        //jsiConsolePrintf("Gravity-x : %d,   Gravity-y : %d,  Gravity-z :  %d \r\n", x, y, z);
+
+      }*/
+
+    //}
     
   }
 }
@@ -1345,7 +1386,7 @@ NO_INLINE void jswrap_pinetime40_init() {
     /*lv_obj_t * spinner = lv_spinner_create(lv_scr_act(), 1000, 60);
     lv_obj_set_size(spinner, 200, 200);
     lv_obj_center(spinner);*/
-    //lv_timer_handler();
+    lv_timer_handler();
 
   }
   else {
@@ -1365,7 +1406,11 @@ NO_INLINE void jswrap_pinetime40_init() {
     //lv_obj_t *img1= lv_img_create(lv_scr_act());
     //lv_img_set_src(img1, "F:mario.bin");
 
-    //lv_timer_handler();
+    lv_timer_handler();
+
+    healthStateClear(&healthCurrent);
+    healthStateClear(&healthLast);
+    healthStateClear(&healthDaily);
   }
 
 
@@ -1397,6 +1442,8 @@ NO_INLINE void jswrap_pinetime40_init() {
   }
 
   pinetimeFlags |= JSPF_LCD_ON;
+  pinetimeFlags |= JSPF_ENABLE_BUZZ;
+  pinetimeFlags |= JSPF_ENABLE_BEEP;
   inactivityTimer = 0; // reset the LCD timeout timer
   btnLoadTimeout = DEFAULT_BTN_LOAD_TIMEOUT;
   lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;
@@ -1413,7 +1460,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   //JsSysTime period = jshGetTimeFromMilliseconds(50);
   //jstExecuteFn(jswrap_lvgl_timerHandler, 0, period, (uint32_t)period, NULL);
 
-  jspEvaluate("setInterval(LVGL.timer_handler,25)", true);
+  jspEvaluate("setInterval(LVGL.timer_handler,10)", true);
 
 }
 
@@ -1443,8 +1490,20 @@ bool jswrap_pinetime40_idle() {
     }
 
     if (pinetimeTasks & JSPT_STEP_EVENT) {
-      JsVar *steps = jsvNewFromInteger(stepCounter);
+      JsVar *steps = jsvNewFromInteger(healthDaily.stepCount);
       jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"step", &steps, 1);
+      jsvUnLock(steps);
+    }
+
+    if (pinetimeTasks & JSPT_STILL_EVENT) {
+      JsVar *steps = jsvNewFromInteger(healthDaily.stepCount);
+      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"still", &steps, 1);
+      jsvUnLock(steps);
+    }
+
+    if (pinetimeTasks & JSPT_RUN_EVENT) {
+      JsVar *steps = jsvNewFromInteger(healthDaily.stepCount);
+      jsiQueueObjectCallbacks(pinetime, JS_EVENT_PREFIX"run", &steps, 1);
       jsvUnLock(steps);
     }
 
