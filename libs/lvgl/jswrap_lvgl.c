@@ -514,7 +514,7 @@ static void js_event_handler(lv_event_t * e) {
     JsVar *js_event_cb_h = target->user_data;
 
     //jsiConsolePrintf("\n Clicked \n");
-    JsVar *js_user_data = lv_event_get_user_data(e);
+    //JsVar *js_user_data = lv_event_get_user_data(e);
     //jsiConsolePrintf("\n 2 - func %x, %x \n", js_event_cb_h, jsvIsFunction(js_event_cb_h));
 
     if (!jsvIsUndefined(js_event_cb_h) && !jsvIsFunction(js_event_cb_h)) {
@@ -524,8 +524,13 @@ static void js_event_handler(lv_event_t * e) {
     JsVar *args[2];
     args[0] = jsvNewFromInteger(code);
     args[1] = NULL;
+    JsVar *s = jsvNewFromString("js_event_handler");
+    jsvUnLock(jspeFunctionCall(js_event_cb_h, s, 0, false, 2, args));
 
-    jspeFunctionCall(js_event_cb_h, jsvNewFromString("js_event_handler"), 0, false, 2, args);
+    jsvUnLockMany(1,args);
+    jsvUnLock(s);
+    jsvUnLock(js_event_cb_h);
+    
 }
 
 void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar *user_data) {
@@ -539,6 +544,8 @@ void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar
   obj->user_data = (void *)(uintptr_t)event_cb;
 
   lv_obj_add_event_cb(obj, js_event_handler, filter, (void *)(uintptr_t)user_data);
+
+  //jsvUnLock(jsvar);
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -564,6 +571,14 @@ int jswrap_lv_obj_dpx(JsVar *jsobj, lv_coord_t n, void *lv_func_ptr) {
   return _res;
 }
 
+/*
+ * inline static lv_coord_t lv_pct(lv_coord_t x) 
+ * ( https://docs.lvgl.io/8.3/search.html?q=lv_pct )
+ */
+int jswrap_lv_pct(lv_coord_t x, void *lv_func_ptr) {
+  lv_coord_t _res = ((lv_coord_t (*)(const lv_coord_t))lv_func_ptr)(x);
+  return _res;
+}
 
 /*
  * inline static void lv_obj_move_foreground(lv_obj_t *obj) 
@@ -1779,6 +1794,45 @@ void jswrap_lv_obj_set_style_pad_all(JsVar *jsobj, lv_coord_t value, lv_style_se
   ((void (*)(struct _lv_obj_t *, lv_coord_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);
 }
 
+
+/*
+* inline static void lv_obj_set_style_pad_all(struct _lv_obj_t *obj, lv_coord_t value, lv_style_selector_t selector) 
+* ( https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_all )
+*/
+void js_lv_obj_set_style_pad_all(JsVar *jsobj, lv_coord_t value, lv_style_selector_t selector, void *lv_func_ptr) {
+    struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
+    ((void (*)(struct _lv_obj_t *, lv_coord_t, lv_style_selector_t))lv_func_ptr)(obj, value, selector);   
+}
+
+/*
+* lv_indev_t *lv_indev_get_act(void) 
+* ( https://docs.lvgl.io/8.3/search.html?q=lv_indev_get_act )
+*/
+JsVar *js_lv_indev_get_act(void *lv_func_ptr) {
+    lv_indev_t * _res = ((lv_indev_t *(*)(void))lv_func_ptr)();
+    return jsvNewNativeFunction((void*)_res, JSWAT_VOID);
+}
+
+
+/*
+* lv_dir_t lv_indev_get_gesture_dir(const lv_indev_t *indev) 
+* ( https://docs.lvgl.io/8.3/search.html?q=lv_indev_get_gesture_dir )
+*/
+int js_lv_indev_get_gesture_dir(JsVar *jsobj, void *lv_func_ptr) {
+    struct _lv_indev_t *obj = jsvGetNativeFunctionPtr(jsobj);
+    lv_dir_t _res = ((lv_dir_t (*)(struct _lv_indev_t *))lv_func_ptr)(obj);
+    return _res;
+}
+
+/*
+* void lv_indev_delete(lv_indev_t *indev) 
+* ( https://docs.lvgl.io/8.3/search.html?q=lv_indev_delete )
+*/
+void js_lv_indev_delete(JsVar *jsobj, void *lv_func_ptr) {
+    struct _lv_indev_t *obj = jsvGetNativeFunctionPtr(jsobj);
+    ((void (*)(lv_indev_t *))lv_func_ptr)(obj);    
+}
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 // -----------------------------------------------
@@ -1914,6 +1968,20 @@ void jswrap_lv_obj_set_style_pad_all(JsVar *jsobj, lv_coord_t value, lv_style_se
   ]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_content_height
+*/
+
+
+// lv_pct
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_pct",
+  "generate_full" : "jswrap_lv_pct(x, lv_pct)",
+  "params" : [
+    ["x","int"]
+  ],
+  "return" : ["int","lv_coord_t"]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_pct
 */
     
 // lv_obj_set_layout
@@ -5042,6 +5110,55 @@ void jswrap_lv_obj_set_style_pad_all(JsVar *jsobj, lv_coord_t value, lv_style_se
   ]
 }
     https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_pad_column
+*/
+
+// lv_obj_set_style_border_width
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_obj_set_style_border_width",
+  "generate_full" : "js_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_border_width)",
+  "params" : [
+    ["jsobj","JsVar"],
+    ["value","int"],
+    ["selector","int"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_obj_set_style_border_width
+*/
+
+// lv_indev_wait_release
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_indev_wait_release",
+  "generate_full" : "js_lv_indev_delete(jsobj, lv_indev_wait_release)",
+  "params" : [
+    ["jsobj","JsVar"]
+  ]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_indev_wait_release
+*/
+
+// lv_indev_get_act
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
+  "name" : "lv_indev_get_act",
+  "generate_full" : "js_lv_indev_get_act(lv_indev_get_act)",  
+  "return" : ["JsVar","lv_indev_t *"]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_indev_get_act
+*/
+
+// lv_indev_get_gesture_dir
+/*JSON{
+  "type" : "staticmethod", "class" : "LVGL",
+  "name" : "lv_indev_get_gesture_dir",
+  "generate_full" : "js_lv_indev_get_gesture_dir(jsobj, lv_indev_get_gesture_dir)",
+  "params" : [
+    ["jsobj","JsVar"]
+  ],
+  "return" : ["int","lv_dir_t"]
+}
+    https://docs.lvgl.io/8.3/search.html?q=lv_indev_get_gesture_dir
 */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

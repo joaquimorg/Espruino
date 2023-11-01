@@ -26,6 +26,7 @@ void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar
 
 void jswrap_lv_obj_center(JsVar *jsobj, void *lv_func_ptr);
 int jswrap_lv_obj_dpx(JsVar *jsobj, lv_coord_t n, void *lv_func_ptr);
+int jswrap_lv_pct(lv_coord_t x, void *lv_func_ptr);
 void jswrap_lv_obj_move_foreground(JsVar *jsobj, void *lv_func_ptr);
 void jswrap_lv_obj_set_pos(JsVar *jsobj, lv_coord_t x, lv_coord_t y, void *lv_func_ptr);
 void jswrap_lv_obj_set_x(JsVar *jsobj, lv_coord_t x, void *lv_func_ptr);
@@ -160,5 +161,9 @@ void jswrap_lv_scr_load_anim(JsVar *jsobj, lv_scr_load_anim_t anim_type, uint32_
 JsVar *jswrap_lv_font_load(JsVar *fontName, void *lv_func_ptr);
 void jswrap_lv_obj_set_style_pad_all(JsVar *jsobj, lv_coord_t value, lv_style_selector_t selector, void *lv_func_ptr);
 
+void js_lv_obj_set_style_pad_all(JsVar *jsobj, lv_coord_t value, lv_style_selector_t selector, void *lv_func_ptr);
+JsVar *js_lv_indev_get_act(void *lv_func_ptr);
+int js_lv_indev_get_gesture_dir(JsVar *jsobj, void *lv_func_ptr);
+void js_lv_indev_delete(JsVar *jsobj, void *lv_func_ptr);
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
