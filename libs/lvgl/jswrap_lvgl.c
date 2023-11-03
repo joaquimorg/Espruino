@@ -1280,6 +1280,7 @@ int jswrap_lv_img_get_offset_x(JsVar *jsobj, void *lv_func_ptr) {
 void jswrap_lv_label_set_text(JsVar *jsobj, JsVar *text, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   JSV_GET_AS_CHAR_ARRAY(messagePtr, messageLen, text);
+  messagePtr[messageLen] = 0x00;
   ((void (*)(lv_obj_t *, const char *))lv_func_ptr)(obj, (const char *)messagePtr);
 }
 
@@ -1374,7 +1375,7 @@ void jswrap_lv_slider_set_mode(JsVar *jsobj, lv_slider_mode_t mode, void *lv_fun
 void jswrap_lv_roller_set_options(JsVar *jsobj, JsVar *options, lv_roller_mode_t mode, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   JSV_GET_AS_CHAR_ARRAY(messagePtr, messageLen, options);
-  ((void (*)(lv_obj_t *, const char *, lv_roller_mode_t))lv_func_ptr)(obj, messagePtr, mode);
+  ((void (*)(lv_obj_t *, const char *, lv_roller_mode_t))lv_func_ptr)(obj, (const char *)messagePtr, mode);
 }
 
 
