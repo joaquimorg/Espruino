@@ -503,15 +503,16 @@ JsVar *jswrap_lv_font_OpenSans22Bold() {
   "params" : [
     ["type","JsVar","lv_obj_t"],
     ["type","JsVar","event_cb"],
-    ["type","int","lv_coord_t"],
-    ["type","int","lv_coord_t"]
+    ["type","int","lv_event_code_t"],
+    ["type","JsVar","user_data"]
   ]
 }*/
 static void js_event_handler(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
 
-    lv_obj_t* target = lv_event_get_target(e);
-    JsVar *js_event_cb_h = target->user_data;
+    lv_obj_t* target = (lv_obj_t *)lv_event_get_target(e);
+    JsVar *js_event_cb_h = (JsVar *)target->user_data;
+    JsVar *js_event_data = (JsVar *)lv_event_get_user_data(e);    
 
     //jsiConsolePrintf("\n Clicked \n");
     //JsVar *js_user_data = lv_event_get_user_data(e);
@@ -523,27 +524,34 @@ static void js_event_handler(lv_event_t * e) {
     }
     JsVar *args[2];
     args[0] = jsvNewFromInteger(code);
-    args[1] = NULL;
+
+    if (!jsvIsString(js_event_data)) {
+      //jsError("user_data must be a String");
+      args[1] = NULL;
+    } else {
+      args[1] = jsvAsString(js_event_data);
+    }
+
     JsVar *s = jsvNewFromString("js_event_handler");
     jsvUnLock(jspeFunctionCall(js_event_cb_h, s, 0, false, 2, args));
 
-    jsvUnLockMany(1,args);
+    jsvUnLockMany(2,args);
     jsvUnLock(s);
     jsvUnLock(js_event_cb_h);
     
 }
 
-void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar *user_data) {
+void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, lv_event_code_t filter, JsVar *user_data) {
 
   if (!jsvIsUndefined(event_cb) && !jsvIsFunction(event_cb)) {
     jsError("Expecting Callback Function, got %t", event_cb);
     return;
   }
- 
+
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsvar);  
   obj->user_data = (void *)(uintptr_t)event_cb;
 
-  lv_obj_add_event_cb(obj, js_event_handler, filter, (void *)(uintptr_t)user_data);
+  lv_obj_add_event_cb(obj, js_event_handler, filter, (void *)(uintptr_t)jsvAsString(user_data));
 
   //jsvUnLock(jsvar);
 }
@@ -1272,7 +1280,7 @@ int jswrap_lv_img_get_offset_x(JsVar *jsobj, void *lv_func_ptr) {
 void jswrap_lv_label_set_text(JsVar *jsobj, JsVar *text, void *lv_func_ptr) {
   struct _lv_obj_t *obj = jsvGetNativeFunctionPtr(jsobj);
   JSV_GET_AS_CHAR_ARRAY(messagePtr, messageLen, text);
-  ((void (*)(lv_obj_t *, const char *))lv_func_ptr)(obj, messagePtr);
+  ((void (*)(lv_obj_t *, const char *))lv_func_ptr)(obj, (const char *)messagePtr);
 }
 
 

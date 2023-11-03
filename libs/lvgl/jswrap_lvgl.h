@@ -19,7 +19,7 @@ JsVar *jswrap_lv_font_Numbers64();
 JsVar *jswrap_lv_font_OpenSans22();
 JsVar *jswrap_lv_font_OpenSans22Bold();
 
-void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, int filter, JsVar *user_data);
+void jswrap_lv_obj_add_event_cb(JsVar *jsvar, JsVar *event_cb, lv_event_code_t filter, JsVar *user_data);
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
