@@ -249,6 +249,12 @@ volatile uint16_t pollInterval; // in ms
 /// LCD Brightness - 255=full
 uint8_t lcdBrightness;
 
+/// Actual LCD brightness (if we fade to a new brightness level)
+uint8_t realLcdBrightness;
+bool lcdFadeHandlerActive;
+
+void jswrap_pinetime40_beep_callback();
+void jswrap_pinetime40_buzz_callback();
 
 /*JSON{
     "type" : "staticmethod",
@@ -543,13 +549,43 @@ static void jswrap_pinetime40_setLCDPowerController(bool isOn) {
 }
 
 
+static void backlightFadeHandler() {
+  int target = (pinetimeFlags&JSPF_LCD_ON) ? lcdBrightness : 0;
+  int brightness = realLcdBrightness;
+  int step = brightness>>3; // to make this more linear
+  if (step<4) step=4;
+  if (target > brightness) {
+    brightness += step;
+    if (brightness > target)
+      brightness = target;
+  } else if (target < brightness) {
+    brightness -= step;
+    if (brightness < target)
+      brightness = target;
+  }
+  realLcdBrightness = brightness;
+  if (brightness==0) jswrap_pinetime40_pwrBacklight(0);
+  else if (realLcdBrightness==255) jswrap_pinetime40_pwrBacklight(1);
+  else {
+    jshPinAnalogOutput(LCD_BL, realLcdBrightness/256.0, 200, JSAOF_NONE);
+  }
+}
+
 void jswrap_pinetime40_setLCDPowerBacklight(bool isOn) {
 
-  jswrap_pinetime40_pwrBacklight(isOn && (lcdBrightness > 0));
+  /*jswrap_pinetime40_pwrBacklight(isOn && (lcdBrightness > 0));
 
   if (isOn && lcdBrightness > 0 && lcdBrightness < 255) {
     jshPinAnalogOutput(LCD_BL, lcdBrightness / 256.0, 200, JSAOF_NONE);
+  }*/
+
+  if (!lcdFadeHandlerActive) {
+    JsSysTime t = jshGetTimeFromMilliseconds(10);
+    jstExecuteFn(backlightFadeHandler, NULL, t, t, NULL);
+    lcdFadeHandlerActive = true;
+    backlightFadeHandler();
   }
+
 }
 
 /*JSON{
@@ -581,8 +617,11 @@ using `Pinetime.setLCDBrightness`.
 */
 void jswrap_pinetime40_setLCDPower(bool isOn) {
 
-  jswrap_pinetime40_setLCDPowerController(isOn);
-  jswrap_pinetime40_setLCDPowerBacklight(isOn);
+  if (isOn) jswrap_pinetime40_setLCDPowerController(1);
+  else jswrap_pinetime40_setLCDPowerBacklight(0); // RB: don't turn on the backlight here if fading is enabled
+
+  //jswrap_pinetime40_setLCDPowerController(isOn);
+  //jswrap_pinetime40_setLCDPowerBacklight(isOn);
 
   if (((pinetimeFlags & JSPF_LCD_ON) != 0) != isOn) {
     JsVar* pinetime = jsvObjectGetChildIfExists(execInfo.root, "Pinetime");
@@ -634,6 +673,21 @@ void jswrap_pinetime40_setLCDBrightness(JsVarFloat v) {
     jswrap_pinetime40_setLCDPowerBacklight(1);
 }
 
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Pinetime",
+    "name" : "getLCDBrightness",
+    "generate" : "jswrap_pinetime40_getLCDBrightness",
+    "return" : ["float","The brightness of Pinetime's display - from 0(off) to 256(on full)"],
+    "ifdef" : "PINETIME40"
+}
+*/
+JsVarFloat jswrap_pinetime40_getLCDBrightness() {
+  // don't work ????
+  //JsVarFloat b = lcdBrightness / 256.0;
+  //return (int)b * 100;
+  return lcdBrightness;
+}
 
 /*JSON{
     "type" : "staticmethod",
@@ -1355,42 +1409,80 @@ NO_INLINE void jswrap_pinetime40_init() {
 
   bool firstRun = jsiStatus & JSIS_FIRST_BOOT; // is this the first time jswrap_pinetime40_init was called?
 
-  jshSetPinShouldStayWatched(BTN1_PININDEX, true);
-  channel = jshPinWatch(BTN1_PININDEX, true, JSPW_NONE);
-  if (channel != EV_NONE) jshSetEventCallback(channel, btn1Handler);
-
-  jshSetPinShouldStayWatched(TOUCH_PIN_IRQ, true);
-  channel = jshPinWatch(TOUCH_PIN_IRQ, true, JSPW_NONE);
-  if (channel != EV_NONE) jshSetEventCallback(channel, touchHandler);
-
-  jshSetPinShouldStayWatched(ACCEL_PIN_INT, true);
-  channel = jshPinWatch(ACCEL_PIN_INT, true, JSPW_NONE);
-  if (channel != EV_NONE) jshSetEventCallback(channel, accelHandler);
-
   /*JsVar *settingsFN = jsvNewFromString("setting.json");
   JsVar *settings = jswrap_storage_readJSON(settingsFN,true);
   jsvUnLock(settingsFN);
 
   jsvUnLock(settings);*/
 
-  if (!firstRun) {
+  bool recoveryMode = false;
 
-    jswrap_pinetime40_setLCDPower(1);
+  if (firstRun) {
+    pinetimeFlags |= JSPF_ENABLE_BUZZ;
+    pinetimeFlags |= JSPF_ENABLE_BEEP;
+    inactivityTimer = 0; // reset the LCD timeout timer
+    btnLoadTimeout = DEFAULT_BTN_LOAD_TIMEOUT;
+    lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;
+    
+    realLcdBrightness = firstRun ? 0 : lcdBrightness;
+    lcdFadeHandlerActive = false;
 
-    lv_obj_clean(lv_scr_act());
-    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_t* label = lv_label_create(lv_scr_act());
-    lv_label_set_text(label, "Loading...");
-    lv_obj_center(label);
+    healthStateClear(&healthCurrent);
+    healthStateClear(&healthLast);
+    healthStateClear(&healthDaily);
 
-    /*lv_obj_t * spinner = lv_spinner_create(lv_scr_act(), 1000, 60);
-    lv_obj_set_size(spinner, 200, 200);
-    lv_obj_center(spinner);*/
-    lv_timer_handler();
+    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON; // includes pinetimeFlags
+    lcdBrightness = 128;
+
+    /*if (jshPinGetValue(HOME_BTN_PININDEX))
+      recoveryMode = true;*/
 
   }
-  else {
 
+  // If the home button is still pressed when we're restarting, set up
+  // lcdWakeButton so the event for button release is 'eaten'
+  if (jshPinGetValue(HOME_BTN_PININDEX))
+    lcdWakeButton = HOME_BTN;
+
+  lcdWakeButton = 0;
+
+  realLcdBrightness = firstRun ? 0 : lcdBrightness;
+  lcdFadeHandlerActive = false;
+  //jswrap_pinetime40_setLCDPowerBacklight(pinetimeFlags & JSPF_LCD_ON);
+
+  buzzAmt = 0;
+  beepFreq = 0;
+
+  bool showSplashScreen = true;
+
+  if (jsiStatus & JSIS_TODO_FLASH_LOAD) {
+    showSplashScreen = false;
+
+    if (!firstRun && !recoveryMode) {
+
+      //jswrap_pinetime40_setLCDPower(1);
+
+      lv_obj_clean(lv_scr_act());
+      lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+      lv_obj_t* label = lv_label_create(lv_scr_act());
+      lv_label_set_text(label, "Loading...");
+      lv_obj_center(label);
+
+      /*lv_obj_t * spinner = lv_spinner_create(lv_scr_act(), 1000, 60);
+      lv_obj_set_size(spinner, 200, 200);
+      lv_obj_center(spinner);*/
+      lv_timer_handler();
+
+    }
+  }
+
+  if (!(jsiStatus & JSIS_COMPLETELY_RESET))
+    showSplashScreen = false;
+  
+  if (recoveryMode)
+    showSplashScreen = false;
+  
+  if (showSplashScreen) {
     char addrStr[20];
     JsVar* addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
     jsvGetString(addr, addrStr, sizeof(addrStr));
@@ -1408,21 +1500,9 @@ NO_INLINE void jswrap_pinetime40_init() {
 
     lv_timer_handler();
 
-    healthStateClear(&healthCurrent);
-    healthStateClear(&healthLast);
-    healthStateClear(&healthDaily);
   }
 
-
-  buzzAmt = 0;
-  beepFreq = 0;
-
-  if (firstRun) {
-
-    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON; // includes pinetimeFlags
-    lcdBrightness = 128;
-
-    jshEnableWatchDog(10); // 5 second watchdog
+  //if (firstRun) {
 
     pollInterval = DEFAULT_ACCEL_POLL_INTERVAL;
 
@@ -1432,33 +1512,21 @@ NO_INLINE void jswrap_pinetime40_init() {
     jsble_check_error(err_code);
     app_timer_start(m_peripheral_poll_timer_id, APP_TIMER_TICKS(pollInterval), NULL);
 
-    //jsiConsolePrintf("FIRST INIT DONE\n");
+  //}
 
-    // hack for lvgl update...
-    //jsvUnLock(jspEvaluate("setInterval(lvgl.timerHandler,50)", true));
+  jshEnableWatchDog(5); // 5 second watchdog
 
-    //jsvUnLock(jspEvaluate("setTimeout(Pinetime.load,5000)", true));
+  jshSetPinShouldStayWatched(BTN1_PININDEX, true);
+  channel = jshPinWatch(BTN1_PININDEX, true, JSPW_NONE);
+  if (channel != EV_NONE) jshSetEventCallback(channel, btn1Handler);
 
-  }
+  jshSetPinShouldStayWatched(TOUCH_PIN_IRQ, true);
+  channel = jshPinWatch(TOUCH_PIN_IRQ, true, JSPW_NONE);
+  if (channel != EV_NONE) jshSetEventCallback(channel, touchHandler);
 
-  pinetimeFlags |= JSPF_LCD_ON;
-  pinetimeFlags |= JSPF_ENABLE_BUZZ;
-  pinetimeFlags |= JSPF_ENABLE_BEEP;
-  inactivityTimer = 0; // reset the LCD timeout timer
-  btnLoadTimeout = DEFAULT_BTN_LOAD_TIMEOUT;
-  lcdPowerTimeout = DEFAULT_LCD_POWER_TIMEOUT;
-  lcdWakeButton = 0;
-
-
-  // If the home button is still pressed when we're restarting, set up
-  // lcdWakeButton so the event for button release is 'eaten'
-  if (jshPinGetValue(HOME_BTN_PININDEX))
-    lcdWakeButton = HOME_BTN;
-
-  //jsiConsolePrintf("pinetimeFlags %d\n",pinetimeFlags);
-
-  //JsSysTime period = jshGetTimeFromMilliseconds(50);
-  //jstExecuteFn(jswrap_lvgl_timerHandler, 0, period, (uint32_t)period, NULL);
+  jshSetPinShouldStayWatched(ACCEL_PIN_INT, true);
+  channel = jshPinWatch(ACCEL_PIN_INT, true, JSPW_NONE);
+  if (channel != EV_NONE) jshSetEventCallback(channel, accelHandler);
 
   jspEvaluate("setInterval(LVGL.timer_handler,10)", true);
 
@@ -1534,9 +1602,20 @@ bool jswrap_pinetime40_idle() {
 }*/
 void jswrap_pinetime40_kill() {
 
-  // Graphics var is getting removed, so set this to null.
-  /*jsvUnLock(graphicsInternal.graphicsVar);
-  graphicsInternal.graphicsVar = NULL;*/
+  app_timer_stop(m_peripheral_poll_timer_id);
+
+  if (lcdFadeHandlerActive) {
+    jstStopExecuteFn(backlightFadeHandler, NULL);
+    lcdFadeHandlerActive = false;
+  }
+
+  // stop and unlock beep & buzz
+  jsvUnLock(promiseBeep);
+  promiseBeep = 0;
+  jsvUnLock(promiseBuzz);
+  promiseBuzz = 0;
+  if (beepFreq) jswrap_pinetime40_beep_callback();
+  if (buzzAmt) jswrap_pinetime40_buzz_callback();
 
 }
 

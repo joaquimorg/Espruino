@@ -11,6 +11,7 @@ void jswrap_pinetime40_setBootCode(JsVar *code, bool alwaysExec);
 void jswrap_pinetime40_setLCDOffset(int y);
 
 void jswrap_pinetime40_setLCDBrightness(JsVarFloat v);
+JsVarFloat jswrap_pinetime40_getLCDBrightness();
 void jswrap_pinetime40_setLCDPower(bool isOn);
 void jswrap_pinetime40_setLCDTimeout(JsVarFloat timeout);
 
