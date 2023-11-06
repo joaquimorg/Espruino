@@ -218,7 +218,7 @@ typedef enum {
   JSPF_ENABLE_BUZZ          = 1 << 10,
 
   JSPF_DEFAULT = ///< default at power-on
-  JSPF_WAKEON_BTN1 | JSPF_WAKEON_FACEUP
+  JSPF_WAKEON_BTN1 | JSPF_WAKEON_FACEUP | JSPF_ENABLE_BEEP | JSPF_ENABLE_BUZZ
 } JsPinetimeFlags;
 volatile JsPinetimeFlags pinetimeFlags = JSPF_NONE;
 
@@ -1418,6 +1418,8 @@ NO_INLINE void jswrap_pinetime40_init() {
   bool recoveryMode = false;
 
   if (firstRun) {
+    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON; // includes pinetimeFlags
+    
     pinetimeFlags |= JSPF_ENABLE_BUZZ;
     pinetimeFlags |= JSPF_ENABLE_BEEP;
     inactivityTimer = 0; // reset the LCD timeout timer
@@ -1431,7 +1433,6 @@ NO_INLINE void jswrap_pinetime40_init() {
     healthStateClear(&healthLast);
     healthStateClear(&healthDaily);
 
-    pinetimeFlags = JSPF_DEFAULT | JSPF_LCD_ON; // includes pinetimeFlags
     lcdBrightness = 128;
 
     /*if (jshPinGetValue(HOME_BTN_PININDEX))

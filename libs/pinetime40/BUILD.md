@@ -24,3 +24,8 @@ $make clean && RELEASE=1 BOARD=PINETIME40 DFU_UPDATE_BUILD=1 make
 #espruino
 > openocd.exe -c "tcl_port disabled" -c "gdb_port 3333" -c "telnet_port 4444" -f interface/stlink.cfg -c 'transport select hla_swd' -f target/nrf52.cfg -c "program espruino_pinetime40.hex" -c reset -c shutdown
 
+
+
+# Unicode to UTF-8
+https://www.cogsci.ed.ac.uk/~richard/utf-8.cgi?input=E90A&mode=hex
+
