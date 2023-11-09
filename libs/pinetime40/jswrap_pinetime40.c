@@ -617,8 +617,7 @@ using `Pinetime.setLCDBrightness`.
 */
 void jswrap_pinetime40_setLCDPower(bool isOn) {
 
-  if (isOn) jswrap_pinetime40_setLCDPowerController(1);
-  else jswrap_pinetime40_setLCDPowerBacklight(0); // RB: don't turn on the backlight here if fading is enabled
+  if (!isOn) jswrap_pinetime40_setLCDPowerBacklight(0); // RB: don't turn on the backlight here if fading is enabled
 
   //jswrap_pinetime40_setLCDPowerController(isOn);
   //jswrap_pinetime40_setLCDPowerBacklight(isOn);
@@ -636,6 +635,8 @@ void jswrap_pinetime40_setLCDPower(bool isOn) {
 
   if (isOn) pinetimeFlags |= JSPF_LCD_ON;
   else pinetimeFlags &= ~JSPF_LCD_ON;
+
+  jswrap_pinetime40_setLCDPowerController(isOn);
 }
 
 /*JSON{
