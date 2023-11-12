@@ -2410,52 +2410,77 @@ JsVar *jswrap_graphics_wrapString(JsVar *parent, JsVar *str, int maxWidth) {
   int spaceWidth = _jswrap_graphics_getCharWidth(&gfx, &info, ' ');
   int wordWidth = 0;
   int lineWidth = 0;
+  bool canSplitAfter = false;
+  char wordBreakCharacter = 0; // character that came before wordStartIdx (if space we may have left it off)
   int wordStartIdx = 0;
-  int wordIdxAtMaxWidth = 0; // index just before the word width>maxWidth
-  int wordWidthAtMaxWidth = 0; // index just before the word width>maxWidth
   bool endOfText = false;
   bool wasNewLine = false;
 
+  /* What we do is try and step over one whole word/image at a time, then when we've got that
+   (with wordStartIdx at the start) we see whether we have space to append to currentLine,
+   or whether we have to start a new line.
+
+   This is all a bit of a mess but it appears to work as intended now. */
   JsvStringIterator it;
   jsvStringIteratorNewUTF8(&it, str, 0);
-
   while (jsvStringIteratorHasChar(&it) || endOfText) {
     int ch = jsvStringIteratorGetUTF8CharAndNext(&it);
-    if (endOfText || ch=='\n' || ch==' ') { // newline or space
+    bool canBreakOnCh = endOfText || ch=='\n' || ch==' ';
+    if (canBreakOnCh || canSplitAfter) { // is breakable - newline,space,dash, image before
       int currentPos = (int)jsvStringIteratorGetIndex(&it);
       if ((lineWidth + spaceWidth + wordWidth <= maxWidth) &&
           !wasNewLine) {
-        // all on one line
-        if (lineWidth) {
-          jsvAppendString(currentLine, " ");
+        // all on one line, just append the last word
+        if (wordBreakCharacter && (lineWidth || wordBreakCharacter!=' ')) {
+          // add the space/etc before (but not a space at the start of a newline)
+          jsvAppendCharacter(currentLine, wordBreakCharacter);
           lineWidth += spaceWidth;
+          wordBreakCharacter = 0;
         }
         jsvAppendStringVar(currentLine, str, wordStartIdx, currentPos-(wordStartIdx+1));
         lineWidth += wordWidth;
-      } else { // doesn't fit one one line - move to new line
+      } else { // doesn't fit on one line - put word on new line
         lineWidth = wordWidth;
-        if (jsvGetStringLength(currentLine) || wasNewLine) {
+        if (jsvGetStringLength(currentLine) || wasNewLine)
           jsvArrayPush(lines, currentLine);
-        }
         jsvUnLock(currentLine);
-        if (wordIdxAtMaxWidth) {
-          // word is too long to fit on a line
-          currentLine = jsvNewFromStringVar(str, wordStartIdx, wordIdxAtMaxWidth-(wordStartIdx+1));
-          // jsvNewFromStringVar will create a unicode string is str was a unicode string
-          jsvArrayPushAndUnLock(lines, currentLine);
-          wordStartIdx = wordIdxAtMaxWidth-1;
-          lineWidth -= wordWidthAtMaxWidth;
+        currentLine = 0;
+        // if the word is too big to fit in the line, split it until it fits
+        while (wordWidth > maxWidth) {
+          int width = 0;
+          currentLine = jsvNewFromEmptyString();
+          while (wordStartIdx < currentPos) {
+            char wordCh = jsvGetCharInString(str, wordStartIdx);
+            int w = _jswrap_graphics_getCharWidth(&gfx, &info, wordCh);
+            if (width+w < maxWidth) {
+              wordStartIdx++;
+              wordWidth -= w;
+              lineWidth -= w;
+              width += w;
+              jsvAppendCharacter(currentLine, wordCh);
+            } else
+              break;
+          }
+          jsvArrayPush(lines, currentLine);
+          jsvUnLock(currentLine);
         }
+        // Add the remaining bit of word
         currentLine = jsvNewFromStringVar(str, wordStartIdx, currentPos-(wordStartIdx+1));
         // jsvNewFromStringVar will create a unicode string is str was a unicode string
+        if (wasNewLine) wordBreakCharacter = ' ';
       }
+      if (canSplitAfter && !canBreakOnCh) currentPos--; // include the current ch in the next word
+      if (canBreakOnCh && ch>0)
+        wordBreakCharacter = (char)ch;
+      // we're now starting a new word
       wordWidth = 0;
-      wordIdxAtMaxWidth = 0;
       wordStartIdx = currentPos;
       wasNewLine = ch=='\n';
+      canSplitAfter = false;
       if (endOfText) break;
-      continue;
+      if (ch!=0) continue; // allow us to handle images next
     }
+    canSplitAfter = false;
 #ifndef SAVE_ON_FLASH
     if (ch==0) { // If images are described in-line in the string, render them
       GfxDrawImageInfo img;
@@ -2465,17 +2490,15 @@ JsVar *jswrap_graphics_wrapString(JsVar *parent, JsVar *str, int maxWidth) {
         _jswrap_graphics_freeImageInfo(&img);
         // string iterator now points to the next char after image
         wordWidth += img.width;
+        canSplitAfter = true;
         if (!jsvStringIteratorHasChar(&it)) endOfText=true;
       }
       continue;
     }
 #endif
-    int w = _jswrap_graphics_getCharWidth(&gfx, &info, ch);
-    if (wordWidth <= maxWidth && wordWidth+w>maxWidth) {
-      wordIdxAtMaxWidth = (int)jsvStringIteratorGetIndex(&it);
-      wordWidthAtMaxWidth = wordWidth;
-    }
-    wordWidth += w;
+    wordWidth += _jswrap_graphics_getCharWidth(&gfx, &info, ch);
+    if (ch==',' || ch=='.' || ch=='-' || ch=='-' || ch==':')
+      canSplitAfter = true;
     if (!jsvStringIteratorHasChar(&it)) endOfText=true;
   }
   jsvStringIteratorFree(&it);
