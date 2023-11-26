@@ -2757,7 +2757,7 @@ void js_lv_indev_delete(JsVar *jsobj, void *lv_func_ptr) {
 
 // lv_obj_set_style_arc_width
 /*JSON{
-  "type" : "staticmethod", "class" : "LVGL",
+  "type" : "staticmethod", "class" : "LVGL", "ifdef" : "LVGL",
   "name" : "lv_obj_set_style_arc_width",
   "generate_full" : "js_lv_obj_set_style_pad_all(jsobj, value, selector, lv_obj_set_style_arc_width)",
   "params" : [
