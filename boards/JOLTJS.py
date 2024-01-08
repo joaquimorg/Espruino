@@ -16,41 +16,42 @@
 import pinutils;
 
 info = {
- 'name' : "nRF52840 Development Kit",
- 'link' :  [ "https://www.nordicsemi.com/eng/Products/Bluetooth-low-energy/nRF52-DK" ],
- 'espruino_page_link' : 'nRF52840DK',
-  # This is the PCA10036
- 'default_console' : "EV_SERIAL1",
- 'default_console_tx' : "D6",
- 'default_console_rx' : "D8",
- 'default_console_baudrate' : "9600",
- 'variables' : 12500, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
-# 'bootloader' : 1,
- 'binary_name' : 'espruino_%v_nrf52840.hex',
+ 'name' : "Jolt.js",
+ 'link' :  [ "https://www.espruino.com/Jolt.js" ],
+ 'espruino_page_link' : 'Jolt.js',
+# 'default_console' : "EV_SERIAL1",
+# 'default_console_tx' : "D6",
+# 'default_console_rx' : "D8",
+# 'default_console_baudrate' : "9600",
+ 'variables' : 12000, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
+ 'bootloader' : 1,
+ 'binary_name' : 'espruino_%v_joltjs.hex',
  'build' : {
    'optimizeflags' : '-Os',
    'libraries' : [
      'BLUETOOTH',
-     'NET',
+#     'NET',
      'GRAPHICS',
 #     'NFC',
      'NEOPIXEL',
      'JIT' # JIT compiler enabled
    ],
    'makefile' : [
-     'DEFINES += -DCONFIG_GPIO_AS_PINRESET', # Allow the reset pin to work
-     'DEFINES += -DBOARD_PCA10056',
+#     'DEFINES += -DCONFIG_GPIO_AS_PINRESET', # Allow the reset pin to work
      'DEFINES += -DNRF_USB=1 -DUSB',
-     'DEFINES += -DNEOPIXEL_SCK_PIN=22 -DNEOPIXEL_LRCK_PIN=23', # nRF52840 needs LRCK pin defined for neopixel
+     'DEFINES += -DNEOPIXEL_SCK_PIN=1 -DNEOPIXEL_LRCK_PIN=26', # nRF52840 needs LRCK pin defined for neopixel
      'DEFINES += -DNRF_SDH_BLE_GATT_MAX_MTU_SIZE=131', # 23+x*27 rule as per https://devzone.nordicsemi.com/f/nordic-q-a/44825/ios-mtu-size-why-only-185-bytes
      'DEFINES += -DCENTRAL_LINK_COUNT=2 -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=2', # allow two outgoing connections at once
      'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3660', # set RAM base to match MTU=131 + CENTRAL_LINK_COUNT=2
-#     'ESPR_BLUETOOTH_ANCS=1', # Enable ANCS (Apple notifications) support
+     'DEFINES += -DAPP_TIMER_OP_QUEUE_SIZE=6', 
+     'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Jolt.js"\'',     
      'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6',
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key.pem',
      'DEFINES += -DNRF_BOOTLOADER_NO_WRITE_PROTECT=1', # By default the bootloader protects flash. Avoid this (a patch for NRF_BOOTLOADER_NO_WRITE_PROTECT must be applied first)
-#     'DEFINES += -DBUTTONPRESS_TO_REBOOT_BOOTLOADER', # enables watchdog timer
+     #'DEFINES += -DBUTTONPRESS_TO_REBOOT_BOOTLOADER', # not enabled so watchdog isn't started
      'BOOTLOADER_SETTINGS_FAMILY=NRF52840',
+     'INCLUDE += -I$(ROOT)/libs/jolt.js',
+     'WRAPPERSOURCES += libs/joltjs/jswrap_jolt.c libs/joltjs/jswrap_qwiic.c',
      'NRF_SDK15=1',
    ]
  }
@@ -78,32 +79,49 @@ chip = {
 };
 
 devices = {
-  'BTN1' : { 'pin' : 'D11', 'pinstate' : 'IN_PULLDOWN' }, # Pin negated in software
-  'BTN2' : { 'pin' : 'D12', 'pinstate' : 'IN_PULLDOWN' }, # Pin negated in software
-  'BTN3' : { 'pin' : 'D24', 'pinstate' : 'IN_PULLDOWN' }, # Pin negated in software
-  'BTN4' : { 'pin' : 'D25', 'pinstate' : 'IN_PULLDOWN' }, # Pin negated in software
-  'LED1' : { 'pin' : 'D13' }, # Pin negated in software
-  'LED2' : { 'pin' : 'D14' }, # Pin negated in software
-  'LED3' : { 'pin' : 'D15' }, # Pin negated in software
-  'LED4' : { 'pin' : 'D16' }, # Pin negated in software
-  'RX_PIN_NUMBER' : { 'pin' : 'D8'},
-  'TX_PIN_NUMBER' : { 'pin' : 'D6'},
-  'CTS_PIN_NUMBER' : { 'pin' : 'D7'},
-  'RTS_PIN_NUMBER' : { 'pin' : 'D5'},
-  # Pin D22 is used for clock when driving neopixels - as not specifying a pin seems to break things
+  'BTN1' : { 'pin' : 'D0', 'pinstate' : 'IN_PULLDOWN' },
+  'LED1' : { 'pin' : 'D6' }, # Pin negated in software
+  'LED2' : { 'pin' : 'D8' }, # Pin negated in software
+  'LED3' : { 'pin' : 'D41' }, # Pin negated in software
+  # See Espruino/libs/joltjs/jswrap_jolt.c for other pins
+  'QWIIC1' : {
+    'pin_sda' : 'D3',
+    'pin_scl' : 'D29',
+    'pin_fet' : 'D7',
+  },
+  'QWIIC2' : {
+    'pin_sda' : 'D2',
+    'pin_scl' : 'D31',
+    'pin_fet' : 'D27',    
+  },
+  'QWIIC3' : {
+    'pin_sda' : 'D44', # P1.12
+    'pin_scl' : 'D45', # P1.13
+    'pin_gnd' : 'D36', # P1.04
+    'pin_vcc' : 'D43', # P1.11    
+  },
+  'QWIIC4' : {
+    'pin_sda' : 'D39', # P1.07
+    'pin_scl' : 'D38', # P1.06
+    'pin_gnd' : 'D37', # P1.05
+    'pin_vcc' : 'D42', # P1.10
+  },
+
 };
 
 # left-right, or top-bottom order
 board = {
-  'left' : [ 'VDD', 'VDD', 'RESET', 'VDD','5V','GND','GND','','','D3','D4','D28','D29','D30','D31'],
-  'right' : [
-     'D27', 'D26', 'D2', 'GND', 'D25','D24','D23', 'D22','D20','D19','',
-     'D18','D17','D16','D15','D14','D13','D12','D11','',
-     'D10','D9','D8','D7','D6','D5','D21','D1','D0'],
+  '_hide_not_on_connectors' : True,    
   '_notes' : {
-    'D6' : "Serial console RX",
-    'D8' : "Serial console TX"
-  }
+    'V0' : "Motor driver 0, output 0. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V1' : "Motor driver 0, output 1. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V2' : "Motor driver 0, output 2. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V3' : "Motor driver 0, output 3. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V4' : "Motor driver 1, output 0. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V5' : "Motor driver 1, output 1. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V6' : "Motor driver 1, output 2. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V7' : "Motor driver 1, output 3. This pin is also connected to an analog input via a 39k/220k potential divider",
+  },
 };
 board["_css"] = """
 #board {
@@ -111,7 +129,7 @@ board["_css"] = """
   height: 800px;
   top: 0px;
   left : 200px;
-  background-image: url(img/NRF528DK.jpg);
+  background-image: url(img/JOLTJS.jpg);
 }
 #boardcontainer {
   height: 900px;
@@ -131,7 +149,7 @@ board["_css"] = """
 """;
 
 def get_pins():
-  pins = pinutils.generate_pins(0,47) # 48 General Purpose I/O Pins.
+  pins = pinutils.generate_pins(0,47,"D") + pinutils.generate_pins(0,7,"V"); # 48 General Purpose I/O Pins, 8 virtual pins for IO
   pinutils.findpin(pins, "PD0", True)["functions"]["XL1"]=0;
   pinutils.findpin(pins, "PD1", True)["functions"]["XL2"]=0;
   pinutils.findpin(pins, "PD5", True)["functions"]["RTS"]=0;
@@ -149,14 +167,9 @@ def get_pins():
   pinutils.findpin(pins, "PD30", True)["functions"]["ADC1_IN6"]=0;
   pinutils.findpin(pins, "PD31", True)["functions"]["ADC1_IN7"]=0;
   # Make buttons and LEDs negated
-  pinutils.findpin(pins, "PD13", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD14", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD15", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD16", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD11", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD12", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD24", True)["functions"]["NEGATED"]=0;
-  pinutils.findpin(pins, "PD25", True)["functions"]["NEGATED"]=0;
+  pinutils.findpin(pins, "PD6", True)["functions"]["NEGATED"]=0;
+  pinutils.findpin(pins, "PD8", True)["functions"]["NEGATED"]=0;
+  pinutils.findpin(pins, "PD41", True)["functions"]["NEGATED"]=0;
 
   # everything is non-5v tolerant
   for pin in pins:
