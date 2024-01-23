@@ -1,3 +1,8 @@
+     2v21 : nRF52: free up 800b more flash by removing vector table padding
+            Throw Exception when a Promise tries to resolve with another Promise (#2450)
+            Add 'lcdBufferPtr' to Bangle.getOptions
+            Allow E.nativeCall to take 32 bit floats (eg for Inline C)
+
      2v20 : Ensure String.charCodeAt returns NaN for out of bounds chars
             Bangle.js2: When rendering overlays, *do not* use the current FG/BG color for 1 bit overlays
             nRF52 SDK15: Fix UART when >1 central link enabled
@@ -44,6 +49,9 @@
             ESP8266/others: Fix ArrayBuffers with 12 bit JsVars (previously they overflowed)
             Ensure E.setDST disables E.setTimeZone, and vice-versa. 
             Added console.debug/info/warn/error as aliases of console.log
+            nRF5x: Fix INVALID_PARAM error when connecting to other BLE device when maxInterval or NRF.setLowPowerConnection specified 
+            Bangle.js2: Add 'Test' option to factory reset menu, and Bangle.showTestScreen()
+            Added Pin.pulse/pwm/analog as aliases of digitalPulse,analogWrite,analogRead
 
      2v19 : Fix Object.values/entries for numeric keys after 2v18 regression (fix #2375)
             nRF52: for SD>5 use static buffers for advertising and scan response data (#2367)

@@ -737,7 +737,8 @@ int barometerDP[9]; // pressure calibration
 #endif
 
 /// Promise when pressure is requested
-JsVar *promisePressure;
+JsVar *promisePressure; // return promise of getPressure() - when set, the next pressure reading will complete this promise
+volatile uint16_t barometerOnTimer; // how long has the barometer been on?
 double barometerPressure;
 double barometerTemperature;
 double barometerAltitude;
@@ -2584,6 +2585,7 @@ for before the clock is reloaded? 1500ms default, or 0 means never.
 * `hrmPushEnv` - (Bangle.js 2, 2v19+) if true (default is false) HRM environment readings will be produced as `Bangle.on(`HRM-env`, ...)` events. This is reset when the HRM is initialised with `Bangle.setHRMPower`.
 * `seaLevelPressure` (Bangle.js 2) Normally 1013.25 millibars - this is used for
   calculating altitude with the pressure sensor
+* `lcdBufferPtr` (Bangle.js 2 2v21+) Return a pointer to the first pixel of the 3 bit graphics buffer used by Bangle.js for the screen (stride = 178 bytes)
 
 Where accelerations are used they are in internal units, where `8192 = 1g`
 
@@ -2611,6 +2613,9 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
   int touchY1 = touchMinY;
   int touchX2 = touchMaxX;
   int touchY2 = touchMaxY;
+#endif
+#ifdef LCD_CONTROLLER_LPM013M126
+  int lcdBufferPtr = (int)(size_t)lcdMemLCD_getRowPtr(0);
 #endif
   jsvConfigObject configs[] = {
 #ifdef HEARTRATE
@@ -2653,6 +2658,9 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
       {"touchY1", JSV_INTEGER, &touchY1},
       {"touchX2", JSV_INTEGER, &touchX2},
       {"touchY2", JSV_INTEGER, &touchY2},
+#endif
+#ifdef LCD_CONTROLLER_LPM013M126
+      {"lcdBufferPtr", JSV_INTEGER, &lcdBufferPtr},
 #endif
   };
   if (createObject) {
@@ -3167,12 +3175,12 @@ bool jswrap_banglejs_setBarometerPower(bool isOn, JsVar *appId) {
 #ifdef PRESSURE_DEVICE
   bool wasOn = bangleFlags & JSBF_BAROMETER_ON;
   isOn = setDeviceRequested("Barom", appId, isOn);
-  if (isOn) bangleFlags |= JSBF_BAROMETER_ON;
-  else bangleFlags &= ~JSBF_BAROMETER_ON;
+  if (!isOn) bangleFlags &= ~JSBF_BAROMETER_ON; // if not on, change flag immediately to stop peripheralPollHandler
   int tries = 3;
   while (tries-- > 0) {
     if (isOn) {
       if (!wasOn) {
+        barometerOnTimer = 0;
   #ifdef PRESSURE_DEVICE_SPL06_007_EN
         if (PRESSURE_DEVICE_SPL06_007_EN) {
           unsigned char buf[SPL06_COEF_NUM];
@@ -3232,10 +3240,14 @@ bool jswrap_banglejs_setBarometerPower(bool isOn, JsVar *appId) {
         jswrap_banglejs_barometerWr(0xF4, 0); // Barometer off
   #endif
     }
+    // ensure we change the flag here so that peripheralPollHandler polls it now
+    if (isOn) bangleFlags |= JSBF_BAROMETER_ON;
     if (!tries || !jspHasError()) return isOn; // return -  all is going correctly (or we tried a few times and failed)
     // we had an error (almost certainly I2C) - clear the error and try again hopefully
     jsvUnLock(jspGetException());
   }
+  // only turn on
+  if (isOn) bangleFlags |= JSBF_BAROMETER_ON;
   return isOn;
 #else // PRESSURE_DEVICE
   return false;
@@ -4242,6 +4254,16 @@ bool jswrap_banglejs_idle() {
     JsVar *o = jswrap_banglejs_getBarometerObject();
     if (o) {
       jsiQueueObjectCallbacks(bangle, JS_EVENT_PREFIX"pressure", &o, 1);
+      if (promisePressure) {
+        // disable sensor now we have a result (if it was on for another reason, "getPressure" as ID ensures it'll still stay on)
+        JsVar *id = jsvNewFromString("getPressure");
+        jswrap_banglejs_setBarometerPower(0, id);
+        jsvUnLock(id);
+        // resolve the promise
+        jspromise_resolve(promisePressure, o);
+        jsvUnLock(promisePressure);
+        promisePressure = 0;
+      }
       jsvUnLock(o);
     }
   }
@@ -4899,13 +4921,13 @@ Read temperature, pressure and altitude data. A promise is returned which will
 be resolved with `{temperature, pressure, altitude}`.
 
 If the Barometer has been turned on with `Bangle.setBarometerPower` then this
-will return almost immediately with the reading. If the Barometer is off,
+will return with the *next* reading as of 2v21 (or the existing reading on 2v20 or earlier). If the Barometer is off,
 conversions take between 500-750ms.
 
 Altitude assumes a sea-level pressure of 1013.25 hPa
 
 If there's no pressure device (for example, the emulator),
-this returns undefined, rather than a promise.
+this returns `undefined`, rather than a Promise.
 
 ```
 Bangle.getPressure().then(d=>{
@@ -4917,6 +4939,21 @@ Bangle.getPressure().then(d=>{
 
 #ifdef PRESSURE_DEVICE
 bool jswrap_banglejs_barometerPoll() {
+  // if the Barometer hadn't been on long enough, don't try and get data
+  int powerOnTimeout = 500;
+#ifdef PRESSURE_DEVICE_BMP280_EN
+  if (PRESSURE_DEVICE_BMP280_EN)
+    powerOnTimeout = 750; // some devices seem to need this long to boot reliably
+#endif
+#ifdef PRESSURE_DEVICE_SPL06_007_EN
+if (PRESSURE_DEVICE_SPL06_007_EN)
+  powerOnTimeout = 400; // on SPL06 we may actually be leaving it *too long* before requesting data, and it starts to do another reading
+#endif
+  if (barometerOnTimer < TIMER_MAX)
+    barometerOnTimer += pollInterval;
+  if (barometerOnTimer < powerOnTimeout)
+    return false;
+  // Otherwise, poll it
 #ifdef PRESSURE_DEVICE_HP203_EN
   if (PRESSURE_DEVICE_HP203_EN) {
     unsigned char buf[6];
@@ -5031,21 +5068,6 @@ JsVar *jswrap_banglejs_getBarometerObject() {
   }
   return o;
 }
-
-void jswrap_banglejs_getPressure_callback() {
-  JsVar *o = 0;
-  if (jswrap_banglejs_barometerPoll()) {
-    o = jswrap_banglejs_getBarometerObject();
-  }
-  // disable sensor now we have a result
-  JsVar *id = jsvNewFromString("getPressure");
-  jswrap_banglejs_setBarometerPower(0, id);
-  jsvUnLock(id);
-  // resolve the promise
-  jspromise_resolve(promisePressure, o);
-  jsvUnLock2(promisePressure,o);
-  promisePressure = 0;
-}
 #endif // PRESSURE_DEVICE
 
 
@@ -5057,17 +5079,11 @@ JsVar *jswrap_banglejs_getPressure() {
   }
   promisePressure = jspromise_create();
   if (!promisePressure) return 0;
-
-  // If barometer is already on, just resolve promise with the current result
-  if (bangleFlags & JSBF_BAROMETER_ON) {
-    JsVar *o = jswrap_banglejs_getBarometerObject();
-    jspromise_resolve(promisePressure, o);
-    jsvUnLock(o);
-    JsVar *r = promisePressure;
-    promisePressure = 0;
-    return r;
-  }
-
+  // If barometer is already on, our promise is enough. jswrap_banglejs_idle (after peripheralPollHandler)
+  // will see promisePressure and will resolve it when new data is available
+  if (bangleFlags & JSBF_BAROMETER_ON)
+    return jsvLockAgain(promisePressure);
+  // Turning barometer on, will turn off in jswrap_banglejs_idle (after peripheralPollHandler)
   JsVar *id = jsvNewFromString("getPressure");
   jswrap_banglejs_setBarometerPower(1, id);
   jsvUnLock(id);
@@ -5093,17 +5109,6 @@ JsVar *jswrap_banglejs_getPressure() {
     promisePressure = 0;
     return r;
   }
-
-  int powerOnTimeout = 500;
-#ifdef PRESSURE_DEVICE_BMP280_EN
-  if (PRESSURE_DEVICE_BMP280_EN)
-    powerOnTimeout = 750; // some devices seem to need this long to boot reliably
-#endif
-#ifdef PRESSURE_DEVICE_SPL06_007_EN
-  if (PRESSURE_DEVICE_SPL06_007_EN)
-    powerOnTimeout = 400; // on SPL06 we may actually be leaving it *too long* before requesting data, and it starts to do another reading
-#endif
-  jsvUnLock(jsiSetTimeout(jswrap_banglejs_getPressure_callback, powerOnTimeout));
   return jsvLockAgain(promisePressure);
 #endif
 }
@@ -5619,7 +5624,30 @@ Load the Bangle.js clock - this has the same effect as calling `Bangle.load()`.
 }
 Show a 'recovery' menu that allows you to perform certain tasks on your Bangle.
 
-You can also enter this menu by restarting while holding down the `BTN1`
+You can also enter this menu by restarting your Bangle while holding down the button.
+*/
+/*JSON{
+    "type" : "staticmethod", "class" : "Bangle", "name" : "showRecoveryMenu", "patch":true,
+    "generate_js" : "libs/js/banglejs/Bangle_showRecoveryMenu_F18.min.js",
+    "#if" : "defined(BANGLEJS) && defined(BANGLEJS_F18)"
+}
+*/
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Bangle",
+    "name" : "showTestScreen",
+    "generate_js" : "libs/js/banglejs/Bangle_showTestScreen.js",
+    "ifdef" : "BANGLEJS2"
+}
+(2v20 and later) Show a test screen that lights green when each sensor on the Bangle
+works and reports within range.
+
+Swipe on the screen when all items are green and the Bangle will turn bluetooth off
+and display a `TEST PASS` screen for 60 minutes, after which it will turn off.
+
+You can enter this menu by restarting your Bangle while holding down the button,
+then choosing `Test` from the recovery menu.
 */
 
 /*JSON{

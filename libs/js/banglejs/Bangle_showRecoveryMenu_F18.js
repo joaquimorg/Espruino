@@ -7,7 +7,7 @@
   E.removeAllListeners();
   NRF.removeAllListeners();
   Bangle.setLCDBrightness(1);
-  let menu = {"":{title:"Recovery"},
+  E.showMenu({"":{title:"Recovery"},
     "Clean Boot": () => {
       reset();
     },
@@ -16,11 +16,8 @@
     },
     "Turn Off": () => {
       Bangle.off();
-    }
-  };
-  if (process.env.BOARD=="BANGLEJS2")
-    Object.assign(menu, {"Test": Bangle.showTestScreen});
-  Object.assign(menu, {"Factory Reset": () => {
+    },
+    "Factory Reset": () => {
       E.showPrompt("Are you sure?\nThis will remove all data.",{title:"Factory Reset"}).then(ok => {
         if (!ok) return Bangle.showRecoveryMenu();
         E.showMessage("Resetting");
@@ -52,5 +49,4 @@
       eval(require("Storage").read("bootupdate.js"));
     },
   });
-  E.showMenu(menu);
 })

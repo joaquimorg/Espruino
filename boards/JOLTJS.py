@@ -43,8 +43,8 @@ info = {
      'DEFINES += -DNRF_SDH_BLE_GATT_MAX_MTU_SIZE=131', # 23+x*27 rule as per https://devzone.nordicsemi.com/f/nordic-q-a/44825/ios-mtu-size-why-only-185-bytes
      'DEFINES += -DCENTRAL_LINK_COUNT=2 -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=2', # allow two outgoing connections at once
      'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3660', # set RAM base to match MTU=131 + CENTRAL_LINK_COUNT=2
-     'DEFINES += -DAPP_TIMER_OP_QUEUE_SIZE=6', 
-     'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Jolt.js"\'',     
+     'DEFINES += -DAPP_TIMER_OP_QUEUE_SIZE=6',
+     'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Jolt.js"\'',
      'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6',
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key.pem',
      'DEFINES += -DNRF_BOOTLOADER_NO_WRITE_PROTECT=1', # By default the bootloader protects flash. Avoid this (a patch for NRF_BOOTLOADER_NO_WRITE_PROTECT must be applied first)
@@ -84,23 +84,23 @@ devices = {
   'LED2' : { 'pin' : 'D8' }, # Pin negated in software
   'LED3' : { 'pin' : 'D41' }, # Pin negated in software
   # See Espruino/libs/joltjs/jswrap_jolt.c for other pins
-  'QWIIC1' : {
+  'QWIIC0' : {
     'pin_sda' : 'D3',
     'pin_scl' : 'D29',
     'pin_fet' : 'D7',
   },
-  'QWIIC2' : {
+  'QWIIC1' : {
     'pin_sda' : 'D2',
     'pin_scl' : 'D31',
-    'pin_fet' : 'D27',    
+    'pin_fet' : 'D27',
   },
-  'QWIIC3' : {
+  'QWIIC2' : {
     'pin_sda' : 'D44', # P1.12
     'pin_scl' : 'D45', # P1.13
     'pin_gnd' : 'D36', # P1.04
-    'pin_vcc' : 'D43', # P1.11    
+    'pin_vcc' : 'D43', # P1.11
   },
-  'QWIIC4' : {
+  'QWIIC3' : {
     'pin_sda' : 'D39', # P1.07
     'pin_scl' : 'D38', # P1.06
     'pin_gnd' : 'D37', # P1.05
@@ -111,16 +111,26 @@ devices = {
 
 # left-right, or top-bottom order
 board = {
-  '_hide_not_on_connectors' : True,    
+  'bottom' : [ 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7' ],
+  'top' : [ 'D29', 'D3', 'VCC', 'D7', # Q0
+            'D31', 'D2', 'VCC', 'D27', # Q1
+            'D45', 'D44', 'D43', 'D36', # Q2
+            'D38', 'D39', 'D42', 'D37', # Q3
+   ],
+  'right' : ['NFC','NFC'],
+  '_hide_not_on_connectors' : True,
   '_notes' : {
     'V0' : "Motor driver 0, output 0. This pin is also connected to an analog input via a 39k/220k potential divider",
-    'V1' : "Motor driver 0, output 1. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V1' : "Motor driver 0, output 1.",
     'V2' : "Motor driver 0, output 2. This pin is also connected to an analog input via a 39k/220k potential divider",
-    'V3' : "Motor driver 0, output 3. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V3' : "Motor driver 0, output 3.",
     'V4' : "Motor driver 1, output 0. This pin is also connected to an analog input via a 39k/220k potential divider",
-    'V5' : "Motor driver 1, output 1. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V5' : "Motor driver 1, output 1.",
     'V6' : "Motor driver 1, output 2. This pin is also connected to an analog input via a 39k/220k potential divider",
-    'V7' : "Motor driver 1, output 3. This pin is also connected to an analog input via a 39k/220k potential divider",
+    'V7' : "Motor driver 1, output 3.",
+    
+    'D7' : "This controls the power pin via a FET. When high, GND on Q0 is pulled low. When low, GNQ on Q0 is floating",
+    'D27' : "This controls the power pin via a FET. When high, GND on Q1 is pulled low. When low, GNQ on Q1 is floating",
   },
 };
 board["_css"] = """
@@ -135,13 +145,17 @@ board["_css"] = """
   height: 900px;
 }
 
-#left {
-    top: 219px;
-    right: 466px;
+#top {
+    top: 100px;
+    left: 0px;
+}
+#bottom {
+    top: 200px;
+    left: 0px;
 }
 #right {
-    top: 150px;
-    left: 466px;
+    top: 200px;
+    left: 500px;
 }
 
 .leftpin { height: 17px; }
@@ -170,6 +184,11 @@ def get_pins():
   pinutils.findpin(pins, "PD6", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD8", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD41", True)["functions"]["NEGATED"]=0;
+  # Virtual analogs
+  pinutils.findpin(pins, "PV0", True)["functions"]["ADC1_IN2"]=0;
+  pinutils.findpin(pins, "PV2", True)["functions"]["ADC1_IN3"]=0;
+  pinutils.findpin(pins, "PV4", True)["functions"]["ADC1_IN6"]=0;
+  pinutils.findpin(pins, "PV6", True)["functions"]["ADC1_IN4"]=0;
 
   # everything is non-5v tolerant
   for pin in pins:
