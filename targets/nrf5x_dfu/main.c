@@ -201,7 +201,7 @@ bool dfu_enter_check(void) {
     if (!dfu_start) {
 #ifdef LCD
       lcd_println("\r\nBOOTING...");
-#ifdef defined(BANGLEJS) || defined(PINETIME40)
+#if defined(BANGLEJS) || defined(PINETIME40)
       nrf_delay_us(100000);
 #endif
 #endif
