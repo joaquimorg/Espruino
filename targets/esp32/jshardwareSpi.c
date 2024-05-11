@@ -22,6 +22,15 @@
 
 #define UNUSED(x) (void)(x)
 
+#if ESP_IDF_VERSION_MAJOR>=5 || CONFIG_IDF_TARGET_ESP32C3
+  #define SPICHANNEL0_HOST SPI2_HOST
+  #define SPICHANNEL1_HOST SPI3_HOST
+#else
+  #define SPICHANNEL0_HOST HSPI_HOST
+  #define SPICHANNEL1_HOST VSPI_HOST
+#endif
+
+
 int getSPIChannelPnt(IOEventFlags device){
   return device - EV_SPI1;
 }
@@ -32,8 +41,10 @@ void SPIChannelsInit(){
     SPIChannels[i].spi_read = false;
     SPIChannels[i].g_lastSPIRead = (uint32_t)-1;
   }
-  SPIChannels[0].HOST = HSPI_HOST;
-  SPIChannels[1].HOST = VSPI_HOST;
+  SPIChannels[0].HOST = SPICHANNEL0_HOST;
+#if SPIMax>1
+  SPIChannels[1].HOST = SPICHANNEL1_HOST;
+#endif
 }
 void SPIChannelReset(int channelPnt){
   spi_bus_remove_device(SPIChannels[channelPnt].spi);
@@ -99,7 +110,7 @@ void jshSPISetup(
   int channelPnt = getSPIChannelPnt(device);
   int dma_chan = 0;
   Pin sck, miso, mosi;
-  if(SPIChannels[channelPnt].HOST == HSPI_HOST){
+  if(SPIChannels[channelPnt].HOST == SPICHANNEL0_HOST){
     dma_chan = 1;
     sck = inf->pinSCK != PIN_UNDEFINED ? inf->pinSCK : 14;
     miso = inf->pinMISO != PIN_UNDEFINED ? inf->pinMISO : 12;

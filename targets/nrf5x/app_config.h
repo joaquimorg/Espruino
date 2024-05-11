@@ -62,23 +62,23 @@
 #endif // BLE_AMS_C_BLE_OBSERVER_PRIO
 #endif // ESPR_BLUETOOTH_ANCS
 
-#if SPI_COUNT>0
+#if ESPR_SPI_COUNT>0
 #define SPI_ENABLED 1
 #define SPI0_ENABLED 1
 #define SPI0_USE_EASY_DMA 1
 #else
 #define SPI_ENABLED 0
-#endif // SPI_COUNT
+#endif // ESPR_SPI_COUNT
 
-#if I2C_COUNT>0
+#if ESPR_I2C_COUNT>0
 #define TWI_ENABLED 1
 #define TWI1_ENABLED 1
 #define TWI1_USE_EASY_DMA 0
 #else
 #define TWI_ENABLED 0
-#endif // I2C_COUNT
+#endif // ESPR_I2C_COUNT
 
-#if USART_COUNT>0
+#if ESPR_USART_COUNT>0
 #define UART_ENABLED 1
 #define UART0_ENABLED 1
 #if defined(NRF52840) || defined(NRF52833) // SDK15/NRF52840
@@ -90,9 +90,9 @@
 #define UART_EASY_DMA_SUPPORT 0
 #define UART0_CONFIG_USE_EASY_DMA 0
 #endif
-#else // USART_COUNT=0
+#else // ESPR_USART_COUNT=0
 #define UART_ENABLED 0
-#endif // USART_COUNT
+#endif // ESPR_USART_COUNT
 
 #define I2S_ENABLED 1 // For neopixels
 
@@ -148,7 +148,7 @@
 #define GPIOTE_ENABLED 1
 //#define GPIOTE_CONFIG_IRQ_PRIORITY 6
 // Match platform_config - the default is 4 but on nRF52 we want 8
-#define GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS EXTI_COUNT
+#define GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS ESPR_EXTI_COUNT
 
 #define PPI_ENABLED 1
 #define RNG_ENABLED 1
@@ -177,7 +177,7 @@
 #define APP_USBD_CDC_ACM_ZLP_ON_EPSIZE_WRITE 1
 #define NRFX_USBD_CONFIG_DMASCHEDULER_ISO_BOOST 1
 #define NRFX_USBD_CONFIG_IRQ_PRIORITY 6
-#endif
+#endif // NRF5X_SDK_17
 
 #if ESPR_LSE_ENABLE
 #define NRF_SDH_CLOCK_LF_SRC 1 // 32.768 kHz crystal clock
@@ -185,7 +185,7 @@
 #define NRF_SDH_CLOCK_LF_RC_CTIV 0
 // SoftDevice calibration timer interval under constant temperature.
 #define NRF_SDH_CLOCK_LF_RC_TEMP_CTIV 0
-#define NRF_SDH_CLOCK_LF_ACCURACY NRF_CLOCK_LF_ACCURACY_20_PPM
+#define NRF_SDH_CLOCK_LF_ACCURACY NRF_CLOCK_LF_ACCURACY_50_PPM
 #else // On internal oscillator
 #define NRF_SDH_CLOCK_LF_ACCURACY NRF_CLOCK_LF_ACCURACY_500_PPM
 #endif // ESPR_LSE_ENABLE
@@ -203,5 +203,11 @@
 #endif
 // SDK15+ (fixes BLE UART send when CENTRAL_LINK_COUNT>1)
 #define NRF_SDH_BLE_TOTAL_LINK_COUNT (CENTRAL_LINK_COUNT + PERIPHERAL_LINK_COUNT)
+
+// Ideally this would be in JOLTJS.py  but escaping it for the command-line looks horrible
+#ifdef JOLTJS
+#define APP_USBD_STRINGS_PRODUCT APP_USBD_STRING_DESC('E', 's', 'p', 'r', 'u', 'i', 'n', 'o', ' ', 'J', 'o', 'l', 't', '.', 'j', 's')
+// other USB strings in targetlibs/nrf5x_15/nrf52_config/app_usbd_string_config.h
+#endif
 
 // Other SDK configs are still in sdk_config.h

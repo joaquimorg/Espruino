@@ -56,7 +56,7 @@ static void handlePipeClose(JsVar *arr, JsvObjectIterator *it, JsVar* pipe) {
     jsvUnLock(buffer);
   }
   // also call 'end' if 'end' was passed as an initialisation option
-  if (jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(pipe,"end"))) {
+  if (jsvObjectGetBoolChild(pipe,"end")) {
     // call destination.end if available
     if (destination) {
       // remove our drain and close listeners.
@@ -92,12 +92,11 @@ static void handlePipeClose(JsVar *arr, JsvObjectIterator *it, JsVar* pipe) {
   }
   jsvUnLock2(source, destination);
   JsVar *idx = jsvObjectIteratorGetKey(it);
-  jsvRemoveChild(arr,idx);
-  jsvUnLock(idx);
+  jsvRemoveChildAndUnLock(arr,idx);
 }
 
 static bool handlePipe(JsVar *arr, JsvObjectIterator *it, JsVar* pipe) {
-  bool paused = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(pipe,"drainWait"));
+  bool paused = jsvObjectGetBoolChild(pipe,"drainWait");
   if (paused) return false;
 
   JsVar *chunkSize = jsvObjectGetChildIfExists(pipe,"chunkSize");

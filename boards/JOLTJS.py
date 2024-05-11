@@ -45,7 +45,8 @@ info = {
      'DEFINES += -DCENTRAL_LINK_COUNT=2 -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=2', # allow two outgoing connections at once
      'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3660', # set RAM base to match MTU=131 + CENTRAL_LINK_COUNT=2
      'DEFINES += -DAPP_TIMER_OP_QUEUE_SIZE=6',
-     'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Jolt.js"\'',
+     'DEFINES+= -DBLUETOOTH_NAME_PREFIX=\'"Jolt.js"\'',
+#    see targets/nrf5x/app_config.h for USB descriptors
      'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6',
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key.pem',
      'DEFINES += -DNRF_BOOTLOADER_NO_WRITE_PROTECT=1', # By default the bootloader protects flash. Avoid this (a patch for NRF_BOOTLOADER_NO_WRITE_PROTECT must be applied first)
@@ -107,64 +108,99 @@ devices = {
     'pin_gnd' : 'D37', # P1.05
     'pin_vcc' : 'D42', # P1.10
   },
-
+  'DRIVER0' : {
+    'pin_nsleep' : 'D21',
+    'pin_nfault' : 'D19',
+    'pin_mode' : 'D16',
+    'pin_trq' : 'D12',
+    'pin_d0' : 'D17',
+    'pin_d1' : 'D15',
+    'pin_d2' : 'D13',
+    'pin_d3' : 'D14'
+  },
+  'DRIVER1' : {
+    'pin_nsleep' : 'D23',
+    'pin_nfault' : 'D20',
+    'pin_mode' : 'D24',
+    'pin_trq' : 'D35',
+    'pin_d0' : 'D22',
+    'pin_d1' : 'D32',
+    'pin_d2' : 'D25',
+    'pin_d3' : 'D34'
+  }
 };
 
 # left-right, or top-bottom order
 board = {
-  'bottom' : [ 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7' ],
-  'top' : [ 'D29', 'D3', 'VCC', 'D7', # Q0
-            'D31', 'D2', 'VCC', 'D27', # Q1
-            'D45', 'D44', 'D43', 'D36', # Q2
-            'D38', 'D39', 'D42', 'D37', # Q3
+  'bottom' : [ 'GND', '+V', 'H0', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7' ],
+  'top' : [ 'Q0.scl', 'Q0.sda', 'VCC', 'Q0.fet', '','',#'D29', 'D3', 'VCC', 'D7', # Q0
+            'Q1.scl', 'Q1.sda', 'VCC', 'Q1.fet', '','',#'D31', 'D2', 'VCC', 'D27', # Q1
+            'Q2.scl', 'Q2.sda', 'Q2.vcc', 'Q2.gnd', '','',#'D45', 'D44', 'D43', 'D36', # Q2
+            'Q3.scl', 'Q3.sda', 'Q3.vcc', 'Q3.gnd',#'D38', 'D39', 'D42', 'D37', # Q3
    ],
   'right' : ['NFC','NFC'],
   '_hide_not_on_connectors' : True,
   '_notes' : {
-    'V0' : "Motor driver 0, output 0. This pin is also connected to an analog input via a 39k/220k potential divider",
-    'V1' : "Motor driver 0, output 1.",
-    'V2' : "Motor driver 0, output 2. This pin is also connected to an analog input via a 39k/220k potential divider",
-    'V3' : "Motor driver 0, output 3.",
-    'V4' : "Motor driver 1, output 0. This pin is also connected to an analog input via a 39k/220k potential divider",
-    'V5' : "Motor driver 1, output 1.",
-    'V6' : "Motor driver 1, output 2. This pin is also connected to an analog input via a 39k/220k potential divider",
-    'V7' : "Motor driver 1, output 3.",
-    
-    'D7' : "This controls the power pin via a FET. When high, GND on Q0 is pulled low. When low, GNQ on Q0 is floating",
-    'D27' : "This controls the power pin via a FET. When high, GND on Q1 is pulled low. When low, GNQ on Q1 is floating",
+    'H0' : "Motor driver 0, output 0. This pin is also connected to analog input D4 via a 39k/220k potential divider", # D17
+    'H1' : "Motor driver 0, output 1.", # D15
+    'H2' : "Motor driver 0, output 2. This pin is also connected to analog input D5 via a 39k/220k potential divider", # D13
+    'H3' : "Motor driver 0, output 3.", # D14
+    'H4' : "Motor driver 1, output 0. This pin is also connected to analog input D30 via a 39k/220k potential divider", # D22
+    'H5' : "Motor driver 1, output 1.", # D32
+    'H6' : "Motor driver 1, output 2. This pin is also connected to analog input D28 via a 39k/220k potential divider", # D35
+    'H7' : "Motor driver 1, output 3.", # D34
+
+    'Q0.fet' : "INVERTED. Connected to 500mA FET. When 1, GND on Q0 is pulled low. When 0, GND on Q0 is open circuit",
+    'Q1.fet' : "INVERTED. Connected to 500mA FET. When 1, GND on Q1 is pulled low. When 0, GND on Q1 is open circuit",
   },
+  '_pinfunctions' : {
+    'Q0.scl' : ["ADC1_IN5","3.3"], 
+    'Q0.sda' : ["ADC1_IN1","3.3"],
+    'Q1.scl' : ["ADC1_IN7","3.3"],
+    'Q1.sda' : ["ADC1_IN0","3.3"],
+    'Q2.scl' : ["3.3"], 
+    'Q2.sda' : ["3.3"],
+    'Q2.vcc' : ["3.3"],
+    'Q2.gnd' : ["3.3"],
+    'Q3.scl' : ["3.3"], 
+    'Q3.sda' : ["3.3"],
+    'Q3.vcc' : ["3.3"],
+    'Q3.gnd' : ["3.3"],    
+    'VCC' : ["3.3"]
+  }
 };
 board["_css"] = """
 #board {
-  width: 528px;
-  height: 800px;
+  width: 800px;
+  height: 742px;
   top: 0px;
-  left : 200px;
+  left : 100px;
   background-image: url(img/JOLTJS.jpg);
 }
 #boardcontainer {
-  height: 900px;
+  height: 742px;
 }
 
 #top {
-    top: 100px;
-    left: 0px;
+    top: 106px;
+    left: 272px;
 }
 #bottom {
-    top: 200px;
-    left: 0px;
+    top: 599px;
+    left: 125px;
 }
 #right {
-    top: 200px;
-    left: 500px;
+    top: 536px;
+    left: 714px;
 }
 
+.toppin { width: 13px; }
 .leftpin { height: 17px; }
-.rightpin { height: 17px; }
+.bottompin { width: 52px; }
 """;
 
 def get_pins():
-  pins = pinutils.generate_pins(0,47,"D") + pinutils.generate_pins(0,7,"V"); # 48 General Purpose I/O Pins, 8 virtual pins for IO
+  pins = pinutils.generate_pins(0,47,"D") + pinutils.generate_pins(0,7,"H"); # 48 General Purpose I/O Pins, 8 High power pins
   pinutils.findpin(pins, "PD0", True)["functions"]["XL1"]=0;
   pinutils.findpin(pins, "PD1", True)["functions"]["XL2"]=0;
   pinutils.findpin(pins, "PD5", True)["functions"]["RTS"]=0;
@@ -185,14 +221,26 @@ def get_pins():
   pinutils.findpin(pins, "PD6", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD8", True)["functions"]["NEGATED"]=0;
   pinutils.findpin(pins, "PD41", True)["functions"]["NEGATED"]=0;
-  # Virtual analogs
-  pinutils.findpin(pins, "PV0", True)["functions"]["ADC1_IN2"]=0;
-  pinutils.findpin(pins, "PV2", True)["functions"]["ADC1_IN3"]=0;
-  pinutils.findpin(pins, "PV4", True)["functions"]["ADC1_IN6"]=0;
-  pinutils.findpin(pins, "PV6", True)["functions"]["ADC1_IN4"]=0;
+  # High power analogs
+  pinutils.findpin(pins, "PH0", True)["functions"]["ADC1_IN2"]=0;
+  pinutils.findpin(pins, "PH2", True)["functions"]["ADC1_IN3"]=0;
+  pinutils.findpin(pins, "PH4", True)["functions"]["ADC1_IN6"]=0;
+  pinutils.findpin(pins, "PH6", True)["functions"]["ADC1_IN4"]=0;
+  # renumber high power pins - the idea is despite being 'H' the pins still point to the correct 'real' pin number
+  pinutils.findpin(pins, "PH0", True)["num"] = '17';
+  pinutils.findpin(pins, "PH1", True)["num"] = '15';
+  pinutils.findpin(pins, "PH2", True)["num"] = '13';
+  pinutils.findpin(pins, "PH3", True)["num"] = '14';
+  pinutils.findpin(pins, "PH4", True)["num"] = '22';
+  pinutils.findpin(pins, "PH5", True)["num"] = '32';
+  pinutils.findpin(pins, "PH6", True)["num"] = '25';
+  pinutils.findpin(pins, "PH7", True)["num"] = '34';
+
 
   # everything is non-5v tolerant
   for pin in pins:
-    pin["functions"]["3.3"]=0;
+    if pin["port"]!="H":
+      pin["functions"]["3.3"]=0;
+      pin["functions"]["NO_BLOCKLY"]=0;  # hide in blockly
   #The boot/reset button will function as a reset button in normal operation. Pin reset on PD21 needs to be enabled on the nRF52832 device for this to work.
   return pins

@@ -17,6 +17,7 @@
 #include "jsjit.h"
 #include "jsjitc.h"
 #include "jsinteractive.h"
+#include "jswrapper.h"
 
 #define JSP_ASSERT_MATCH(TOKEN) { assert(0+lex->tk==(TOKEN));jslGetNextToken(); } // Match where if we have the wrong token, it's an internal error
 #define JSP_MATCH_WITH_RETURN(TOKEN, RETURN_VAL) if (!jslMatch((TOKEN))) return RETURN_VAL;
@@ -227,37 +228,70 @@ list and if not either creates (creationOp==LEX_R_VAR/LET/CONST) or
 tries to find it (creationOp==LEX_ID) it in our global scope.
 hasInitialiser=true if an initial value is already on the stack */
 void jsjFactorIDAndUnLock(JsVar *name, LEX_TYPES creationOp) {
+  const int VARINDEX_MASK = 0xFFFF; // mask to return the actual var index
+  const int VARINDEX_NO_NAME = 0x10000; // flag set if we're sure there is no name
   // search for var in our list...
   JsVar *varIndex = jsvFindChildFromVar(jit.vars, name, true/*addIfNotFound*/);
   JsVar *varIndexVal = jsvSkipName(varIndex);
   if (jit.phase == JSJP_SCAN && jsvIsUndefined(varIndexVal)) {
     // We don't have it yet - create a var list entry
-    varIndexVal = jsvNewFromInteger(jit.varCount++);
-    jsvSetValueOfName(varIndex, varIndexVal);
-    jsjcLiteralString(0, name, true); // null terminated string in r0
+    JsjValueType varType = JSJVT_JSVAR;
+    // Now add the code which will create the variable right at the start of the file
     if (creationOp==LEX_ID) { // Just a normal ID
-      jsjcDebugPrintf("; Find Variable %j\n", name);
-      jsjcCall(jspGetNamedVariable); // Find the var in the current scopes (always returns something even if it's jsvNewChild)
+      // See if it's a builtin function, if builtinFunction!=0
+      char tokenName[JSLEX_MAX_TOKEN_LENGTH];
+      size_t tokenL = jsvGetString(name, tokenName, sizeof(tokenName));
+      tokenName[tokenL] = 0; // null termination
+      JsVar *builtin = jswFindBuiltInFunction(0, tokenName);
+      if (jsvIsNativeFunction(builtin)) { // it's a built-in function - just create it in place rather than searching
+        jsjcDebugPrintf("; Native Function %j\n", name);
+        jsjcLiteral32(0, builtin->varData.native.ptr);
+        jsjcLiteral16(1, false, builtin->varData.native.argTypes);
+        jsjcCall(jsvNewNativeFunction); // JsVar *jsvNewNativeFunction(void (*ptr)(void), unsigned short argTypes)
+        varType = JSJVT_JSVAR_NO_NAME;
+      } else if (jsvIsPin(builtin)) { // it's a built-in pin - just create it in place rather than searching
+        jsjcDebugPrintf("; Native Pin %j\n", name);
+        jsjcLiteral32(0, jsvGetInteger(builtin));
+        jsjcCall(jsvNewFromPin); // JsVar *jsvNewNativeFunction(void (*ptr)(void), unsigned short argTypes)
+        varType = JSJVT_JSVAR_NO_NAME;
+      } else { // it's not a builtin function - just search for the variable the normal way
+        jsjcDebugPrintf("; Find Variable %j\n", name);
+        jsjcLiteralString(0, name, true); // null terminated string in r0
+        jsjcCall(jspGetNamedVariable); // Find the var in the current scopes (always returns something even if it's jsvNewChild)
+      }
+      jsvUnLock(builtin);
     } else if (creationOp==LEX_R_VAR || creationOp==LEX_R_LET || creationOp==LEX_R_CONST) {
       jsjcDebugPrintf("; Variable Decl %j\n", name);
+      jsjcLiteralString(0, name, true); // null terminated string in r0
       // _jsxAddVar(r0:name)
       jsjcCall(_jsxAddVar); // add the variable
     } else assert(0);
-    jsjcPush(0, JSJVT_JSVAR); // We're pushing a NAME here
+    jsjcPush(0, varType); // Push the value onto the stack (which will end up being our vars list after SCAN phase)
+    // Now add the index to our list
+    int varIndexNumber = jit.varCount++;
+    if (varType == JSJVT_JSVAR_NO_NAME)
+      varIndexNumber |= VARINDEX_NO_NAME; // if we're sure there's no name
+    varIndexVal = jsvNewFromInteger(varIndexNumber);
+    jsvSetValueOfName(varIndex, varIndexVal);
   }
   // Now, we have the var already - just reference it
   int varIndexI = jsvGetIntegerAndUnLock(varIndexVal);
   if (jit.phase == JSJP_EMIT) {
+    JsjValueType varType = JSJVT_JSVAR;
+    if (varIndexI & VARINDEX_NO_NAME) // decode varType from the flags
+      varType = JSJVT_JSVAR_NO_NAME;
+    varIndexI &= VARINDEX_MASK;
     jsjcDebugPrintf("; Reference var %j\n", name);
     jsjcLoadImm(0, JSJAR_SP, (jit.stackDepth - (varIndexI+1)) * 4);
     jsjcCall(jsvLockAgain);
-    jsjcPush(0, JSJVT_JSVAR); // We're pushing a NAME here
+    jsjcPush(0, varType); // Push, with the type we got from the varIndex flags
   }
   jsvUnLock2(varIndex, name);
 }
 
 void jsjFactorObject() {
   if (jit.phase == JSJP_EMIT) {
+    jsjcDebugPrintf("; New Object\n");
     // create the object
     jsjcCall(jsvNewObject);
     jsjcMov(4, 0); // Store it in r4
@@ -283,9 +317,11 @@ void jsjFactorObject() {
     jsjAssignmentExpression();
     if (jit.phase == JSJP_EMIT) {
       varName = jsvAsArrayIndexAndUnLock(varName);
+      jsjcDebugPrintf("; New Object field %j\n", varName);
+      jsjPopNoName(5); // r2 = array item
       jsjJsVar(1, varName); // r1 = index
+      jsjcMov(2, 5); // r2 = array item
       jsjcMov(0, 4); // r0 = array
-      jsjPopNoName(2); // r2 = array item
       jsjcCall(_jsxObjectNewElement);
     }
     jsvUnLock(varName);
@@ -314,9 +350,9 @@ void jsjFactorArray() {
     if (lex->tk != ',') { // #287 - [,] and [1,2,,4] are allowed
       jsjAssignmentExpression();
       if (jit.phase == JSJP_EMIT) {
-        jsjcMov(0, 4); // r0 = array
-        jsjcLiteral32(1, idx); // r1 = index
         jsjPopNoName(2); // r2 = array item
+        jsjcLiteral32(1, idx); // r1 = index
+        jsjcMov(0, 4); // r0 = array
         jsjcCall(_jsxArrayNewElement);
       }
     }
@@ -1110,7 +1146,7 @@ JsVar *jsjParseFunction() {
   // Function init code
   jsjFunctionStart();
   // Parse the function
-  size_t codeStartPosition = lex->tokenLastStart;
+  size_t codeStartPosition = lex->tokenStart; // otherwise we include 'jit' too!
   jit.phase = JSJP_SCAN; DEBUG_JIT("; ============ SCAN PHASE\n");
   jsjBlockNoBrackets();
   if (JSJ_PARSING) { // if no error, re-parse and create code
@@ -1123,6 +1159,8 @@ JsVar *jsjParseFunction() {
       DEBUG_JIT_EMIT("; END of function - return undefined\n");
       jsjcLiteral32(0, 0);
       jsjFunctionReturn(false/*isReturnStatement*/);
+    } else {
+      jit.stackDepth -= jit.varCount; // jsjFunctionReturn would have pulled these off the stack anyway
     }
   }
   JsVar *v = jsjcStop();
@@ -1138,8 +1176,7 @@ JsVar *jsjParseFunction() {
       jsvUnLock(stackTrace);
     }
   }
-  jsvUnLock(exception);
-  jsvUnLock(v);
+  jsvUnLock2(exception, v);
   return 0;
 }
 

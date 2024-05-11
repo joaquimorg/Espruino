@@ -142,11 +142,11 @@ JsVar *jswrap_url_parse(JsVar *url, bool parseQuery) {
 
   JsVar *v;
 
-  v = jsvNewFromStringVar(url, (size_t)pathStart, JSVAPPENDSTRINGVAR_MAXLENGTH);
+  v = jsvNewWritableStringFromStringVar(url, (size_t)pathStart, JSVAPPENDSTRINGVAR_MAXLENGTH);
   if (jsvGetStringLength(v)==0) jsvAppendString(v, "/");
   jsvObjectSetChildAndUnLock(obj, "path", v);
 
-  v = jsvNewFromStringVar(url, (size_t)pathStart, (size_t)((searchStart>=0)?(searchStart-pathStart):JSVAPPENDSTRINGVAR_MAXLENGTH));
+  v = jsvNewWritableStringFromStringVar(url, (size_t)pathStart, (size_t)((searchStart>=0)?(searchStart-pathStart):JSVAPPENDSTRINGVAR_MAXLENGTH));
   if (jsvGetStringLength(v)==0) jsvAppendString(v, "/");
   jsvObjectSetChildAndUnLock(obj, "pathname", v);
 
@@ -169,7 +169,7 @@ JsVar *jswrap_url_parse(JsVar *url, bool parseQuery) {
       if (ch=='&') {
         if (jsvGetStringLength(key)>0 || jsvGetStringLength(val)>0) {
           key = jsvAsArrayIndexAndUnLock(key); // make sure "0" gets made into 0
-          jsvMakeIntoVariableName(key, val);
+          key = jsvMakeIntoVariableName(key, val);
           jsvAddName(query, key);
           jsvUnLock2(key, val);
           key = jsvNewFromEmptyString();
@@ -196,7 +196,7 @@ JsVar *jswrap_url_parse(JsVar *url, bool parseQuery) {
 
     if (jsvGetStringLength(key)>0 || jsvGetStringLength(val)>0) {
       key = jsvAsArrayIndexAndUnLock(key); // make sure "0" gets made into 0
-      jsvMakeIntoVariableName(key, val);
+      key = jsvMakeIntoVariableName(key, val);
       jsvAddName(query, key);
     }
     jsvUnLock2(key, val);
@@ -416,7 +416,7 @@ JsVar *jswrap_net_connect(JsVar *options, JsVar *callback, SocketType socketType
   if ((socketType&ST_TYPE_MASK) == ST_UDP) {
     JsNetwork net;
     if (networkGetFromVar(&net)) {
-      int recvBufferSize = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(options, "recvBufferSize"));
+      int recvBufferSize = jsvObjectGetIntegerChild(options, "recvBufferSize");
       if (recvBufferSize > net.data.recvBufferSize) {
         net.data.recvBufferSize = recvBufferSize;
         networkSet(&net);

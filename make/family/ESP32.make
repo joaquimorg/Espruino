@@ -6,7 +6,8 @@ ESP32=1
 
 CFLAGS+=-Og -Wpointer-arith -Wno-error=unused-function -Wno-error=unused-but-set-variable \
 -Wno-error=unused-variable -Wall -ffunction-sections -fdata-sections -mlongcalls -nostdlib \
--MMD -MP -std=gnu99 -fstrict-volatile-bitfields -fgnu89-inline -mfix-esp32-psram-cache-issue
+-MMD -MP -fstrict-volatile-bitfields -fgnu89-inline -mfix-esp32-psram-cache-issue
+CFLAGS_C_COMPILER += -std=gnu99
 SOURCES += targets/esp32/jshardware.c \
 targets/esp32/jshardwareESP32.c \
 targets/esp32/esp32_neopixel.c
@@ -152,9 +153,9 @@ INCLUDE+= -I$(ESP_IDF_PATH)/components/bt/bluedroid/include \
 -I$(ESP_IDF_PATH)/components/bt/bluedroid/api/include/api \
 -I$(ESP_IDF_PATH)/components/bt/bluedroid/stack/include \
 -I$(ESP_IDF_PATH)/components/bt/bluedroid/stack/gatt/include \
--I$(ESP_IDF_PATH)/components/bt/bluedroid/osi/include 
+-I$(ESP_IDF_PATH)/components/bt/bluedroid/osi/include
 LDFLAGS+= -L$(ESP_APP_TEMPLATE_PATH)/build/components/bt/bluedroid/api \
--L$(ESP_APP_TEMPLATE_PATH)/build/components/bt/bluedroid/bta 
+-L$(ESP_APP_TEMPLATE_PATH)/build/components/bt/bluedroid/bta
 endif
 
-FLASH_BAUD          ?= 921600 # The flash baud rate
+

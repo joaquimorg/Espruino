@@ -816,7 +816,10 @@ static uint32_t jsfBankFindFile(uint32_t bankAddress, uint32_t bankEndAddress, J
 
 /// Find a 'file' in the memory store. Return the address of data start (and header if returnedHeader!=0). Returns 0 if not found
 uint32_t jsfFindFile(JsfFileName name, JsfFileHeader *returnedHeader) {
-  char drive = jsfStripDriveFromName(&name, true/* ensure we search both drive if not explicitly requested */);
+#ifdef JSF_BANK2_START_ADDRESS
+  char drive =
+#endif
+    jsfStripDriveFromName(&name, true/* ensure we search both drive if not explicitly requested */);
   uint32_t a = jsfCacheFind(name, returnedHeader);
   if (a!=JSF_CACHE_NOT_FOUND) return a;
   JsfFileHeader header;
@@ -1216,7 +1219,7 @@ uint32_t jsfHashFiles(JsVar *regex, JsfFileFlags containing, JsfFileFlags notCon
 // Get a hash of the current Git commit, so new builds won't load saved code
 static uint32_t getBuildHash() {
 #ifdef GIT_COMMIT
-  const unsigned char *s = (unsigned char*)STRINGIFY(GIT_COMMIT);
+  const unsigned char *s = (unsigned char*)ESPR_STRINGIFY(GIT_COMMIT);
   uint32_t hash = 0;
   while (*s)
     hash = (hash<<1) ^ *(s++);
@@ -1454,7 +1457,6 @@ void jsfResetStorage() {
   jsiConsolePrintf("Erase complete.\n");
 #if ESPR_STORAGE_INITIAL_CONTENTS
   // if we store initial contents, write them here after erasing storage
-  jsiConsolePrintf("Writing initial storage contents...\n");
   extern const unsigned char jsfStorageInitialContents[];
   extern const int jsfStorageInitialContentLength;
   if (jsfStorageInitialContentLength<FLASH_SAVED_CODE_LENGTH) {

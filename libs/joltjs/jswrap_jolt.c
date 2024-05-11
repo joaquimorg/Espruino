@@ -37,29 +37,24 @@ See https://docs.google.com/document/d/1Tw7fUkpj9dwBYASBCX9TjPcpgdqEw_7VL6MSRqVU
 #include "bluetooth.h"
 #include "app_timer.h"
 
-/// Analog pins assigned to each IO output
-const char outputAnalogs[8] = { 4, 0, 5, 0, 30, 0, 28, 0 };
-/// Digital output pins connected to each driver
-const char outputDriver[8] = { 17, 15, 13, 14, 22, 32, 25, 32+2 };
-
-#define DRIVER0_NSLEEP_PININDEX 21
-#define DRIVER0_NFAULT_PININDEX 19
-#define DRIVER0_SDA_MODE_PININDEX 16
-#define DRIVER0_SCL_TRQ_PININDEX 12
-
-#define DRIVER1_NSLEEP_PININDEX 23
-#define DRIVER1_NFAULT_PININDEX 19
-#define DRIVER1_SDA_MODE_PININDEX 24
-#define DRIVER1_SCL_TRQ_PININDEX (32+3)
+/// IO pins on Qwiic headers - check for shorts
+const Pin JOLT_IO_PINS[] = {
+  3,29,7,  // q0
+  2,31,27, // q1
+  44,45,36,43, // q2
+  39,38,37,42  // q3
+};
 
 typedef enum {
+  JDM_AUTO,    // Automatic (JDM_OUTPUT whenever a pin is set as output mode)
+  JDM_AUTO_ON, // Automatic (currently on)
   JDM_OFF,
   JDM_OUTPUT, // Independent bridge
   JDM_MOTOR,   // 4 pin
   JDM_UNKNOWN  // just used when parsing to show we don't know
 } JoltDriverMode;
-
-JoltDriverMode driverMode[2];
+#define DRIVERCOUNT 2
+JoltDriverMode driverMode[DRIVERCOUNT];
 
 /*JSON{
   "type": "class",
@@ -77,14 +72,29 @@ void setJoltProperty(const char *name, JsVar* prop) {
 }
 
 /*JSON{
-  "type" : "staticproperty",
-  "class" : "Jolt",
+  "type" : "variable",
   "name" : "Q0",
+  "ifdef" : "JOLTJS",
   "generate" : "jswrap_jolt_q0",
   "return" : ["JsVar","An object containing the pins for the Q0 connector on Jolt.js `{sda,scl,fet}`"],
   "return_object" : "Qwiic"
 }
-`Q0` and `Q1` Qwiic connectors can have their power controlled by a 500mA FET connected to GND.
+`Q0` and `Q1` Qwiic connectors can have their power controlled by a 500mA FET (`Q0.fet`) which switches GND.
+
+The `sda` and `scl` pins on this port are also analog inputs - use `analogRead(Q0.sda)`/etc
+
+To turn this connector on run `Q0.setPower(1)`
+*/
+/*JSON{
+  "type" : "staticproperty",
+  "class" : "Jolt",
+  "name" : "Q0",
+  "ifdef" : "JOLTJS",
+  "generate" : "jswrap_jolt_q0",
+  "return" : ["JsVar","An object containing the pins for the Q0 connector on Jolt.js `{sda,scl,fet}`"],
+  "return_object" : "Qwiic"
+}
+`Q0` and `Q1` Qwiic connectors can have their power controlled by a 500mA FET (`Jolt.Q0.fet`) which switches GND.
 
 The `sda` and `scl` pins on this port are also analog inputs - use `analogRead(Jolt.Q0.sda)`/etc
 
@@ -101,14 +111,29 @@ JsVar *jswrap_jolt_q0() {
 }
 
 /*JSON{
-  "type" : "staticproperty",
-  "class" : "Jolt",
+  "type" : "variable",
   "name" : "Q1",
+  "ifdef" : "JOLTJS",
   "generate" : "jswrap_jolt_q1",
   "return" : ["JsVar","An object containing the pins for the Q1 connector on Jolt.js `{sda,scl,fet}`"],
   "return_object" : "Qwiic"
 }
-`Q0` and `Q1` Qwiic connectors can have their power controlled by a 500mA FET connected to GND.
+`Q0` and `Q1` Qwiic connectors can have their power controlled by a 500mA FET (`Q1.fet`) which switches GND.
+
+The `sda` and `scl` pins on this port are also analog inputs - use `analogRead(Q1.sda)`/etc
+
+To turn this connector on run `Q1.setPower(1)`
+*/
+/*JSON{
+  "type" : "staticproperty",
+  "class" : "Jolt",
+  "name" : "Q1",
+  "ifdef" : "JOLTJS",
+  "generate" : "jswrap_jolt_q1",
+  "return" : ["JsVar","An object containing the pins for the Q1 connector on Jolt.js `{sda,scl,fet}`"],
+  "return_object" : "Qwiic"
+}
+`Q0` and `Q1` Qwiic connectors can have their power controlled by a 500mA FET  (`Jolt.Q1.fet`) which switches GND.
 
 The `sda` and `scl` pins on this port are also analog inputs - use `analogRead(Jolt.Q1.sda)`/etc
 
@@ -125,9 +150,23 @@ JsVar *jswrap_jolt_q1() {
 }
 
 /*JSON{
+  "type" : "variable",
+  "name" : "Q2",
+  "ifdef" : "JOLTJS",
+  "generate" : "jswrap_jolt_q2",
+  "return" : ["JsVar","An object containing the pins for the Q2 connector on Jolt.js `{sda,scl,gnd,vcc}`"],
+  "return_object" : "Qwiic"
+}
+`Q2` and `Q3` have all 4 pins connected to Jolt.js's GPIO (including those usually used for power).
+As such only around 8mA of power can be supplied to any connected device.
+
+To use this as a normal Qwiic connector, run `Q2.setPower(1)`
+*/
+/*JSON{
   "type" : "staticproperty",
   "class" : "Jolt",
   "name" : "Q2",
+  "ifdef" : "JOLTJS",
   "generate" : "jswrap_jolt_q2",
   "return" : ["JsVar","An object containing the pins for the Q2 connector on Jolt.js `{sda,scl,gnd,vcc}`"],
   "return_object" : "Qwiic"
@@ -149,9 +188,23 @@ JsVar *jswrap_jolt_q2() {
 }
 
 /*JSON{
+  "type" : "variable",
+  "name" : "Q3",
+  "ifdef" : "JOLTJS",
+  "generate" : "jswrap_jolt_q3",
+  "return" : ["JsVar","An object containing the pins for the Q3 connector on Jolt.js `{sda,scl,gnd,vcc}`"],
+  "return_object" : "Qwiic"
+}
+`Q2` and `Q3` have all 4 pins connected to Jolt.js's GPIO (including those usually used for power).
+As such only around 8mA of power can be supplied to any connected device.
+
+To use this as a normal Qwiic connector, run `Q3.setPower(1)`
+*/
+/*JSON{
   "type" : "staticproperty",
   "class" : "Jolt",
   "name" : "Q3",
+  "ifdef" : "JOLTJS",
   "generate" : "jswrap_jolt_q3",
   "return" : ["JsVar","An object containing the pins for the Q3 connector on Jolt.js `{sda,scl,gnd,vcc}`"],
   "return_object" : "Qwiic"
@@ -172,10 +225,53 @@ JsVar *jswrap_jolt_q3() {
   return o;
 }
 
+
+/// Actually sets the driver mode
+static void _jswrap_jolt_setDriverMode_int(int driver, JoltDriverMode dMode) {
+  if (driver==0) {
+    if (dMode == JDM_OUTPUT)
+      jshPinSetState(DRIVER0_PIN_MODE, JSHPINSTATE_GPIO_IN); // Z for independent bridge
+    else
+      jshPinOutput(DRIVER0_PIN_MODE, 0); // 0 for 4 pin interface
+    jshPinOutput(DRIVER0_PIN_NSLEEP, dMode != JDM_OFF);
+  } else if (driver==1) {
+    if (dMode == JDM_OUTPUT)
+      jshPinSetState(DRIVER1_PIN_MODE, JSHPINSTATE_GPIO_IN); // Z for independent bridge
+    else
+      jshPinOutput(DRIVER1_PIN_MODE, 0); // 0 for 4 pin interface
+    jshPinOutput(DRIVER1_PIN_NSLEEP, dMode != JDM_OFF);
+  } else assert(0);
+}
+
+/// Called when drivermode=auto to figure out when to turn the driver on
+static void _jswrap_jolt_autoDriverMode(int driver) {
+  assert((driver>=0) && (driver<2));
+  // check the state of the 4 pins
+  bool pinIsOutput = false; // set if >0 pins are outputs
+  Pin pinBase = JSH_PORTH_OFFSET + driver*4;
+  for (int i=0;i<4;i++) {
+    uint32_t ipin = (uint32_t)pinInfo[pinBase + i].pin;
+    NRF_GPIO_Type *reg = nrf_gpio_pin_port_decode(&ipin);
+    if ((reg->PIN_CNF[ipin] & GPIO_PIN_CNF_DIR_Msk) ==
+        (GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos))
+      pinIsOutput = true;
+  }
+  // update driver state if different
+  bool isCurrentlyOn = driverMode[driver] == JDM_AUTO_ON;
+  if (pinIsOutput != isCurrentlyOn) {
+    //jsiConsolePrintf("autoDriverMode %d %d\n", driver, pinIsOutput);
+    if (pinIsOutput) driverMode[driver] = JDM_AUTO_ON;
+    else driverMode[driver] = JDM_AUTO;
+    _jswrap_jolt_setDriverMode_int(driver, pinIsOutput ? JDM_OUTPUT : JDM_OFF);
+  }
+}
+
+
 /*JSON{
   "type" : "staticmethod",
   "class" : "Jolt",
   "name" : "setDriverMode",
+  "ifdef" : "JOLTJS",
   "generate" : "jswrap_jolt_setDriverMode",
   "params" : [
     ["driver","int","The number of the motor driver (0 or 1)"],
@@ -183,20 +279,23 @@ JsVar *jswrap_jolt_q3() {
   ]
 }
 Sets the mode of the motor drivers. Jolt.js has two motor drivers,
-one (`0`) for outputs 0..3, and one (`1`) for outputs 4..7. They
+one (`0`) for outputs H0..H3, and one (`1`) for outputs H4..H7. They
 can be controlled independently.
 
 Mode can be:
 
-* `undefined` / `false` / `"off"` - the motor driver is off, all motor driver pins are open circuit
-* `true` / `"output"` - **[recommended]** driver is set to "Independent bridge" mode. All 4 outputs are enabled and are either
-* `"motor"` - driver is set to "4 pin interface" mode where pins are paired up (V0+V1, V2+V3, etc). If both
+* `undefined` / `false` / `"off"` - the motor driver is off, all motor driver pins are open circuit (the motor driver still has a ~2.5k pulldown to GND)
+* `"auto"` - (default) - if any pin in the set of 4 pins (H0..H3, H4..H7) is set as an output, the driver is turned on. Eg `H0.set()` will
+turn the driver on with a high output, `H0.reset()` will pull the output to GND and `H0.read()` (or `H0.mode("input")` to set the state explicitly) is needed to
+turn the motor driver off.
+* `true` / `"output"` - **[recommended]** driver is set to "Independent bridge" mode. All 4 outputs in the bank are enabled
+* `"motor"` - driver is set to "4 pin interface" mode where pins are paired up (H0+H1, H2+H3, etc). If both
 in a pair are 0 the output is open circuit (motor coast), if both are 1 both otputs are 0 (motor brake), and
 if both are different, those values are on the output:
 
-`output` mode:
+`output`/`auto` mode:
 
-| V0 | V1 | Out 0 | Out 1 |
+| H0 | H1 | Out 0 | Out 1 |
 |----|----|-------|-------|
 | 0  | 0  | Low   | Low   |
 | 0  | 1  | Low   | High  |
@@ -205,7 +304,7 @@ if both are different, those values are on the output:
 
 `motor` mode
 
-| V0 | V1 | Out 0 | Out 1 |
+| H0 | H1 | Out 0 | Out 1 |
 |----|----|-------|-------|
 | 0  | 0  | Open  | Open  |
 | 0  | 1  | Low   | High  |
@@ -214,6 +313,7 @@ if both are different, those values are on the output:
 
 
 */
+
 void jswrap_jolt_setDriverMode(int driver, JsVar *mode) {
   if (driver<0 || driver>1) {
     jsExceptionHere(JSET_ERROR, "Invalid driver %d", driver);
@@ -224,68 +324,29 @@ void jswrap_jolt_setDriverMode(int driver, JsVar *mode) {
     dMode = jsvGetBool(mode) ? JDM_OUTPUT : JDM_OFF;
   } else if (jsvIsString(mode)) {
     if (jsvIsStringEqual(mode, "off")) dMode = JDM_OFF;
-    if (jsvIsStringEqual(mode, "output")) dMode = JDM_OUTPUT;
-    if (jsvIsStringEqual(mode, "motor")) dMode = JDM_MOTOR;
+    else if (jsvIsStringEqual(mode, "auto")) dMode = JDM_AUTO;
+    else if (jsvIsStringEqual(mode, "output")) dMode = JDM_OUTPUT;
+    else if (jsvIsStringEqual(mode, "motor")) dMode = JDM_MOTOR;
   }
   if (dMode == JDM_UNKNOWN) {
     jsExceptionHere(JSET_ERROR, "Unknown driver mode %q", mode);
     return;
   }
   driverMode[driver] = dMode;
-  if (driver==0) {
-    if (dMode == JDM_OUTPUT)
-      jshPinSetState(DRIVER0_SDA_MODE_PININDEX, JSHPINSTATE_GPIO_IN); // Z for independent bridge
-    else
-      jshPinOutput(DRIVER0_SDA_MODE_PININDEX, 0); // 0 for 4 pin interface
-    jshPinOutput(DRIVER0_NSLEEP_PININDEX, dMode != JDM_OFF);
-  } else if (driver==1) {
-    if (dMode == JDM_OUTPUT)
-      jshPinSetState(DRIVER1_SDA_MODE_PININDEX, JSHPINSTATE_GPIO_IN); // Z for independent bridge
-    else
-      jshPinOutput(DRIVER1_SDA_MODE_PININDEX, 0); // 0 for 4 pin interface
-    jshPinOutput(DRIVER1_NSLEEP_PININDEX, dMode != JDM_OFF);
-  }
+  if (dMode==JDM_AUTO) {
+    _jswrap_jolt_setDriverMode_int(driver, JDM_OFF); // turn off
+    _jswrap_jolt_autoDriverMode(driver); // now let autoDriverMode update
+  } else
+    _jswrap_jolt_setDriverMode_int(driver, dMode);
+}
+
+static void jswrap_jolt_setDriverMode_(int driver, bool mode) {
+  JsVar *b = jsvNewFromBool(mode);
+  jswrap_jolt_setDriverMode(driver,b);
+  jsvUnLock(b);
 }
 
 
-
-void jshVirtualPinInitialise() {
-  // ensure motor drivers are off
-  jshPinOutput(DRIVER0_NSLEEP_PININDEX, 0);
-  jshPinOutput(DRIVER1_NSLEEP_PININDEX, 0);
-  driverMode[0] = JDM_OFF;
-  driverMode[1] = JDM_OFF;
-  // set all outputs to 0 by default
-  for (int i=0;i<8;i++)
-    jshPinOutput(outputDriver[i], 0);
-}
-
-void jshVirtualPinSetValue(Pin pin, bool state) {
-  int p = pinInfo[pin].pin;
-  jshPinSetValue(outputDriver[p], state);
-}
-
-bool jshVirtualPinGetValue(Pin pin) {
-   int p = pinInfo[pin].pin;
-  jshPinGetValue(outputDriver[p]);
-}
-
-JsVarFloat jshVirtualPinGetAnalogValue(Pin pin) {
-  int p = pinInfo[pin].pin;
-  if (outputAnalogs[p]==0) return NAN;
-  return jshPinAnalog(outputAnalogs[p]); // FIXME: times some multiplier to get voltage??
-}
-
-void jshVirtualPinSetState(Pin pin, JshPinState state) {
-  int p = pinInfo[pin].pin;
-  //if (JSHPINSTATE_IS_OUTPUT(state)) ...
-}
-
-JshPinState jshVirtualPinGetState(Pin pin) {
-  return JSHPINSTATE_UNDEFINED;
-}
-
-/*
 static bool selftest_check_pin(Pin pin, char *err) {
   unsigned int i;
   char pinStr[4];
@@ -333,12 +394,13 @@ static bool selftest_check_pin(Pin pin, char *err) {
   jshPinSetState(pin, JSHPINSTATE_GPIO_IN);
   return ok;
 }
-*/
+
 
 /*JSON{
     "type" : "staticmethod",
     "class" : "Jolt",
     "name" : "selfTest",
+    "ifdef" : "JOLTJS",
     "generate" : "jswrap_jolt_selfTest",
     "return" : ["bool", "True if the self-test passed" ]
 }
@@ -354,7 +416,7 @@ If the self test fails, it'll set the Jolt.js Bluetooth advertising name to
 `Jolt.js !ERR` where ERR is a 3 letter error code.
 */
 bool _jswrap_jolt_selfTest(bool advertisePassOrFail) {
-  unsigned int timeout, i;
+  unsigned int timeout;
   JsVarFloat v;
   bool ok = true;
   char err[4] = {0,0,0,0};
@@ -379,6 +441,12 @@ bool _jswrap_jolt_selfTest(bool advertisePassOrFail) {
   jshPinInput(LED3_PININDEX);
   nrf_delay_ms(500);
 
+  v = jshReadVRef();
+  if (v<3.2 || v>3.4) {
+    if (!err[0]) strcpy(err,"VRG");
+    jsiConsolePrintf("VREG out of range (%fv)\n", v);
+    ok = false;
+  }
 
   jshPinSetState(LED1_PININDEX, JSHPINSTATE_GPIO_IN_PULLUP);
   nrf_delay_ms(1);
@@ -411,7 +479,42 @@ bool _jswrap_jolt_selfTest(bool advertisePassOrFail) {
   }
 
 
-  //ok &= selftest_check_pin(1,err);
+  jswrap_jolt_setDriverMode_(0,true);
+  jswrap_jolt_setDriverMode_(1,true);
+  // test every pin on the motor driver one at a time
+  for (int i=0;i<8;i++) {
+    for (int p=0;p<8;p++)
+      jshPinSetValue(JSH_PORTH_OFFSET+p, p == i);
+    nrf_delay_ms(5);
+    // we can only read H0/2/4/8
+    for (int p=0;p<8;p+=2) {
+      v = jshPinAnalog(JSH_PORTH_OFFSET+p);
+      if (i==p) {
+        if (v<2) {
+          if (!err[0]) { strcpy(err,"OLx"); err[2]='0'+i; }
+          jsiConsolePrintf("H%d low (%f) when H%d set\n", p, v, i);
+          ok = false;
+        }
+      } else {
+        if (v>1) {
+          if (!err[0]) { strcpy(err,"OHx"); err[2]='0'+i; }
+          jsiConsolePrintf("H%d high (%f) when H%d set\n", p, v, i);
+          ok = false;
+        }
+      }
+    }
+  }
+  // all drivers off
+  for (int p=0;p<8;p++)
+    jshPinSetValue(JSH_PORTH_OFFSET+p, 0);
+  jswrap_jolt_setDriverMode_(0,false);
+  jswrap_jolt_setDriverMode_(1,false);
+
+  // TODO: what about checking motor drivers if there's a short using nFault pins?
+  for (unsigned int i=0;i<sizeof(JOLT_IO_PINS)/sizeof(Pin);i++)
+    selftest_check_pin(JOLT_IO_PINS[i], err);
+  for (unsigned int i=0;i<sizeof(JOLT_IO_PINS)/sizeof(Pin);i++)
+    jshPinSetState(JOLT_IO_PINS[i], JSHPINSTATE_GPIO_IN);
 
   if (err[0] || advertisePassOrFail) {
     char deviceName[BLE_GAP_DEVNAME_MAX_LEN];
@@ -441,6 +544,33 @@ bool jswrap_jolt_selfTest() {
 }
 
 /*JSON{
+  "type" : "hwinit",
+  "generate" : "jswrap_jolt_hwinit"
+}*/
+void jswrap_jolt_hwinit() {
+  // ensure motor drivers are off
+  jshPinOutput(DRIVER0_PIN_NSLEEP, 0);
+  jshPinOutput(DRIVER1_PIN_NSLEEP, 0);
+  jshPinOutput(DRIVER0_PIN_MODE, 0);
+  jshPinOutput(DRIVER1_PIN_MODE, 0);
+  jshPinOutput(DRIVER0_PIN_TRQ, 0);
+  jshPinOutput(DRIVER1_PIN_TRQ, 0);
+  jshPinSetState(DRIVER0_PIN_NFAULT, JSHPINSTATE_GPIO_IN_PULLUP);
+  jshPinSetState(DRIVER1_PIN_NFAULT, JSHPINSTATE_GPIO_IN_PULLUP);
+  driverMode[0] = JDM_AUTO;
+  driverMode[1] = JDM_AUTO;
+  // set all outputs to 0 by default
+  jshPinOutput(DRIVER0_PIN_D0, 0);
+  jshPinOutput(DRIVER0_PIN_D1, 0);
+  jshPinOutput(DRIVER0_PIN_D2, 0);
+  jshPinOutput(DRIVER0_PIN_D3, 0);
+  jshPinOutput(DRIVER1_PIN_D0, 0);
+  jshPinOutput(DRIVER1_PIN_D1, 0);
+  jshPinOutput(DRIVER1_PIN_D2, 0);
+  jshPinOutput(DRIVER1_PIN_D3, 0);
+}
+
+/*JSON{
   "type" : "init",
   "generate" : "jswrap_jolt_init"
 }*/
@@ -450,20 +580,14 @@ void jswrap_jolt_init() {
    * With bootloader this means apply power while holding button for >3 secs */
   bool firstStart = jsiStatus & JSIS_FIRST_BOOT; // is this the first time jswrapjolt_init was called?
   bool firstRunAfterFlash = false;
+  uint32_t firstStartFlagAddr = FLASH_SAVED_CODE_START-4;
   if (firstStart) {
-    uint32_t firstStartFlagAddr = FLASH_SAVED_CODE_START-4;
     // check the 4 bytes *right before* our saved code. If these are 0xFFFFFFFF
     // then we have just been programmed...
     uint32_t buf;
     jshFlashRead(&buf, firstStartFlagAddr, 4);
     if (buf==0xFFFFFFFF) {
       firstRunAfterFlash = true;
-      buf = 0;
-      // set it to 0!
-      bool oldFlashStatus = jsfGetFlag(JSF_UNSAFE_FLASH);
-      jsfSetFlag(JSF_UNSAFE_FLASH, true);
-      jshFlashWrite(&buf, firstStartFlagAddr, 4);
-      jsfSetFlag(JSF_UNSAFE_FLASH, oldFlashStatus);
     }
   }
 
@@ -472,6 +596,14 @@ void jswrap_jolt_init() {
     // if we're doing our first run after being flashed with new firmware, we set the advertising name
     // up to say PASS or FAIL, to work with the factory test process.
     bool result = _jswrap_jolt_selfTest(firstRunAfterFlash);
+    // if we passed, set the flag in flash so we don't self-test again
+    if (firstRunAfterFlash && result) {
+      uint32_t buf = 0;
+      bool oldFlashStatus = jsfGetFlag(JSF_UNSAFE_FLASH);
+      jsfSetFlag(JSF_UNSAFE_FLASH, true);
+      jshFlashWrite(&buf, firstStartFlagAddr, 4);
+      jsfSetFlag(JSF_UNSAFE_FLASH, oldFlashStatus);
+    }
     // green if good, red if bad
     Pin indicator = result ? LED2_PININDEX : LED1_PININDEX;
     int i;
@@ -495,8 +627,8 @@ void jswrap_jolt_init() {
 }*/
 void jswrap_jolt_kill() {
   // ensure motor drivers are off
-  jshPinOutput(DRIVER0_NSLEEP_PININDEX, 0);
-  jshPinOutput(DRIVER1_NSLEEP_PININDEX, 0);
+  jshPinOutput(DRIVER0_PIN_NSLEEP, 0);
+  jshPinOutput(DRIVER1_PIN_NSLEEP, 0);
 }
 
 /*JSON{
@@ -505,5 +637,32 @@ void jswrap_jolt_kill() {
 }*/
 bool jswrap_jolt_idle() {
   bool busy = false;
+  // handle automatic driver mode
+  for (int i=0;i<DRIVERCOUNT;i++) {
+    if (driverMode[i]==JDM_AUTO || driverMode[i]==JDM_AUTO_ON)
+      _jswrap_jolt_autoDriverMode(i);
+  }
   return busy;
+}
+
+
+/*JSON{
+  "type" : "powerusage",
+  "generate" : "jswrap_jolt_powerusage"
+}*/
+void jswrap_jolt_powerusage(JsVar *devices) {
+  if (!(driverMode[0]==JDM_OFF || driverMode[0]==JDM_AUTO))
+    jsvObjectSetChildAndUnLock(devices, "driver0", jsvNewFromInteger(1000));
+  if (!(driverMode[1]==JDM_OFF || driverMode[1]==JDM_AUTO))
+    jsvObjectSetChildAndUnLock(devices, "driver1", jsvNewFromInteger(1000));
+  int v;
+  v = (int)(jshPinAnalog(JSH_PORTH_OFFSET+0) * 400);
+  if (v>10) jsvObjectSetChildAndUnLock(devices, "pin0_internal_resistance", jsvNewFromInteger(v));
+  v = (int)(jshPinAnalog(JSH_PORTH_OFFSET+2) * 400);
+  if (v>10) jsvObjectSetChildAndUnLock(devices, "pin2_internal_resistance", jsvNewFromInteger(v));
+  v = (int)(jshPinAnalog(JSH_PORTH_OFFSET+4) * 400);
+  if (v>10) jsvObjectSetChildAndUnLock(devices, "pin4_internal_resistance", jsvNewFromInteger(v));
+  v = (int)(jshPinAnalog(JSH_PORTH_OFFSET+6) * 400);
+  if (v>10) jsvObjectSetChildAndUnLock(devices, "pin6_internal_resistance", jsvNewFromInteger(v));
+
 }

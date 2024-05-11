@@ -1,3 +1,50 @@
+          : Graphics: Ensure floodFill sets modified area correctly
+            nRF52: Lower expected BLE XTAL accuracy to 50ppm (can improve BLE stability on some Bangle.js 2)
+            Emulator: force stack alignment of 'data' variable when accessing ArrayBuffers (fix #2463)
+            Swapped GCC version from 8.2.1 to 13.2.1 (fix #2455)
+            nRF52: Write flash in 2k blocks (not 4k) as SD 6.1.1 can crash (probably good for earlier SD too)
+            g.wrapString fix issues wrapping long words in UTF8 strings over multiple lines
+            Bangle.js2: Fix parsing of UTF8 strings containing char codes 0xF5..0xFF (which are not valid UTF8)
+            nRF52: Added window/interval arguments to NRF.setScan (default was 100ms)
+            nRF52840: setScan({... phy:"both"}) now means coded+1mbps (ref #2465)
+            Added 'globalThis' var as it's the ECMAScript version of Node.js's 'global'
+            Bangle.js: Bangle.setUI's back widget now uses stopEventPropagation to stop other touch handlers getting called
+            Improvements to Stepper module (default to absolute movement)
+            Throw error if there's an attempt to use Tagged Templates (fix #2475)
+            For built-in symbols, pack string offset inside function pointer, saving 2 bytes/symbol if ESPR_PACKED_SYMPTR set (fix #2405)
+            Graphics: font metrics for PBF now account for scale, setFontPBF takes a scale argument, 'PBF' no longer appears in getFonts
+            Ensure require("Storage").writeJSON("test.json", new Date()) writes `Date.toISOString()` as in JSON.stringify and 2v19+earlier
+            E.toJSON now uses `.toJSON` function if available on object
+            Puck.js/Jolt.js: ensure self-test keeps re-running at boot unless it has passed
+            Bangle.js: Locale currency deprecated, 'number' updated to BangleApps version with thousands separator, date now doesn't sometimes have trailing spaces
+            Bangle.js: 6x15 font tweaks for ISO8859-1
+            Bangle.js2: Fix 'UNFINISHED STRING' error if non-UTF8 char within UTF8 start char range is at end of string
+            Bangle.js2: Add Bangle.setOptions({lcdDoubleRefresh:true}) to pulse EXTCOMIN for LCD twice, avoiding contrast 'toggle' effect when viewing LCD off axis
+            Graphics: Fix wrapString when attempting to wrap text containing an image that's too large for the wrappable area (fix #2481)
+            Add String.replaceAll to allow all occurrances of a string to be replaced (previously .replace(/substr/g, "") had to be used)
+            Jolt.js: Jolt.Q0/1/2/3 now available as global vars (Q0/1/2/3)
+            Storage.readJSON will now read numeric field names like "{1:1}" which can be produced by writeJSON (fix #2484)
+            Ensure `Bangle.load(".bootcde")` just calls `load()` if no uiRemove - fix error loading clock without widgets
+            Forward errors encountered while loading modules back into Espruino (fix #2485)
+            JIT: Fix issue where the 'jit' keyword got included in compiled code
+            JIT: If using a builtin global function (eg digitalWrite), use it directly rather than searching by name
+            JIT: Store type in 'vars' list so we're not having to jsvSkipName if we know it's not a name
+            JIT: Fix passing function parameters to object constructors (also arrays) (fix #2480)
+            Change 'hidden root' timers/watches callback->cb and interval->intr to save 2 vars per interval and make processing faster
+            Jolt.js: Add an 'auto' motor driver mode, and make it the default
+            digitalWrite: ensure `digitalWrite(pins, true)` sets *all* pins to `true`, not just the first
+            ESP32: Fix setServices with 128bit UUIDs, fix NRF.setServices' onWrite and notify/indicate
+            Add E.getPowerUsage() to get estimated power usage of a device based on what internal hardware is powered on and CPU use
+            Use shorter Puck.selfTest messages to save a bit of flash storage space
+            Bangle.js2: Bangle.showTestScreen now shows firmware and battery
+            Bangle.js1: After updating compiler, we need to add NOPs into display code to slow it down
+            Graphics: Fix g.setFontPBF(font) if no second argument for scale is provided
+            Add support for static+nonstatic fields in Classes
+            Graphics: fix endianness of palette when used with `g.asImage`
+            Fix issue using String.replace on flash-based (read only) strings
+            Bangle.js2: Stop Bangle.setLCDBrightness turning the LCD backlight on 
+            Graphics.drawImages: add 'compose' and 'palette' operators to allow one image to be composed on another (for instance XOR on background)
+
      2v21 : nRF52: free up 800b more flash by removing vector table padding
             Throw Exception when a Promise tries to resolve with another Promise (#2450)
             Add 'lcdBufferPtr' to Bangle.getOptions
@@ -7,6 +54,19 @@
             Allow pretokenisation to store raw, unencoded Strings for speed/efficiency
             Automatic decoding and pretokenisation of 'atob(".....")' strings
             Pull out pretokenisation on SAVE_ON_FLASH boards (pretokenised code can be executed, it's just not tokenised in Espruino - saves 1kb)
+            Bangle.js: Fix out of bounds coordinates in LCD code that caused screen corruption on newer GCC builds (#2455)
+            Bangle.js2: In flash bootloader, don't store flash write code in RAM (no need) (fix #2458)
+            Remove 65535-char max native string length restriction introduced in 2v20 on devices that could support more like Bangle.js 2
+            E.memoryArea(0, ...) now returns `undefined`
+            Fix issue using Flat/Flash/Native Strings to create fields in objects
+            Optimise pretokenised Strings so we load very short strings direct to RAM
+            Add jsvGet...Child functions to replace common call patterns - saves 280 bytes on Pico
+            Fix issue with g.wrapString when running on flash-based strings
+            Fix lock leak when using flat/flash/native strings as object indices
+            Fix g.wrapString lockup if wrap width is less than the character width
+            Fix potential for crash after ReferenceError during function declaration (fix #2457)
+            STM32: (Original/Pico/WiFi) if USB connected but PC not receiving data, throw away USB data rather than blocking (fix #2446)
+            Move commonly used sequences of function calls into functions (eg jsvRemoveChild,jsvUnLock -> jsvRemoveChildAndUnLock) - saves ~200b            
 
      2v20 : Ensure String.charCodeAt returns NaN for out of bounds chars
             Bangle.js2: When rendering overlays, *do not* use the current FG/BG color for 1 bit overlays

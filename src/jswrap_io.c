@@ -171,16 +171,20 @@ void jswrap_io_poke(JsVarInt addr, JsVar *data, int wordSize) {
   "params" : [
     ["pin","pin",["The pin to use","You can find out which pins to use by looking at [your board's reference page](#boards) and searching for pins with the `ADC` markers."]]
   ],
-  "return" : ["float","The analog Value of the Pin between 0 and 1"]
+  "return" : ["float","The Analog Value of the Pin between 0(GND) and 1(VCC). See below."]
 }
-Get the analogue value of the given pin
+Get the analogue value of the given pin.
 
 This is different to Arduino which only returns an integer between 0 and 1023
 
 However only pins connected to an ADC will work (see the datasheet)
 
- **Note:** if you didn't call `pinMode` beforehand then this function will also
- reset pin's state to `"analog"`
+**Note:** if you didn't call `pinMode` beforehand then this function will also
+reset pin's state to `"analog"`
+
+**Note:** [Jolt.js](https://www.espruino.com/Jolt.js) motor driver pins with
+analog inputs are scaled with a potential divider, and so those pins return a
+number which is the actual voltage.
  */
 /*JSON{
   "type" : "function",
@@ -214,10 +218,10 @@ void jswrap_io_analogWrite(Pin pin, JsVarFloat value, JsVar *options) {
   JsVarFloat freq = 0;
   JshAnalogOutputFlags flags = JSAOF_NONE;
   if (jsvIsObject(options)) {
-    freq = jsvGetFloatAndUnLock(jsvObjectGetChildIfExists(options, "freq"));
-    if (jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(options, "forceSoft")))
+    freq = jsvObjectGetFloatChild(options, "freq");
+    if (jsvObjectGetBoolChild(options, "forceSoft"))
           flags |= JSAOF_FORCE_SOFTWARE;
-    else if (jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(options, "soft")))
+    else if (jsvObjectGetBoolChild(options, "soft"))
       flags |= JSAOF_ALLOW_SOFTWARE;
   }
 
@@ -298,14 +302,19 @@ void jswrap_io_digitalPulse(Pin pin, bool value, JsVar *times) {
   "generate" : "jswrap_io_digitalWrite",
   "params"   : [
     ["pin",   "JsVar","The pin to use"],
-    ["value", "int","Whether to pulse high (true) or low (false)"]
+    ["value", "JsVar","Whether to write a high (true) or low (false) value"]
   ],
   "typescript" : "declare function digitalWrite(pin: Pin, value: boolean): void;"
 }
 Set the digital value of the given pin.
 
- **Note:** if you didn't call `pinMode` beforehand then this function will also
- reset pin's state to `"output"`
+```
+digitalWrite(LED1, 1); // light LED1
+digitalWrite([LED1,LED2,LED3], 0b101); // lights LED1 and LED3
+```
+
+ **Note:** if you didn't call `pinMode(pin, ...)` or `Pin.mode(...)` beforehand then this function will also
+reset pin's state to `"output"`
 
 If pin argument is an array of pins (e.g. `[A2,A1,A0]`) the value argument will
 be treated as an array of bits where the last array element is the least
@@ -316,13 +325,21 @@ right-hand side of the array of pins). This means you can use the same pin
 multiple times, for example `digitalWrite([A1,A1,A0,A0],0b0101)` would pulse A0
 followed by A1.
 
+In 2v22 and later firmwares, using a boolean for the value will set *all* pins in
+the array to the same value, eg `digitalWrite(pins, value?0xFFFFFFFF:0)`. Previously
+digitalWrite with a boolean behaved like `digitalWrite(pins, value?1:0)` and would
+only set the first pin.
+
 If the pin argument is an object with a `write` method, the `write` method will
 be called with the value passed through.
 */
 void jswrap_io_digitalWrite(
     JsVar *pinVar, //!< A pin or pins.
-    JsVarInt value //!< The value of the output.
+    JsVar *valueVar //!< The value of the output.
   ) {
+  JsVarInt value;
+  if (jsvIsBoolean(valueVar)) value = jsvGetBool(valueVar) ? 0xFFFFFFFF : 0;
+  else value = jsvGetInteger(valueVar);
   // Handle the case where it is an array of pins.
   if (jsvIsArray(pinVar)) {
     JsVarRef pinName = jsvGetLastChild(pinVar); // NOTE: start at end and work back!
@@ -339,8 +356,7 @@ void jswrap_io_digitalWrite(
     JsVar *w = jspGetNamedField(pinVar, "write", false);
     if (jsvIsFunction(w)) {
       JsVar *v = jsvNewFromInteger(value);
-      jsvUnLock(jspeFunctionCall(w,0,pinVar,false,1,&v));
-      jsvUnLock(v);
+      jsvUnLock2(jspeFunctionCall(w,0,pinVar,false,1,&v), v);
     } else jsExceptionHere(JSET_ERROR, "Invalid pin");
     jsvUnLock(w);
   } else {
@@ -800,8 +816,8 @@ JsVar *jswrap_interface_setWatch(
       jsExceptionHere(JSET_TYPEERROR, "'edge' in setWatch should be 1, -1, 0, 'rising', 'falling' or 'both'");
       return 0;
     }
-    isIRQ = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(repeatOrObject, "irq"));
-    isHighSpeed = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(repeatOrObject, "hispeed"));
+    isIRQ = jsvObjectGetBoolChild(repeatOrObject, "irq");
+    isHighSpeed = jsvObjectGetBoolChild(repeatOrObject, "hispeed");
     dataPin = jshGetPinFromVarAndUnLock(jsvObjectGetChildIfExists(repeatOrObject, "data"));
   } else
     repeat = jsvGetBool(repeatOrObject);
@@ -816,7 +832,7 @@ JsVar *jswrap_interface_setWatch(
       if (repeat) jsvObjectSetChildAndUnLock(watchPtr, "recur", jsvNewFromBool(repeat));
       if (debounce>0) jsvObjectSetChildAndUnLock(watchPtr, "debounce", jsvNewFromInteger((JsVarInt)jshGetTimeFromMilliseconds(debounce)));
       if (edge) jsvObjectSetChildAndUnLock(watchPtr, "edge", jsvNewFromInteger(edge));
-      jsvObjectSetChild(watchPtr, "callback", func); // no unlock intentionally
+      jsvObjectSetChild(watchPtr, "cb", func); // no unlock intentionally
       jsvObjectSetChildAndUnLock(watchPtr, "state", jsvNewFromBool(jshPinInput(pin)));
       if (isHighSpeed)
         jsvObjectSetChildAndUnLock(watchPtr, "hispeed", jsvNewFromBool(true));
@@ -904,8 +920,8 @@ void jswrap_interface_clearWatch(JsVar *idVarArr) {
       jsvUnLock(watchPtr);
 
       JsVar *watchArrayPtr = jsvLock(watchArray);
-      jsvRemoveChild(watchArrayPtr, watchNamePtr);
-      jsvUnLock2(watchNamePtr, watchArrayPtr);
+      jsvRemoveChildAndUnLock(watchArrayPtr, watchNamePtr);
+      jsvUnLock(watchArrayPtr);
 
       // Now check if this pin is still being watched
       if (!jsiIsWatchingPin(pin))

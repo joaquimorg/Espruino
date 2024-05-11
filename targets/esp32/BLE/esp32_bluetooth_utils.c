@@ -12,7 +12,7 @@
  * ----------------------------------------------------------------------------
  */
 
- 
+
 #include "BLE/esp32_bluetooth_utils.h"
 #include "BLE/esp32_gap_func.h"
 #include "BLE/esp32_gatts_func.h"
@@ -22,18 +22,19 @@
 #include "esp_gatt_common_api.h"
 #include "freertos/FreeRTOS.h"
 #include "jsvariterator.h"
+#include "jsinteractive.h"
 
 esp_ble_debug_t bleEventDebug = 0;
 
 esp_err_t initController(){
-  esp_err_t ret;    
+  esp_err_t ret;
   esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ret = esp_bt_controller_init(&bt_cfg);if(ret) {jsWarn("init controller failed:%x\n",ret); return ret;}
   ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);if(ret) {jsWarn("enable controller failed:%x\n",ret); return ret;}
   return ret;
 }
 esp_err_t initBluedroid(){
-  esp_err_t ret;    
+  esp_err_t ret;
   ret = esp_bluedroid_init();if (ret) {jsWarn("init bluedroid failed:%x\n",ret);return ret;}
   ret = esp_bluedroid_enable();if (ret) {jsWarn("enable bluedroid failed:%x\n",ret);return ret;}
   return ret;
@@ -48,12 +49,12 @@ esp_err_t deinitBluedroid(){
   esp_err_t ret;
   ret = esp_bluedroid_disable();if (ret) {jsWarn("disable bluedroid failed:%x\n",ret);return ret;}
   ret = esp_bluedroid_deinit();if (ret) {jsWarn("deinit bluedroid failed:%x\n",ret);return ret;}
-  return ret;  
+  return ret;
 }
 esp_err_t registerCallbacks(){
   esp_err_t ret;
   ret = esp_ble_gap_register_callback(gap_event_handler);if (ret){jsWarn("gap register error:%x\n", ret);return ret;}
-  ret = esp_ble_gatts_register_callback(gatts_event_handler);if(ret){jsWarn("gatts register error:%x\n", ret);return ret;}  
+  ret = esp_ble_gatts_register_callback(gatts_event_handler);if(ret){jsWarn("gatts register error:%x\n", ret);return ret;}
   ret = esp_ble_gattc_register_callback(gattc_event_handler);if(ret){jsWarn("gattc regigister error:%x\n",ret);return ret;}
   return ret;
 }
@@ -176,15 +177,15 @@ static char *gapEvent2String(esp_gap_ble_cb_event_t event){
 
 void jsWarnGattsEvent(esp_gatts_cb_event_t event,esp_gatt_if_t gatts_if){
   if(bleEventDebug & ESP_BLE_DEBUG_GATTS)
-    jsWarn("Event:ESP_GATTS_%s_EVT gatts_if:%d\n",gattsEvent2String(event), gatts_if);
+    jsiConsolePrintf("Event:ESP_GATTS_%s_EVT gatts_if:%d\n",gattsEvent2String(event), gatts_if);
 }
 void jsWarnGattcEvent(esp_gattc_cb_event_t event,esp_gatt_if_t gattc_if){
   if(bleEventDebug & ESP_BLE_DEBUG_GATTC)
-    jsWarn("Event:ESP_GATTC_%s_EVT gattc_if:%d\n",gattcEvent2String(event), gattc_if);
+    jsiConsolePrintf("Event:ESP_GATTC_%s_EVT gattc_if:%d\n",gattcEvent2String(event), gattc_if);
 }
 void jsWarnGapEvent(esp_gap_ble_cb_event_t event){
   if(bleEventDebug & ESP_BLE_DEBUG_GAP)
-    jsWarn("Event:ESP_GAP_BLE_%s_EVT\n",gapEvent2String(event));
+    jsiConsolePrintf("Event:ESP_GAP_BLE_%s_EVT\n",gapEvent2String(event));
 }
 
 void jsWarnUUID(esp_bt_uuid_t char_uuid){
@@ -225,8 +226,7 @@ bool bleRemoveChild(JsVar *parent, JsVar *blevar){
       jsvRemoveChild(parent,child);
       ret = true;
     }
-    jsvUnLock(child);
-    jsvUnLock(name);
+    jsvUnLock2(child, name);
     jsvObjectIteratorNext(&it);
   }
   jsvObjectIteratorFree(&it);

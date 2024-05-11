@@ -35,11 +35,13 @@ import pinutils;
 # Now scan AF file
 print("Script location "+scriptdir)
 
-if len(sys.argv)!=3:
-  print("ERROR, USAGE: build_platform_config.py BOARD_NAME HEADERFILENAME")
+if len(sys.argv)<3 :
+  print("ERROR, USAGE: build_platform_config.py BOARD_NAME HEADERFILENAME [-Ddefine=1 ...]")
   exit(1)
 boardname = sys.argv[1]
 headerFilename = sys.argv[2]
+defines = sys.argv[3:]
+  
 print("HEADER_FILENAME "+headerFilename)
 print("BOARD "+boardname)
 # import the board def
@@ -234,7 +236,7 @@ elif board.chip["family"]=="AVR":
   board.chip["class"]="AVR"
 elif board.chip["family"]=="ESP8266":
   board.chip["class"]="ESP8266"
-elif board.chip["family"]=="ESP32":
+elif board.chip["family"]=="ESP32" or board.chip["family"]=="ESP32_IDF4":
   board.chip["class"]="ESP32"
   exti_count = 40
 elif board.chip["family"]=="SAMD":
@@ -316,13 +318,13 @@ if flash_saved_code2_pages:
 codeOut("");
 
 codeOut("#define CLOCK_SPEED_MHZ                      "+str(board.chip["speed"]))
-codeOut("#define USART_COUNT                          "+str(board.chip["usart"]))
+codeOut("#define ESPR_USART_COUNT                     "+str(board.chip["usart"]))
 if "spi" in board.chip:
-  codeOut("#define SPI_COUNT                            "+str(board.chip["spi"]))
-codeOut("#define I2C_COUNT                            "+str(board.chip["i2c"]))
-codeOut("#define ADC_COUNT                            "+str(board.chip["adc"]))
-codeOut("#define DAC_COUNT                            "+str(board.chip["dac"]))
-codeOut("#define EXTI_COUNT                           "+str(exti_count))
+  codeOut("#define ESPR_SPI_COUNT                       "+str(board.chip["spi"]))
+codeOut("#define ESPR_I2C_COUNT                       "+str(board.chip["i2c"]))
+codeOut("#define ESPR_ADC_COUNT                       "+str(board.chip["adc"]))
+codeOut("#define ESPR_DAC_COUNT                       "+str(board.chip["dac"]))
+codeOut("#define ESPR_EXTI_COUNT                      "+str(exti_count))
 codeOut("");
 codeOut("#define DEFAULT_CONSOLE_DEVICE              "+board.info["default_console"]);
 if "default_console_tx" in board.info:
@@ -521,6 +523,10 @@ if "QWIIC2" in board.devices:
   codeOutDevicePins("QWIIC2", "QWIIC2")
 if "QWIIC3" in board.devices:
   codeOutDevicePins("QWIIC3", "QWIIC3")
+if "DRIVER0" in board.devices:
+  codeOutDevicePins("DRIVER0", "DRIVER0")
+if "DRIVER1" in board.devices:
+  codeOutDevicePins("DRIVER1", "DRIVER1")  
 
 if "SPIFLASH" in board.devices:
   codeOut("#define SPIFLASH_PAGESIZE 4096")
@@ -554,6 +560,26 @@ codeOut("#define IS_PIN_A_LED(PIN) (("+")||(".join(ledChecks)+"))")
 codeOut("#ifndef IS_PIN_A_BUTTON")
 codeOut("#define IS_PIN_A_BUTTON(PIN) (("+")||(".join(btnChecks)+"))")
 codeOut("#endif")
+
+# add makefile defines
+if len(defines) > 0:
+  codeOut("\n#ifndef ESPR_DEFINES_ON_COMMANDLINE")
+  codeOut("// The Makefile calls the compiler with ESPR_DEFINES_ON_COMMANDLINE defined so this")
+  codeOut("// is ignored and all these defines go on the command line and apply to every file")
+  codeOut("// whether or not platform_config was included. However if you're viewing a file in")
+  codeOut("// a code editor like VS Code it'll parse this and should then highlight the correct")
+  codeOut("// code based on your build")              
+  for define in defines:
+    if not define.startswith("-D"):
+      continue
+    define = define[2:]
+    if "=" in define:
+      defSplit = define.split("=")
+      codeOut("\t#define " + defSplit[0] + " " + defSplit[1])
+    else:
+      codeOut("\t#define " + define)
+  codeOut("#endif")
+# end makefile defines
 
 codeOut("""
 #endif // _PLATFORM_CONFIG_H

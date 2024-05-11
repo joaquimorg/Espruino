@@ -32,6 +32,18 @@
 }
 (2v21+ only) This class allows Espruino to control stepper motors.
 
+```
+// initialise
+var s = new Stepper({
+  pins : [D1,D0,D2,D3],
+  freq : 200
+});
+// step 1000 steps...
+s.moveTo(1000, {turnOff:true}).then(() => {
+  print("Done!");
+});
+```
+
 On Espruino before 2v20 you can still use the Stepper Motor module at https://www.espruino.com/StepperMotor - it just isn't quite as fast.
  */
 
@@ -87,7 +99,7 @@ bool jswrap_stepper_idle() {
     jsvObjectIteratorNew(&it, steppers);
     while (jsvObjectIteratorHasValue(&it)) {
       JsVar *stepper = jsvObjectIteratorGetValue(&it);
-      bool running = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(stepper, "running"));
+      bool running = jsvObjectGetBoolChild(stepper, "running");
       Pin pins[4];
       if (running) {
         UtilTimerTask task;
@@ -97,12 +109,12 @@ bool jswrap_stepper_idle() {
           jsiQueueObjectCallbacks(stepper, JS_EVENT_PREFIX"finish", NULL, 0);
           // Update current position
           jsvObjectSetChildAndUnLock(stepper, "pos", jsvNewFromInteger(
-            jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(stepper, "pos"))+
-            jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(stepper, "_direction"))));
+            jsvObjectGetIntegerChild(stepper, "pos")+
+            jsvObjectGetIntegerChild(stepper, "_direction")));
           jsvObjectRemoveChild(stepper, "_direction");
-          if (jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(stepper, "_turnOff"))) {
+          if (jsvObjectGetBoolChild(stepper, "_turnOff")) {
             Pin pins[4];
-            int offpattern = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(stepper, "offpattern"));
+            int offpattern = jsvObjectGetIntegerChild(stepper, "offpattern");
             if (jswrap_stepper_getPins(stepper, pins)) {
               for (int i=0;i<4;i++)
                 jshPinSetValue(pins[i], (offpattern>>i)&1);
@@ -148,7 +160,7 @@ void jswrap_stepper_kill() { // be sure to remove all stepper instances...
     jsvObjectIteratorNew(&it, steppers);
     while (jsvObjectIteratorHasValue(&it)) {
       JsVar *stepper = jsvObjectIteratorGetValue(&it);
-      bool running = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(stepper, "running"));
+      bool running = jsvObjectGetBoolChild(stepper, "running");
       if (running) {
         Pin pins[4];
         if (!jswrap_stepper_getPins(stepper, pins) || !jstStopPinTimerTask(pins[0]))
@@ -178,12 +190,12 @@ void jswrap_stepper_kill() { // be sure to remove all stepper instances...
 Create a `Stepper` class. `options` can contain:
 
 ```
-{
+... = new Stepper({
   pins : [...], // required - 4 element array of pins
   pattern : [...], // optional - a 4/8 element array of step patterns
   offpattern : 0, // optional (default 0) - the pattern to output to stop driving the stepper motor
-  freq : 500,   // optional (default 500) steps per second
-}
+  freq : 500,   // optional (default 100) steps per second
+})
 ```
 
 `pins` must be supplied as a 4 element array of pins. When created,
@@ -201,8 +213,8 @@ JsVar *jswrap_stepper_constructor(JsVar *options) {
 
   JsVar *pinsVar = 0;
   JsVar *patternVar = 0;
-  JsVarFloat freq = 500;
-  int offpattern = -1;
+  JsVarFloat freq = 100;
+  int offpattern = 0;
   jsvConfigObject configs[] = {
       {"pins", JSV_ARRAY, &pinsVar},
       {"pattern", JSV_ARRAY, &patternVar},
@@ -251,35 +263,47 @@ JsVar *jswrap_stepper_constructor(JsVar *options) {
   "ifdef" : "ESPR_USE_STEPPER_TIMER",
   "generate" : "jswrap_stepper_moveTo",
   "params" : [
-    ["direction","int","The amount of steps to move in either direction"],
+    ["position","int","The position in steps to move to (can be either positive or negative)"],
     ["options","JsVar","Optional options struct"]
   ],
   "return" : ["JsVar","A Promise that resolves when the stepper has finished moving"],
   "return_object": "Promise"
 }
 
-Move a certain number of steps in either direction, `options` can be:
+Move a a certain number of steps in either direction. `position` is remembered, so
+`s.moveTo(1000)` will move 1000 steps forward the first time it is called, but
+`s.moveTo(1500)` called afterwards will only move 500 steps.
+
+, `options` can be:
 
 ```
-{
+s.moveTo(steps, {
   freq : 100, // optional (frequency in Hz) step frequency
   turnOff : true, // optional (default false) turn off stepper after this movement?
-}
+  relative : true, // optional (default false) the step number is relative (not absolute)
+}).then(() => {
+  // movement finished...
+});
 ```
-
  */
-JsVar *jswrap_stepper_moveTo(JsVar *stepper, int direction, JsVar *options) {
-  bool running = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(stepper, "running"));
+JsVar *jswrap_stepper_moveTo(JsVar *stepper, int position, JsVar *options) {
+  bool running = jsvObjectGetBoolChild(stepper, "running");
   if (running) {
     jsExceptionHere(JSET_ERROR, "Stepper is already running");
     return 0;
   }
+
+  int currentPos = jsvObjectGetIntegerChild(stepper, "pos");
+  int direction = position - currentPos;
+  if (jsvObjectGetBoolChild(options, "relative"))
+    direction = position;
+
   if (direction==0) // resolve immediately if not moving
     return jswrap_promise_resolve(NULL);
 
-  JsVarFloat freq = jsvGetFloatAndUnLock(jsvObjectGetChildIfExists(stepper, "freq"));;
+  JsVarFloat freq = jsvObjectGetFloatChild(stepper, "freq");;
   if (jsvIsObject(options)) {
-    JsVarFloat t = jsvGetFloatAndUnLock(jsvObjectGetChildIfExists(options, "freq"));
+    JsVarFloat t = jsvObjectGetFloatChild(options, "freq");
     if (isfinite(t)) freq = t;
   } else if (!jsvIsUndefined(options)) {
     jsExceptionHere(JSET_ERROR, "Expecting options to be undefined or an Object, not %t", options);
@@ -288,7 +312,7 @@ JsVar *jswrap_stepper_moveTo(JsVar *stepper, int direction, JsVar *options) {
     jsExceptionHere(JSET_ERROR, "Frequency must be above 0.001Hz");
     return 0;
   }
-  bool turnOff = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(options, "turnOff"));
+  bool turnOff = jsvObjectGetBoolChild(options, "turnOff");
 
 
   JsVar *promise = jspromise_create();
@@ -300,7 +324,7 @@ JsVar *jswrap_stepper_moveTo(JsVar *stepper, int direction, JsVar *options) {
   task.type = UET_STEP;
   jswrap_stepper_getPins(stepper, task.data.step.pins);
   task.data.step.steps = direction;
-  task.data.step.pIndex = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(stepper, "pos"))&7;
+  task.data.step.pIndex = currentPos&7;
   task.data.step.pattern[0] = 0b00010010;
   task.data.step.pattern[1] = 0b01001000;
   task.data.step.pattern[2] = 0b00010010;
@@ -340,13 +364,13 @@ Stop a stepper motor that is currently running.
 You can specify `.stop({turnOff:true})` to force the stepper motor to turn off.
  */
 void jswrap_stepper_stop(JsVar *stepper, JsVar *options) {
-  bool running = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(stepper, "running"));
+  bool running = jsvObjectGetBoolChild(stepper, "running");
   if (!running) {
     jsExceptionHere(JSET_ERROR, "Stepper is not running");
     return;
   }
   if (jsvIsObject(options)) {
-    bool turnOff = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(options, "turnOff"));
+    bool turnOff = jsvObjectGetBoolChild(options, "turnOff");
     if (turnOff)
       jsvObjectSetChildAndUnLock(stepper, "_turnOff", jsvNewFromBool(turnOff));
     // the _idle handler will see _turnOff and will turn off the stepper
@@ -359,7 +383,7 @@ void jswrap_stepper_stop(JsVar *stepper, JsVar *options) {
     if (jstGetLastPinTimerTask(pins[0], &task)) {
       // update step count to where the timer was when we stopped
       jsvObjectSetChildAndUnLock(stepper, "_direction", jsvNewFromInteger(
-            jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(stepper, "_direction")) -
+            jsvObjectGetIntegerChild(stepper, "_direction") -
             task.data.step.steps));
     }
     ok = jstStopPinTimerTask(pins[0]);
@@ -368,6 +392,21 @@ void jswrap_stepper_stop(JsVar *stepper, JsVar *options) {
     jsExceptionHere(JSET_ERROR, "Stepper couldn't be stopped");
   // now run idle loop as this will issue the finish event and will clean up
   jswrap_stepper_idle();
+}
+
+
+/*JSON{
+  "type" : "method",
+  "class" : "Stepper",
+  "name" : "getPosition",
+  "ifdef" : "ESPR_USE_STEPPER_TIMER",
+  "generate" : "jswrap_stepper_getPosition",
+  "return" : ["int","The current position of the stepper motor in steps"]
+}
+Get the current position of the stepper motor in steps
+*/
+int jswrap_stepper_getPosition(JsVar *stepper) {
+  return jsvObjectGetIntegerChild(stepper, "pos");
 }
 #endif
 

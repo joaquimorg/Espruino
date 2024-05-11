@@ -61,7 +61,7 @@ if "check_output" not in dir( subprocess ):
 #
 # Comments look like:
 #
-#/*JSON{ "type":"staticmethod|staticproperty|constructor|method|property|function|variable|class|library|idle|init|kill|EV_xxx",
+#/*JSON{ "type":"staticmethod|staticproperty|constructor|method|property|function|variable|class|library|idle|init|kill|EV_xxx|powerusage",
 #                      // class = built-in class that does not require instantiation
 #                      // library = built-in class that needs require('classname')
 #                      // idle = function to run on idle regardless
@@ -69,6 +69,7 @@ if "check_output" not in dir( subprocess ):
 #                      // init = function to run on Initialisation (eg boot/load/reset/after save/etc)
 #                      // kill = function to run on Deinitialisation (eg before save/reset/etc)
 #                      // EV_xxx = Something to be called with a character in an IRQ when it is received (eg. EV_SERIAL1)
+#                      // powerusage = fn(JsVar*) called with an object, and should insert fields for deviec names and estimated power usage in uA
 #         "class" : "Double", "name" : "doubleToIntBits",
 #         "needs_parentName":true,           // optional - if for a method, this makes the first 2 args parent+parentName (not just parent)
 #         "generate_full|generate|wrap" : "*(JsVarInt*)&x", // if generate=false, it'll only be used for docs
@@ -132,13 +133,13 @@ def get_jsondata(is_for_document, parseArgs = True, boardObject = False):
             print("BOARD "+arg[2:]);
             print("Now ignore_ifdefs = False");
             ignore_ifdefs = False
-            board = importlib.import_module(arg[2:])            
+            board = importlib.import_module(arg[2:])
           elif arg[1]=="F":
             "" # -Fxxx.yy in args is filename xxx.yy, which is mandatory for build_jswrapper.py
           else:
             print("Unknown command-line option")
             exit(1)
-        elif arg[-2:]==".c": 
+        elif arg[-2:]==".c":
           # C file, all good
           explicit_files = True
           jswraps.append(arg)
@@ -150,9 +151,9 @@ def get_jsondata(is_for_document, parseArgs = True, boardObject = False):
 
     if board:
       board.defines = defines
-      if "usart" in board.chip: defines.append("USART_COUNT="+str(board.chip["usart"]));
-      if "spi" in board.chip: defines.append("SPI_COUNT="+str(board.chip["spi"]));
-      if "i2c" in board.chip: defines.append("I2C_COUNT="+str(board.chip["i2c"]));
+      if "usart" in board.chip: defines.append("ESPR_USART_COUNT="+str(board.chip["usart"]));
+      if "spi" in board.chip: defines.append("ESPR_SPI_COUNT="+str(board.chip["spi"]));
+      if "i2c" in board.chip: defines.append("ESPR_I2C_COUNT="+str(board.chip["i2c"]));
       if "USB" in board.devices: defines.append("defined(USB)=True");
       else: defines.append("defined(USB)=False");
       if "build" in board.info:
@@ -161,12 +162,12 @@ def get_jsondata(is_for_document, parseArgs = True, boardObject = False):
             print("board.defines: " + i);
             defines.append(i)
         if "makefile" in board.info["build"]:
-          for i in board.info["build"]["makefile"]:           
+          for i in board.info["build"]["makefile"]:
             print("board.makefile: " + i);
             i = i.strip()
-            if i.startswith("DEFINES"): 
+            if i.startswith("DEFINES"):
               defs = i[7:].strip()[2:].strip().split() # array of -Dsomething
-              for d in defs: 
+              for d in defs:
                 if not d.startswith("-D"):
                   print("WARNING: expecting -Ddefine, got " + d)
                 defines.append(d[2:])
@@ -174,7 +175,7 @@ def get_jsondata(is_for_document, parseArgs = True, boardObject = False):
     if len(defines)>1:
       print("Got #DEFINES:")
       for d in defines: print("   "+d)
-      
+
     githash = get_git_hash()
     if len(githash)==0: githash="master"
 
@@ -262,13 +263,13 @@ def get_jsondata(is_for_document, parseArgs = True, boardObject = False):
                 if not key in ["type","class","name","patch"]:
                   print("Copying "+key+" --- "+jsondata[key])
                   targetjsondata[key] = jsondata[key]
-            drop = True 
+            drop = True
           if not drop:
             jsondatas.append(jsondata)
         except ValueError as e:
           sys.stderr.write( "JSON PARSE FAILED for " +  jsonstring + " - "+ str(e) + "\n")
           exc_obj = sys.exc_info()
-          print(''.join(traceback.format_exception(exc_obj)))           
+          print(''.join(traceback.format_exception(exc_obj)))
           exit(1)
         except Exception as e:
           sys.stderr.write( "JSON PARSE FAILED for " + jsonstring + " - "+str(e) + "\n" )
@@ -307,7 +308,7 @@ def get_jsondata(is_for_document, parseArgs = True, boardObject = False):
           "include" : "platform_config.h"
         })
 
-    jsondatas = sorted(jsondatas, key=lambda j: j["sortorder"] if "sortorder" in j else 0) 
+    jsondatas = sorted(jsondatas, key=lambda j: j["sortorder"] if "sortorder" in j else 0)
 
     return jsondatas
 
@@ -436,9 +437,10 @@ def get_ifdef_description(d):
   if d=="SAVE_ON_FLASH_EXTREME": return "devices with extremely low flash memory (eg. HYSTM32_28)"
   if d=="STM32": return "STM32 devices (including Espruino Original, Pico and WiFi)"
   if d=="STM32F1": return "STM32F1 devices (including Original Espruino Board)"
-  if d=="NRF52_SERIES": return "NRF52 devices (like Puck.js, Pixl.js, Bangle.js and MDBT42Q)"
+  if d=="NRF52_SERIES": return "NRF52 devices (like Puck.js, Pixl.js, Jolt.js, Bangle.js and MDBT42Q)"
   if d=="PUCKJS": return "Puck.js devices"
   if d=="PIXLJS": return "Pixl.js boards"
+  if d=="JOLTJS": return "Jolt.js devices"
   if d=="ESPRUINOWIFI": return "Espruino WiFi boards"
   if d=="ESPRUINOBOARD": return "'Original' Espruino boards"
   if d=="PICO": return "Espruino Pico boards"
@@ -446,6 +448,7 @@ def get_ifdef_description(d):
   if d=="BANGLEJS_F18": return "Bangle.js 1 smartwatches"
   if d=="BANGLEJS_Q3" or d=="BANGLEJS2": return "Bangle.js 2 smartwatches"
   if d=="ESPR_EMBED": return "Embeddable Espruino C builds"
+  if d=="ESPR_USE_STEPPER_TIMER": return "Built-in Stepper Motor class (2v21+)"
   if d=="ESP8266": return "ESP8266 boards running Espruino"
   if d=="ESP32": return "ESP32 boards"
   if d=="EFM32": return "EFM32 devices"

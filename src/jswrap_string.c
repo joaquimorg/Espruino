@@ -280,7 +280,7 @@ JsVar *jswrap_string_match(JsVar *parent, JsVar *subStr) {
     while (match && !jsvIsNull(match)) {
       // get info about match
       JsVar *matchStr = jsvGetArrayItem(match,0);
-      JsVarInt idx = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(match,"index"));
+      JsVarInt idx = jsvObjectGetIntegerChild(match,"index");
       JsVarInt len = (JsVarInt)jsvGetStringLength(matchStr);
       int last = idx+len;
       jsvArrayPushAndUnLock(array, matchStr);
@@ -314,22 +314,7 @@ JsVar *jswrap_string_match(JsVar *parent, JsVar *subStr) {
   return jsvNewNull();
 }
 
-/*JSON{
-  "type" : "method",
-  "class" : "String",
-  "name" : "replace",
-  "generate" : "jswrap_string_replace",
-  "params" : [
-    ["subStr","JsVar","The string to search for"],
-    ["newSubStr","JsVar","The string to replace it with"]
-  ],
-  "return" : ["JsVar","This string with `subStr` replaced"]
-}
-Search and replace ONE occurrence of `subStr` with `newSubStr` and return the
-result. This doesn't alter the original string. Regular expressions not
-supported.
- */
-JsVar *jswrap_string_replace(JsVar *parent, JsVar *subStr, JsVar *newSubStr) {
+static JsVar *_jswrap_string_replace(JsVar *parent, JsVar *subStr, JsVar *newSubStr, bool replaceAll) {
   JsVar *str = jsvAsString(parent);
 #ifndef SAVE_ON_FLASH
   // Use RegExp if one is passed in
@@ -341,6 +326,7 @@ JsVar *jswrap_string_replace(JsVar *parent, JsVar *subStr, JsVar *newSubStr) {
       replace = jsvAsString(newSubStr);
     jsvObjectSetChildAndUnLock(subStr, "lastIndex", jsvNewFromInteger(0));
     bool global = jswrap_regexp_hasFlag(subStr,'g');
+    if (replaceAll) global = true;
     JsVar *newStr = jsvNewFromEmptyString();
     JsvStringIterator dst;
     jsvStringIteratorNew(&dst, newStr, 0);
@@ -350,7 +336,7 @@ JsVar *jswrap_string_replace(JsVar *parent, JsVar *subStr, JsVar *newSubStr) {
     while (match && !jsvIsNull(match) && !jspIsInterrupted()) {
       // get info about match
       JsVar *matchStr = jsvGetArrayItem(match,0);
-      JsVarInt idx = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(match,"index"));
+      JsVarInt idx = jsvObjectGetIntegerChild(match,"index");
       JsVarInt len = (JsVarInt)jsvGetStringLength(matchStr);
       // do the replacement
       jsvStringIteratorAppendString(&dst, str, (size_t)lastIndex, (idx-lastIndex)); // the string before the match
@@ -359,7 +345,7 @@ JsVar *jswrap_string_replace(JsVar *parent, JsVar *subStr, JsVar *newSubStr) {
         JsVar *args[13];
         args[argCount++] = jsvLockAgain(matchStr);
         JsVar *v;
-        while ((v = jsvGetArrayItem(match, (JsVarInt)argCount)))
+        while ((v = jsvGetArrayItem(match, (JsVarInt)argCount)) && argCount<11)
           args[argCount++] = v;
         args[argCount++] = jsvObjectGetChildIfExists(match,"index");
         args[argCount++] = jsvObjectGetChildIfExists(match,"input");
@@ -413,17 +399,59 @@ JsVar *jswrap_string_replace(JsVar *parent, JsVar *subStr, JsVar *newSubStr) {
   newSubStr = jsvAsString(newSubStr);
   subStr = jsvAsString(subStr);
 
-  int idx = jswrap_string_indexOf(parent, subStr, 0, false);
-  if (idx>=0) {
-    JsVar *newStr = jsvNewFromStringVar(str, 0, (size_t)idx);
-    jsvAppendStringVar(newStr, newSubStr, 0, JSVAPPENDSTRINGVAR_MAXLENGTH);
+  int idx = jswrap_string_indexOf(str, subStr, NULL, false);
+  while (idx>=0  && !jspIsInterrupted()) {
+    JsVar *newStr = jsvNewWritableStringFromStringVar(str, 0, (size_t)idx);
+    jsvAppendStringVarComplete(newStr, newSubStr);
     jsvAppendStringVar(newStr, str, (size_t)idx+jsvGetStringLength(subStr), JSVAPPENDSTRINGVAR_MAXLENGTH);
     jsvUnLock(str);
     str = newStr;
+    if (replaceAll) {
+      JsVar *fromIdx = jsvNewFromInteger(idx + (int)jsvGetStringLength(newSubStr));
+      idx = jswrap_string_indexOf(str, subStr, fromIdx, false);
+      jsvUnLock(fromIdx);
+    } else idx = -1;
   }
 
   jsvUnLock2(subStr, newSubStr);
   return str;
+}
+
+
+/*JSON{
+  "type" : "method",
+  "class" : "String",
+  "name" : "replace",
+  "generate" : "jswrap_string_replace",
+  "params" : [
+    ["subStr","JsVar","The string (or Regular Expression) to search for"],
+    ["newSubStr","JsVar","The string to replace it with. Replacer functions are supported, but only when subStr is a `RegExp`"]
+  ],
+  "return" : ["JsVar","This string with `subStr` replaced"]
+}
+Search and replace ONE occurrence of `subStr` with `newSubStr` and return the
+result. This doesn't alter the original string.
+ */
+JsVar *jswrap_string_replace(JsVar *parent, JsVar *subStr, JsVar *newSubStr) {
+  return _jswrap_string_replace(parent, subStr, newSubStr, false);
+}
+
+/*JSON{
+  "type" : "method",
+  "class" : "String",
+  "name" : "replaceAll",
+  "generate" : "jswrap_string_replaceAll",
+  "params" : [
+    ["subStr","JsVar","The string (or Regular Expression) to search for"],
+    ["newSubStr","JsVar","The string to replace it with. Replacer functions are supported, but only when subStr is a `RegExp`"]
+  ],
+  "return" : ["JsVar","This string with `subStr` replaced"]
+}
+Search and replace ALL occurrences of `subStr` with `newSubStr` and return the
+result. This doesn't alter the original string.
+ */
+JsVar *jswrap_string_replaceAll(JsVar *parent, JsVar *subStr, JsVar *newSubStr) {
+  return _jswrap_string_replace(parent, subStr, newSubStr, true);
 }
 
 /*JSON{
@@ -527,7 +555,7 @@ JsVar *jswrap_string_split(JsVar *parent, JsVar *split) {
     while (match && !jsvIsNull(match)) {
       // get info about match
       JsVar *matchStr = jsvGetArrayItem(match,0);
-      JsVarInt idx = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(match,"index"));
+      JsVarInt idx = jsvObjectGetIntegerChild(match,"index");
       int len = (int)jsvGetStringLength(matchStr);
       jsvUnLock(matchStr);
       // do the replacement
@@ -621,7 +649,11 @@ JsVar *jswrap_string_toUpperLowerCase(JsVar *parent, bool upper) {
   "ifndef" : "SAVE_ON_FLASH",
   "generate_full" : "jswrap_string_removeAccents(parent)",
   "return" : ["JsVar","This string with the accents/diacritics (such as é, ü) removed from characters in the ISO 8859-1 set"]
-}*/
+}
+This is not a standard JavaScript function, but is provided to allow use of fonts
+that only support ASCII (char codes 0..127, like the 4x6 font) with character input
+that might be in the ISO8859-1 range.
+*/
 JsVar *jswrap_string_removeAccents(JsVar *parent) {
   bool isLowerCase;
   JsVar *res = jsvNewFromEmptyString();
@@ -633,7 +665,7 @@ JsVar *jswrap_string_removeAccents(JsVar *parent) {
   jsvStringIteratorNew(&itdst, res, 0);
 
   while (jsvStringIteratorHasChar(&itsrc)) {
-    char ch = jsvStringIteratorGetCharAndNext(&itsrc);
+    unsigned char ch = (unsigned char)jsvStringIteratorGetCharAndNext(&itsrc);
     if (ch >= 0xE0) {
       isLowerCase = true;
       ch -= 32;
@@ -687,7 +719,7 @@ JsVar *jswrap_string_removeAccents(JsVar *parent) {
           break;
       }
     }
-    jsvStringIteratorAppend(&itdst, isLowerCase ? ch+32 : ch);
+    jsvStringIteratorAppend(&itdst, (char)(isLowerCase ? ch+32 : ch));
   }
 
   jsvStringIteratorFree(&itsrc);
@@ -751,8 +783,7 @@ original `String`.
 JsVar *jswrap_string_concat(JsVar *parent, JsVar *args) {
   if (!jsvIsString(parent)) return 0;
   // don't use jsvNewFromStringVar here because it has an optimisation for Flash Strings that just clones (rather than copying)
-  JsVar *str = jsvNewFromEmptyString();
-  jsvAppendStringVarComplete(str, parent);
+  JsVar *str = jsvNewFromStringVarComplete(parent);
   JsVar *extra = jsvArrayJoin(args, NULL/*filler*/, false/*ignoreNull*/);
   jsvAppendStringVarComplete(str, extra);
   jsvUnLock(extra);
@@ -895,7 +926,7 @@ JsVar *jswrap_string_padX(JsVar *str, int targetLength, JsVar *padString, bool p
 
   int padChars = targetLength - (int)jsvGetStringLength(str);
 
-  JsVar *result = padStart ? jsvNewFromEmptyString() : jsvNewFromStringVar(str,0,JSVAPPENDSTRINGVAR_MAXLENGTH);
+  JsVar *result = padStart ? jsvNewFromEmptyString() : jsvNewFromStringVarComplete(str);
   if (!result) return 0;
 
   padString = padString ? jsvAsString(padString) : jsvNewFromString(" ");

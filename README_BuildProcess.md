@@ -112,6 +112,7 @@ This is a partial list of definitions that can be added in a `BOARD.py` file's `
 
 * `SAVE_ON_FLASH` - Remove some features (like any ES6 support) to target devices with ~128kB Flash
 * `SAVE_ON_FLASH_EXTREME` - Pull out as many features as possible to target devices with ~128kB Flash that also want things like Filesystem support
+* `ESPR_PACKED_SYMPTR` - Packs string offsets of builtin symbols into their function pointers in JswSymPtr, saves 2 bytes per symbol
 * `BLUETOOTH_NAME_PREFIX="..."` - NRF52 only: Make the Bluetooth LE device's name `BLUETOOTH_NAME_PREFIX` followed by the last 2 bytes of the MAC address.
 * `BLUETOOTH_ADVERTISING_INTERVAL=375` - set the default Bluetooth advertising interval (default 375)
 * `NFC_DEFAULT_URL="http://foo"` - If defined, set the advertised NFC URL to the one given, plus `?a=ble_address`. Only do it for a fresh boot - not when code has been saved.
@@ -133,6 +134,7 @@ This is a partial list of definitions that can be added in a `BOARD.py` file's `
 * `ESPR_DCDC_ENABLE=1` - On NRF52 use the built-in DCDC converter (requires external hardware)
 * `ESPR_DCDC_HV_ENABLE=1` - On NRF52840 use the built-in high-voltage (REG0) DCDC converter (requires external hardware)
 * `ESPR_REGOUT0_1_8V=1` - On NRF52830/40 set the REG0 VCC voltage to 1.8v (the default is 3.3v)
+* `ESPR_VREF_VDDH=1` - when measuring system voltage (eg for E.getAnalogVRef()) use VDDH, not VDD (only useful if DCDC_HV enabled)
 * `ESPR_LSE_ENABLE` - On NRF52 use an external 32kHz Low Speed External crystal on D0/D1
 * `ESPR_NO_LOADING_SCREEN` - Bangle.js, don't show a 'loading' screen when loading a new app
 * `ESPR_BOOTLOADER_SPIFLASH` - Allow bootloader to flash direct from a file in SPI flash storage
@@ -147,6 +149,7 @@ This is a partial list of definitions that can be added in a `BOARD.py` file's `
 * `ESPR_NO_SOFTWARE_I2C` - don't build in software I2C support
 * `ESPR_NO_BLUETOOTH_MESSAGES` - don't include text versions of Bluetooth error messages (just the error number)
 * `ESPR_USE_STEPPER_TIMER` - add builtin `Stepper` class to handle higher speed stepper handling
+* `ESPR_LIMIT_DATE_RANGE` - limits the acceptable range for Date years (saves a few hundred bytes)
 
 These are set automatically when `SAVE_ON_FLASH` is set (see `jsutils.h`)
 
@@ -220,7 +223,10 @@ The pin definitions are created by [`scripts/build_pininfo.py`](`scripts/build_p
 * `sortingname` is the name, but padded so that when it's sorted everything appears in the right order
 * `port` is the actual port - on ESP8266 this might not be needed and could just default to `D`
 * `num` is the pin number - this doesn't have to match `D` - it's what is needed internally to access the hardware. For instance [Olimexino](boards/OLIMEXINO_STM32.py) has 'logical' pins that actually map all over the place.
-* `function` is a map of pin functions to their 'alternate functions' (an STM32 chip thing - STM32F4 chips can have different peripherals on each pin, so the alternate function is a number that you shove in that pin's register in order to connect it to that peripheral). The format, for instance `I2C1_SDA` is important as it's parsed later and is used to build `gen/jspininfo.c`. The code to parse them [is here](scripts/pinutils.py#L26)
+* `functions` is a map of pin functions to their 'alternate functions' (an STM32 chip thing - STM32F4 chips can have different peripherals on each pin, so the alternate function is a number that you shove in that pin's register in order to connect it to that peripheral). The format, for instance `I2C1_SDA` is important as it's parsed later and is used to build `gen/jspininfo.c`. The code to parse them [is here](scripts/pinutils.py#L26)
+  * You can add `"NEGATED":0` to a pin's `functions` to make Espruino invert that pin in software (to JS 1 will output 0v, 0 will output 3.3v)
+  * You can add `"NO_BLOCKLY":0` to a pin's `functions` to stop that pin appearing in the Blockly graphical editor (if the pin is 'internal')
+  * You can add `"3.3":0` to a pin's `functions` to ensure that in a board's pinout file (eg https://www.espruino.com/Original#pinout) a pin is shown as only being capable of 3.3v maximum IO
 * `csv` isn't needed, but when using data grabbed from csv files from ST's datasheets [like this](boards/pins/stm32f401.csv) it contains the raw data for debugging)
 
 

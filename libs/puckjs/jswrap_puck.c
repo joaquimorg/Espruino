@@ -58,11 +58,13 @@ const Pin PUCK_IO_PINS[] = {1,2,4,6,7,8,23,24,28,29,30,31};
 #endif
 
 bool mag_enabled = false; //< Has the magnetometer been turned on?
+uint16_t mag_power; // est mag power in uA
 int16_t mag_reading[3];  //< magnetometer xyz reading
 //int mag_zero[3]; //< magnetometer 'zero' reading, only for Puck 2.1 right now
 volatile bool mag_data_ready = false;
 
 bool accel_enabled = false; //< Has the accelerometer been turned on?
+uint16_t accel_power; // est mag power in uA
 int16_t accel_reading[3];
 int16_t gyro_reading[3];
 
@@ -278,21 +280,22 @@ void mag_pin_on() {
 bool mag_on(int milliHz, bool instant) {
   //jsiConsolePrintf("mag_on\n");
   mag_pin_on();
+  mag_power = 0;
   if (puckVersion == PUCKJS_1V0) { // MAG3110
     jshDelayMicroseconds(2500); // 1.7ms from power on to ok
     if (instant) milliHz = 80000;
     int reg1 = 0;
-    if (milliHz == 80000) reg1 |= (0x00)<<3; // 900uA
-    else if (milliHz == 40000) reg1 |= (0x04)<<3; // 550uA
-    else if (milliHz == 20000) reg1 |= (0x08)<<3; // 275uA
-    else if (milliHz == 10000) reg1 |= (0x0C)<<3; // 137uA
-    else if (milliHz == 5000) reg1 |= (0x10)<<3; // 69uA
-    else if (milliHz == 2500) reg1 |= (0x14)<<3; // 34uA
-    else if (milliHz == 1250) reg1 |= (0x18)<<3; // 17uA
-    else if (milliHz == 630) reg1 |= (0x1C)<<3; // 8uA
-    else if (milliHz == 310) reg1 |= (0x1D)<<3; // 8uA
-    else if (milliHz == 160) reg1 |= (0x1E)<<3; // 8uA
-    else if (milliHz == 80) reg1 |= (0x1F)<<3; // 8uA
+    if (milliHz == 80000) { reg1 |= (0x00)<<3; mag_power = 900; }
+    else if (milliHz == 40000) { reg1 |= (0x04)<<3; mag_power = 550; }
+    else if (milliHz == 20000) { reg1 |= (0x08)<<3; mag_power = 275; }
+    else if (milliHz == 10000) { reg1 |= (0x0C)<<3; mag_power = 137; }
+    else if (milliHz == 5000) { reg1 |= (0x10)<<3; mag_power = 69; }
+    else if (milliHz == 2500) { reg1 |= (0x14)<<3; mag_power = 34; }
+    else if (milliHz == 1250) { reg1 |= (0x18)<<3; mag_power = 17; }
+    else if (milliHz == 630) { reg1 |= (0x1C)<<3; mag_power = 8; }
+    else if (milliHz == 310) { reg1 |= (0x1D)<<3; mag_power = 8; }
+    else if (milliHz == 160) { reg1 |= (0x1E)<<3; mag_power = 8; }
+    else if (milliHz == 80) { reg1 |= (0x1F)<<3; mag_power = 8; }
     else return false;
 
     jshDelayMicroseconds(2000); // 1.7ms from power on to ok
@@ -303,16 +306,16 @@ bool mag_on(int milliHz, bool instant) {
     if (instant) milliHz = 80000;
     bool lowPower = false;
     int reg1 = 0x80; // temp sensor, low power
-    if (milliHz == 80000) reg1 |= 7<<2; // 900uA
-    else if (milliHz == 40000) reg1 |= 6<<2; // 550uA
-    else if (milliHz == 20000) reg1 |= 5<<2; // 275uA
-    else if (milliHz == 10000) reg1 |= 4<<2; // 137uA
-    else if (milliHz == 5000) reg1 |= 3<<2; // 69uA
-    else if (milliHz == 2500) reg1 |= 2<<2; // 34uA
-    else if (milliHz == 1250) reg1 |= 1<<2; // 17uA
+    if (milliHz == 80000) { reg1 |= 7<<2; mag_power = 900; }
+    else if (milliHz == 40000) { reg1 |= 6<<2; mag_power = 550; }
+    else if (milliHz == 20000) { reg1 |= 5<<2; mag_power = 275; }
+    else if (milliHz == 10000) { reg1 |= 4<<2; mag_power = 137; }
+    else if (milliHz == 5000) { reg1 |= 3<<2; mag_power = 69; }
+    else if (milliHz == 2500) { reg1 |= 2<<2; mag_power = 34; }
+    else if (milliHz == 1250) { reg1 |= 1<<2; mag_power = 17; }
     else if (milliHz <= 630) { /*if (milliHz == 630 || milliHz == 625)*/
       // We just go for the lowest power mode
-      reg1 |= 0<<2; // 8uA
+      reg1 |= 0<<2; mag_power = 8;
       lowPower = true;
     }
     else return false;
@@ -331,6 +334,7 @@ bool mag_on(int milliHz, bool instant) {
       hz=255; // max speed in default mode
       highPower = true;
     }
+    mag_power = 13 * hz;
 
 /*    mag_zero[0]=0;
     mag_zero[1]=0;
@@ -498,17 +502,19 @@ bool accel_on(int milliHz) {
   // CTRL1_XL / CTRL2_G
   int reg = 0;
   bool gyro = true;
+  accel_power = 0;
   if (milliHz<12500) { // 1.6Hz, no gyro
     reg = 11<<4;
     gyro = false;
-  } else if (milliHz==12500) reg=1<<4; // 12.5 Hz (low power)
-  else if (milliHz==26000) reg=2<<4; // 26 Hz (low power)
-  else if (milliHz==52000) reg=3<<4; // 52 Hz (low power)
-  else if (milliHz==104000) reg=4<<4; // 104 Hz (normal mode)
-  else if (milliHz==208000) reg=5<<4; // 208 Hz (normal mode)
-  else if (milliHz==416000) reg=6<<4; // 416 Hz (high performance)
-  else if (milliHz==833000) reg=7<<4; // 833 Hz (high performance)
-  else if (milliHz==1660000) reg=8<<4; // 1.66 kHz (high performance)
+    accel_power = 40;
+  } else if (milliHz==12500) { reg=1<<4; accel_power = 350; } // 12.5 Hz (low power)
+  else if (milliHz==26000) { reg=2<<4;accel_power = 450; } // 26 Hz (low power)
+  else if (milliHz==52000) { reg=3<<4; accel_power = 600; }// 52 Hz (low power)
+  else if (milliHz==104000) { reg=4<<4; accel_power = 1700; }// 104 Hz (normal mode)
+  else if (milliHz==208000) { reg=5<<4; accel_power = 3000; }// 208 Hz (normal mode)
+  else if (milliHz==416000) { reg=6<<4; accel_power = 5300; }// 416 Hz (high performance)
+  else if (milliHz==833000) { reg=7<<4; accel_power = 5500; }// 833 Hz (high performance)
+  else if (milliHz==1660000) { reg=8<<4; accel_power = 5500; }// 1.66 kHz (high performance)
   else return false;
 
 
@@ -696,6 +702,7 @@ JsVarFloat jswrap_puck_magTemp() {
   "type" : "event",
   "class" : "Puck",
   "name" : "mag",
+  "params" : [["xyz","JsVar","an object of the form `{x,y,z}`"]],
   "ifdef" : "PUCKJS"
 }
 Called after `Puck.magOn()` every time magnetometer data is sampled. There is
@@ -705,12 +712,21 @@ readings as integers (for more information see `Puck.mag()`).
 Check out [the Puck.js page on the
 magnetometer](http://www.espruino.com/Puck.js#on-board-peripherals) for more
 information.
+
+```JS
+Puck.magOn(10); // 10 Hz
+Puck.on('mag', function(e) {
+  print(e);
+});
+// { "x": -874, "y": -332, "z": -1938 }
+```
  */
 
 /*JSON{
   "type" : "event",
   "class" : "Puck",
   "name" : "accel",
+  "params" : [["e","JsVar","an object of the form `{acc:{x,y,z}, gyro:{x,y,z}}`"]],
   "ifdef" : "PUCKJS"
 }
 Only on Puck.js v2.0
@@ -718,6 +734,17 @@ Only on Puck.js v2.0
 Called after `Puck.accelOn()` every time accelerometer data is sampled. There is
 one argument which is an object of the form `{acc:{x,y,z}, gyro:{x,y,z}}`
 containing the data.
+
+```JS
+Puck.accelOn(12.5); // default 12.5Hz
+Puck.on('accel', function(e) {
+  print(e);
+});
+//{
+//  "acc": { "x": -525, "y": -112, "z": 8160 },
+//  "gyro": { "x": 154, "y": -152, "z": -34 }
+//}
+```
 
 The data is as it comes off the accelerometer and is not scaled to 1g. For more
 information see `Puck.accel()` or [the Puck.js page on the
@@ -1188,7 +1215,7 @@ void jswrap_puck_IR(JsVar *data, Pin cathode, Pin anode) {
     return;
   }
   if (jshIsPinValid(anode) && !jshIsPinValid(cathode)) {
-    jsExceptionHere(JSET_TYPEERROR, "Invalid pin combination");
+    jsExceptionHere(JSET_TYPEERROR, "Invalid pin");
     return;
   }
 
@@ -1270,7 +1297,7 @@ D11(rx).
 */
 int jswrap_puck_capSense(Pin tx, Pin rx) {
   if (!PUCKJS_HAS_CAPSENSE) {
-    jswrap_puck_notAvailableException("Capacitive sense");
+    jswrap_puck_notAvailableException("Capsense");
     return 0;
   }
   if (jshIsPinValid(tx) && jshIsPinValid(rx)) {
@@ -1325,7 +1352,7 @@ JsVarFloat jswrap_puck_light() {
     "generate" : "jswrap_espruino_getBattery",
     "return" : ["int", "A percentage between 0 and 100" ]
 }
-DEPRECATED - Please use `E.getBattery()` instead.
+**DEPRECATED** - Please use `E.getBattery()` instead.
 
 Return an approximate battery percentage remaining based on a normal CR2032
 battery (2.8 - 2.2v).
@@ -1408,6 +1435,14 @@ If the self test fails, it'll set the Puck.js Bluetooth advertising name to
 
 */
 
+JsVarFloat _jswrap_puck_selfTest_led(Pin pin) {
+  jshPinSetState(pin, JSHPINSTATE_GPIO_IN_PULLUP);
+  nrf_delay_ms(1);
+  JsVarFloat v = jshPinAnalog(LED1_PININDEX);
+  jshPinSetState(pin, JSHPINSTATE_GPIO_IN);
+  return v;
+}
+
 bool _jswrap_puck_selfTest(bool advertisePassOrFail) {
   unsigned int timeout, i;
   JsVarFloat v;
@@ -1424,7 +1459,7 @@ bool _jswrap_puck_selfTest(bool advertisePassOrFail) {
   while (jshPinGetValue(BTN1_PININDEX)==BTN1_ONSTATE && timeout--)
     nrf_delay_ms(1);
   if (jshPinGetValue(BTN1_PININDEX)==BTN1_ONSTATE) {
-    jsiConsolePrintf("Timeout waiting for button to be released.\n");
+    jsiConsolePrintf("Timeout waiting for button\n");
     if (!err[0]) strcpy(err,"BTN");
     ok = false;
   }
@@ -1435,34 +1470,25 @@ bool _jswrap_puck_selfTest(bool advertisePassOrFail) {
   nrf_delay_ms(500);
 
 
-  jshPinSetState(LED1_PININDEX, JSHPINSTATE_GPIO_IN_PULLUP);
-  nrf_delay_ms(1);
-  v = jshPinAnalog(LED1_PININDEX);
-  jshPinSetState(LED1_PININDEX, JSHPINSTATE_GPIO_IN);
+  v = _jswrap_puck_selfTest_led(LED1_PININDEX);
   if (v<0.2 || v>0.65) {
     if (!err[0]) strcpy(err,"LD1");
-    jsiConsolePrintf("LED1 pullup voltage out of range (%f) - disconnected?\n", v);
+    jsiConsolePrintf("LED1 PU (%fv)\n", v);
     ok = false;
   }
 
-  jshPinSetState(LED2_PININDEX, JSHPINSTATE_GPIO_IN_PULLUP);
-  nrf_delay_ms(1);
-  v = jshPinAnalog(LED2_PININDEX);
-  jshPinSetState(LED2_PININDEX, JSHPINSTATE_GPIO_IN);
+  v = _jswrap_puck_selfTest_led(LED2_PININDEX);
   if (v<0.55 || v>0.85) {
     if (!err[0]) strcpy(err,"LD2");
-    jsiConsolePrintf("LED2 pullup voltage out of range (%f) - disconnected?\n", v);
+    jsiConsolePrintf("LED2 PU (%fv)\n", v);
     ok = false;
   }
 
   if (PUCKJS_HAS_LED3) {
-    jshPinSetState(LED3_PININDEX, JSHPINSTATE_GPIO_IN_PULLUP);
-    nrf_delay_ms(1);
-    v = jshPinAnalog(LED3_PININDEX);
-    jshPinSetState(LED3_PININDEX, JSHPINSTATE_GPIO_IN);
+    v = _jswrap_puck_selfTest_led(LED3_PININDEX);
     if (v<0.55 || v>0.90) {
       if (!err[0]) strcpy(err,"LD3");
-      jsiConsolePrintf("LED3 pullup voltage out of range (%f) - disconnected?\n", v);
+      jsiConsolePrintf("LED3 PU (%fv)\n", v);
       ok = false;
     }
   }
@@ -1474,7 +1500,7 @@ bool _jswrap_puck_selfTest(bool advertisePassOrFail) {
     nrf_delay_ms(1);
     if (jshPinGetValue(IR_ANODE_PIN)) {
       if (!err[0]) strcpy(err,"IRs");
-      jsiConsolePrintf("IR LED wrong way around/shorted?\n");
+      jsiConsolePrintf("IR anode short?\n");
       ok = false;
     }
 
@@ -1520,7 +1546,7 @@ bool _jswrap_puck_selfTest(bool advertisePassOrFail) {
     mag_enabled = false;
     if (mag_reading[0]==-1 && mag_reading[1]==-1 && mag_reading[2]==-1) {
       if (!err[0]) strcpy(err,"MAG");
-      jsiConsolePrintf("Magnetometer not working?\n");
+      jsiConsolePrintf("Mag not working?\n");
       ok = false;
     }
   }
@@ -1534,14 +1560,14 @@ bool _jswrap_puck_selfTest(bool advertisePassOrFail) {
     accel_off();
     if (buf[0]!=106) {
       if (!err[0]) strcpy(err,"ACC");
-      jsiConsolePrintf("Accelerometer WHOAMI failed\n");
+      jsiConsolePrintf("Acc WHOAMI fail\n");
       ok = false;
     }
 
     JsVarFloat t = jswrap_puck_getTemperature();
     if (t<0 || t>40) {
       if (!err[0]) strcpy(err,"TMP");
-      jsiConsolePrintf("Unexpected temperature\n");
+      jsiConsolePrintf("Unexpected temp %f\n", t);
       ok = false;
     }
 
@@ -1554,14 +1580,14 @@ bool _jswrap_puck_selfTest(bool advertisePassOrFail) {
     nrf_delay_ms(1);
     if (!jshPinGetValue(CAPSENSE_RX_PIN)) {
       if (!err[0]) strcpy(err,"CPu");
-      jsiConsolePrintf("Capsense resistor disconnected? (pullup)\n");
+      jsiConsolePrintf("Capsense disconnected? (PU)\n");
       ok = false;
     }
     jshPinSetValue(CAPSENSE_TX_PIN, 0);
     nrf_delay_ms(1);
     if (jshPinGetValue(CAPSENSE_RX_PIN)) {
       if (!err[0]) strcpy(err,"CPd");
-      jsiConsolePrintf("Capsense resistor disconnected? (pulldown)\n");
+      jsiConsolePrintf("Capsense disconnected? (PD)\n");
       ok = false;
     }
     jshPinSetState(CAPSENSE_TX_PIN, JSHPINSTATE_GPIO_IN);
@@ -1709,20 +1735,14 @@ void jswrap_puck_init() {
    * With bootloader this means apply power while holding button for >3 secs */
   bool firstStart = jsiStatus & JSIS_FIRST_BOOT; // is this the first time jswrap_puck_init was called?
   bool firstRunAfterFlash = false;
+  uint32_t firstStartFlagAddr = FLASH_SAVED_CODE_START-4;
   if (firstStart) {
-    uint32_t firstStartFlagAddr = FLASH_SAVED_CODE_START-4;
     // check the 4 bytes *right before* our saved code. If these are 0xFFFFFFFF
     // then we have just been programmed...
     uint32_t buf;
     jshFlashRead(&buf, firstStartFlagAddr, 4);
     if (buf==0xFFFFFFFF) {
       firstRunAfterFlash = true;
-      buf = 0;
-      // set it to 0!
-      bool oldFlashStatus = jsfGetFlag(JSF_UNSAFE_FLASH);
-      jsfSetFlag(JSF_UNSAFE_FLASH, true);
-      jshFlashWrite(&buf, firstStartFlagAddr, 4);
-      jsfSetFlag(JSF_UNSAFE_FLASH, oldFlashStatus);
     }
   }
 
@@ -1731,6 +1751,14 @@ void jswrap_puck_init() {
     // if we're doing our first run after being flashed with new firmware, we set the advertising name
     // up to say PASS or FAIL, to work with the factory test process.
     bool result = _jswrap_puck_selfTest(firstRunAfterFlash);
+    // if we passed, set the flag in flash so we don't self-test again
+    if (firstRunAfterFlash && result) {
+      uint32_t buf = 0;
+      bool oldFlashStatus = jsfGetFlag(JSF_UNSAFE_FLASH);
+      jsfSetFlag(JSF_UNSAFE_FLASH, true);
+      jshFlashWrite(&buf, firstStartFlagAddr, 4);
+      jsfSetFlag(JSF_UNSAFE_FLASH, oldFlashStatus);
+    }
     // green if good, red if bad
     Pin indicator = result ? LED2_PININDEX : LED1_PININDEX;
     int i;
@@ -1806,4 +1834,15 @@ bool jswrap_puck_idle() {
     busy = true;
   }
   return busy;
+}
+
+/*JSON{
+  "type" : "powerusage",
+  "generate" : "jswrap_puck_powerusage"
+}*/
+void jswrap_puck_powerusage(JsVar *devices) {
+  if (mag_enabled)
+    jsvObjectSetChildAndUnLock(devices, "mag", jsvNewFromInteger(mag_power));
+  if (accel_enabled)
+    jsvObjectSetChildAndUnLock(devices, "accel", jsvNewFromInteger(accel_power));
 }

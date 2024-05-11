@@ -425,6 +425,8 @@ void jshSetupRTCPrescalerValue(unsigned int prescale);
 int jshGetRTCPrescalerValue(bool calibrate);
 // Reset timers and average systick duration counters for RTC - when coming out of sleep or changing prescaler
 void jshResetRTCTimer();
+/// Flags that we've been able to send data down USB, so it's ok to have data in the output buffer
+void jshClearUSBIdleTimeout();
 #endif
 
 #if defined(NRF51_SERIES) || defined(NRF52_SERIES)
@@ -450,6 +452,9 @@ unsigned int jshGetRandomNumber();
  * to match what gets implemented here. The return value is the clock
  * speed in Hz though. */
 unsigned int jshSetSystemClock(JsVar *options);
+
+/* Adds the estimated power usage of the microcontroller in uA to the 'devices' object. The CPU should be called 'CPU' */
+void jsvGetProcessorPowerUsage(JsVar *devices);
 
 /// Perform a proper hard-reboot of the device
 void jshReboot();

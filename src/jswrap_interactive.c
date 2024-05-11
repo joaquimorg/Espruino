@@ -28,14 +28,6 @@
 An Object that contains functions for writing to the interactive console
  */
 
-/*JSON{
-  "type" : "variable",
-  "name" : "global",
-  "generate_full" : "jsvLockAgain(execInfo.root)",
-  "return" : ["JsVar","The global scope"]
-}
-A reference to the global scope, where everything is defined.
- */
 
 /*JSON{
   "type" : "function",
@@ -486,9 +478,9 @@ JsVar *_jswrap_interface_setTimeoutOrInterval(JsVar *func, JsVarFloat interval, 
   JsSysTime intervalInt = jshGetTimeFromMilliseconds(interval);
   jsvObjectSetChildAndUnLock(timerPtr, "time", jsvNewFromLongInteger((jshGetSystemTime() - jsiLastIdleTime) + intervalInt));
   if (!isTimeout) {
-    jsvObjectSetChildAndUnLock(timerPtr, "interval", jsvNewFromLongInteger(intervalInt));
+    jsvObjectSetChildAndUnLock(timerPtr, "intr", jsvNewFromLongInteger(intervalInt));
   }
-  jsvObjectSetChild(timerPtr, "callback", func); // intentionally no unlock
+  jsvObjectSetChild(timerPtr, "cb", func); // intentionally no unlock
   if (jsvGetArrayLength(args))
     jsvObjectSetChild(timerPtr, "args", args); // intentionally no unlock
 
@@ -567,10 +559,8 @@ void _jswrap_interface_clearTimeoutOrInterval(JsVar *idVarArr, bool isTimeout) {
       jsExceptionHere(JSET_ERROR, "clear%s(undefined) not allowed. Use clear%s() instead", name, name);
     } else {
       JsVar *child = jsvIsBasic(idVar) ? jsvFindChildFromVar(timerArrayPtr, idVar, false) : 0;
-      if (child) {
-        jsvRemoveChild(timerArrayPtr, child);
-        jsvUnLock(child);
-      }
+      if (child)
+        jsvRemoveChildAndUnLock(timerArrayPtr, child);
       jsvUnLock(idVar);
     }
   }
@@ -611,7 +601,7 @@ void jswrap_interface_changeInterval(JsVar *idVar, JsVarFloat interval) {
   if (timerName) {
     JsVar *timer = jsvSkipNameAndUnLock(timerName);
     JsSysTime intervalInt = jshGetTimeFromMilliseconds(interval);
-    jsvObjectSetChildAndUnLock(timer, "interval", jsvNewFromLongInteger(intervalInt));
+    jsvObjectSetChildAndUnLock(timer, "intr", jsvNewFromLongInteger(intervalInt));
     jsvObjectSetChildAndUnLock(timer, "time", jsvNewFromLongInteger((jshGetSystemTime()-jsiLastIdleTime) + intervalInt));
     jsvUnLock(timer);
     // timerName already unlocked

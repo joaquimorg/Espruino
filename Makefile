@@ -31,7 +31,7 @@
 # PROFILE=1               # Compile with gprof profiling info
 # CFILE=test.c            # Compile in the supplied C file
 # CPPFILE=test.cpp        # Compile in the supplied C++ file
-# ESPRUINO_WRAPPERSOURCES=jswrap_x.c 
+# ESPRUINO_WRAPPERSOURCES=jswrap_x.c
 #                         # Compile in a wrapper file to the build (with JS functions in). WRAPPERSOURCES can be used too, but this adds the files to the END of the sources list
 # PYTHON=python3          # The python command used for this build
 #
@@ -63,7 +63,7 @@
 # DFU_UPDATE_BUILD=1      # Uncomment this to build Espruino for a device firmware update over the air (nRF52).
 #
 # -- ESP32 Only
-# RTOS=1                  # adds RTOS functions, available only for ESP32 
+# RTOS=1                  # adds RTOS functions, available only for ESP32
 
 include make/sanitycheck.make
 
@@ -225,6 +225,8 @@ else ifeq ($(FAMILY),ESP8266)
 USE_ESP8266=1
 else ifeq ($(FAMILY),ESP32)
 USE_ESP32=1
+else ifeq ($(FAMILY),ESP32_IDF4)
+USE_ESP32=1
 else ifdef EMW3165
 USE_WICED=1
 else ifdef CC3000
@@ -236,7 +238,8 @@ endif
 ifdef DEBUG
 #OPTIMIZEFLAGS=-Os -g
  ifeq ($(FAMILY),ESP8266)
-  OPTIMIZEFLAGS=-g -Os -std=gnu11 -fgnu89-inline -Wl,--allow-multiple-definition
+  OPTIMIZEFLAGS=-g -Os -Wl,--allow-multiple-definition
+  CFLAGS_C_COMPILER= -std=gnu11 -fgnu89-inline
  else
   OPTIMIZEFLAGS=-g
  endif
@@ -292,7 +295,7 @@ src/jswrap_storage.c \
 src/jswrap_spi_i2c.c \
 src/jswrap_stepper.c \
 src/jswrap_stream.c \
-src/jswrap_waveform.c 
+src/jswrap_waveform.c
 endif
 
 # it is important that _pin comes before stuff which uses
@@ -345,12 +348,9 @@ libs/compression/compress_rle.c
 
 else
 
-ifneq ($(FAMILY),ESP8266)
 # If we have enough flash, include the debugger
-# ESP8266 can't do it because it expects tasks to finish within set time
 ifneq ($(USE_DEBUGGER),0)
 DEFINES+=-DUSE_DEBUGGER
-endif
 endif
 # Use use tab complete
 ifneq ($(USE_TAB_COMPLETE),0)
@@ -650,7 +650,7 @@ ifeq ($(USE_CRYPTO),1)
     include make/crypto/$(FAMILY).make
   else
     include make/crypto/default.make
-  endif 
+  endif
 endif
 
 ifeq ($(USE_NEOPIXEL),1)
@@ -696,7 +696,7 @@ ifeq ($(USE_WIO_LTE),1)
   SOURCES += targets/stm32/stm32_ws2812b_driver.c
 endif
 
-ifeq ($(USE_TENSORFLOW),1) 
+ifeq ($(USE_TENSORFLOW),1)
 include make/misc/tensorflow.make
 endif
 
@@ -740,9 +740,10 @@ OBJS = $(PRECOMPILED_OBJS) $(SOURCEOBJS)
 
 # -ffreestanding -nodefaultlibs -nostdlib -fno-common
 # -nodefaultlibs -nostdlib -nostartfiles
-
 # -fdata-sections -ffunction-sections are to help remove unused code
-CFLAGS += $(OPTIMIZEFLAGS) -c $(ARCHFLAGS) $(DEFINES) $(INCLUDE)
+
+# See the build_platform_config.py/platform_config.h for notes on why we define ESPR_DEFINES_ON_COMMANDLINE
+CFLAGS += $(OPTIMIZEFLAGS) -c $(ARCHFLAGS) $(DEFINES) $(INCLUDE) -DESPR_DEFINES_ON_COMMANDLINE
 
 # -Wl,--gc-sections helps remove unused code
 # -Wl,--whole-archive checks for duplicates
@@ -828,23 +829,21 @@ $(PININFOFILE).c $(PININFOFILE).h: scripts/build_pininfo.py
 endif
 
 ifndef NRF5X # nRF5x devices use their own linker files that aren't automatically generated.
-ifndef EFM32
 $(LINKER_FILE): scripts/build_linker.py
 	@echo ================================== Generating linker scripts
 	$(Q)$(PYTHON) scripts/build_linker.py $(BOARD) $(LINKER_FILE) $(BUILD_LINKER_FLAGS)
-endif # EFM32
 endif # NRF5X
 
 $(PLATFORM_CONFIG_FILE): boards/$(BOARD).py scripts/build_platform_config.py
 	@echo ================================== Generating platform configs
-	$(Q)$(PYTHON) scripts/build_platform_config.py $(BOARD) $(HEADERFILENAME)
+	$(Q)$(PYTHON) scripts/build_platform_config.py $(BOARD) $(HEADERFILENAME) $(DEFINES)
 
 # If realpath exists, use relative paths
 ifneq ("$(shell ${REALPATH} --version > /dev/null;echo "$$?")","0")
-compile=$(CC) $(CFLAGS) $< -o $@
+compile=$(CC) $(CFLAGS_C_COMPILER) $(CFLAGS) $< -o $@
 else
 # when macros use __FILE__ this stops us including the whole build path
-compile=$(CC) $(CFLAGS) $(shell ${REALPATH} --relative-to $(shell pwd) $<) -o $@
+compile=$(CC) $(CFLAGS_C_COMPILER) $(CFLAGS) $(shell ${REALPATH} --relative-to $(shell pwd) $<) -o $@
 endif
 
 link=$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
@@ -888,6 +887,8 @@ ifdef LINUX # ---------------------------------------------------
 include make/targets/LINUX.make
 else ifdef EMSCRIPTEN
 include make/targets/EMSCRIPTEN.make
+else ifdef ESP32_IDF4
+include make/targets/ESP32_IDF4.make
 else ifdef ESP32
 include make/targets/ESP32.make
 else ifdef ESP8266
@@ -902,7 +903,7 @@ lst: $(PROJ_NAME).lst
 
 clean:
 	@echo Cleaning targets
-	$(Q)rm -rf $(OBJDIR)/*
+	$(Q)rm -rf $(OBJDIR)/* $(BINDIR)/build $(BINDIR)/main
 	$(Q)rm -f $(GENDIR)/*.c $(GENDIR)/*.h $(GENDIR)/*.ld
 	$(Q)rm -f $(ROOT)/scripts/*.pyc $(ROOT)/boards/*.pyc
 	$(Q)rm -f $(PROJ_NAME).elf

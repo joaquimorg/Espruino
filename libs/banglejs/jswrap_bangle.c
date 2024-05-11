@@ -963,6 +963,7 @@ typedef enum {
   JSBF_LCD_BL_ON     = 1<<17,
   JSBF_LOCKED        = 1<<18,
   JSBF_HRM_INSTANT_LISTENER = 1<<19,
+  JSBF_LCD_DBL_REFRESH = 1<<20, ///< On Bangle.js 2, toggle extcomin twice for each poll interval (avoids screen 'flashing' behaviour off axis)
 
   JSBF_DEFAULT = ///< default at power-on
       JSBF_WAKEON_TWIST|
@@ -1246,7 +1247,7 @@ void peripheralPollHandler() {
   }
 
 #ifdef LCD_CONTROLLER_LPM013M126
-  // toggle EXTCOMIN to avoid burn-in on LCD
+  // pulse EXTCOMIN to avoid burn-in on LCD
   if (bangleFlags & JSBF_LCD_ON)
     lcdMemLCD_extcominToggle();
 #endif
@@ -1672,6 +1673,13 @@ void peripheralPollHandler() {
 
   // we're done, ensure we clear I2C flag
   i2cBusy = false;
+
+#ifdef LCD_CONTROLLER_LPM013M126
+  // pulse EXTCOMIN to avoid burn-in on LCD (second toggle, if JSBF_LCD_DBL_REFRESH is set)
+  if ((bangleFlags & JSBF_LCD_ON) && (bangleFlags & JSBF_LCD_DBL_REFRESH))
+    lcdMemLCD_extcominToggle();
+#endif
+
 }
 
 #ifdef HEARTRATE
@@ -2121,7 +2129,6 @@ Bangle.setLCDTimeout(0); // turn off the timeout
 Bangle.setLCDPower(1); // keep screen on
 ```
 
-
 **When on full, the LCD draws roughly 40mA.** You can adjust When brightness
 using `Bangle.setLCDBrightness`.
 */
@@ -2168,7 +2175,7 @@ void jswrap_banglejs_setLCDPower(bool isOn) {
 This function can be used to adjust the brightness of Bangle.js's display, and
 hence prolong its battery life.
 
-Due to hardware design constraints, software PWM has to be used which means that
+Due to hardware design constraints on Bangle.js 1, software PWM has to be used which means that
 the display may flicker slightly when Bluetooth is active and the display is not
 at full power.
 
@@ -2180,13 +2187,16 @@ at full power.
 * 0.5 = 28mA
 * 0.9 = 40mA (switching overhead)
 * 1 = 40mA
+
+In 2v21 and earlier, this function would erroneously turn the LCD backlight on. 2v22 and later
+fix this, and if you want the backlight on your should use `Bangle.setLCDPowerBacklight()`
 */
 void jswrap_banglejs_setLCDBrightness(JsVarFloat v) {
   int b = (int)(v*256 + 0.5);
   if (b<0) b=0;
   if (b>255) b=255;
   lcdBrightness = b;
-  if (bangleFlags&JSBF_LCD_ON)  // need to re-run to adjust brightness
+  if (bangleFlags&JSBF_LCD_BL_ON)  // need to re-run to adjust brightness
     jswrap_banglejs_setLCDPowerBacklight(1);
 }
 
@@ -2586,6 +2596,7 @@ for before the clock is reloaded? 1500ms default, or 0 means never.
 * `seaLevelPressure` (Bangle.js 2) Normally 1013.25 millibars - this is used for
   calculating altitude with the pressure sensor
 * `lcdBufferPtr` (Bangle.js 2 2v21+) Return a pointer to the first pixel of the 3 bit graphics buffer used by Bangle.js for the screen (stride = 178 bytes)
+* `lcdDoubleRefresh` (Bangle.js 2 2v22+) If enabled, pulses EXTCOMIN twice per poll interval (avoids off-axis flicker)
 
 Where accelerations are used they are in internal units, where `8192 = 1g`
 
@@ -2616,6 +2627,7 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
 #endif
 #ifdef LCD_CONTROLLER_LPM013M126
   int lcdBufferPtr = (int)(size_t)lcdMemLCD_getRowPtr(0);
+  bool lcdDoubleRefresh = bangleFlags&JSBF_LCD_DBL_REFRESH;
 #endif
   jsvConfigObject configs[] = {
 #ifdef HEARTRATE
@@ -2661,6 +2673,7 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
 #endif
 #ifdef LCD_CONTROLLER_LPM013M126
       {"lcdBufferPtr", JSV_INTEGER, &lcdBufferPtr},
+      {"lcdDoubleRefresh", JSV_BOOLEAN, &lcdDoubleRefresh}
 #endif
   };
   if (createObject) {
@@ -2692,6 +2705,9 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
     touchMaxX = touchX2;
     touchMaxY = touchY2;
 #endif
+#ifdef LCD_CONTROLLER_LPM013M126
+  bangleFlags = (bangleFlags&~JSBF_LCD_DBL_REFRESH) | (lcdDoubleRefresh?JSBF_LCD_DBL_REFRESH:0);
+#endif
   }
   return 0;
 }
@@ -2722,6 +2738,8 @@ JsVar *jswrap_banglejs_getOptions() {
     "ifdef" : "BANGLEJS"
 }
 Also see the `Bangle.lcdPower` event
+
+You can use `Bangle.setLCDPower` to turn on the LCD (on Bangle.js 2 the LCD is normally on, and draws very little power so can be left on).
 */
 // emscripten bug means we can't use 'bool' as return value here!
 int jswrap_banglejs_isLCDOn() {
@@ -2737,6 +2755,8 @@ int jswrap_banglejs_isLCDOn() {
     "ifdef" : "BANGLEJS"
 }
 Also see the `Bangle.backlight` event
+
+You can use `Bangle.setLCDPowerBacklight` to turn on the LCD backlight.
 */
 // emscripten bug means we can't use 'bool' as return value here!
 int jswrap_banglejs_isBacklightOn() {
@@ -3733,23 +3753,23 @@ NO_INLINE void jswrap_banglejs_init() {
     jswrap_banglejs_setTheme();
     v = jsvIsObject(settings) ? jsvObjectGetChildIfExists(settings,"theme") : 0;
     if (jsvIsObject(v)) {
-      graphicsTheme.fg = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fg"));
-      graphicsTheme.bg = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bg"));
-      graphicsTheme.fg2 = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fg2"));
-      graphicsTheme.bg2 = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bg2"));
-      graphicsTheme.fgH = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"fgH"));
-      graphicsTheme.bgH = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"bgH"));
-      graphicsTheme.dark = jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(v,"dark"));
+      graphicsTheme.fg = jsvObjectGetIntegerChild(v,"fg");
+      graphicsTheme.bg = jsvObjectGetIntegerChild(v,"bg");
+      graphicsTheme.fg2 = jsvObjectGetIntegerChild(v,"fg2");
+      graphicsTheme.bg2 = jsvObjectGetIntegerChild(v,"bg2");
+      graphicsTheme.fgH = jsvObjectGetIntegerChild(v,"fgH");
+      graphicsTheme.bgH = jsvObjectGetIntegerChild(v,"bgH");
+      graphicsTheme.dark = jsvObjectGetBoolChild(v,"dark");
     }
     jsvUnLock(v);
   #ifdef TOUCH_DEVICE
     // load touchscreen calibration
     v = jsvIsObject(settings) ? jsvObjectGetChildIfExists(settings,"touch") : 0;
     if (jsvIsObject(v)) {
-      touchMinX = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"x1"));
-      touchMinY = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"y1"));
-      touchMaxX = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"x2"));
-      touchMaxY = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(v,"y2"));
+      touchMinX = jsvObjectGetIntegerChild(v,"x1");
+      touchMinY = jsvObjectGetIntegerChild(v,"y1");
+      touchMaxX = jsvObjectGetIntegerChild(v,"x2");
+      touchMaxY = jsvObjectGetIntegerChild(v,"y2");
     }
     jsvUnLock(v);
   #endif
@@ -5137,8 +5157,8 @@ JsVar *jswrap_banglejs_project(JsVar *latlong) {
   const double degToRad = PI / 180; // degree to radian conversion
   const double latMax = 85.0511287798; // clip latitude to sane values
   const double R = 6378137; // earth radius in m
-  double lat = jsvGetFloatAndUnLock(jsvObjectGetChildIfExists(latlong,"lat"));
-  double lon = jsvGetFloatAndUnLock(jsvObjectGetChildIfExists(latlong,"lon"));
+  double lat = jsvObjectGetFloatChild(latlong,"lat");
+  double lon = jsvObjectGetFloatChild(latlong,"lon");
   if (lat > latMax) lat=latMax;
   if (lat < -latMax) lat=-latMax;
   double s = sin(lat * degToRad);
@@ -6072,26 +6092,15 @@ While you could use setWatch/etc manually, the benefit here is that you don't
 end up with multiple `setWatch` instances, and the actual input method (touch,
 or buttons) is implemented dependent on the watch (Bangle.js 1 or 2)
 
-**Note:** You can override this function in boot code to change the interaction
-mode with the watch. For instance you could make all clocks start the launcher
-with a swipe by using:
-
 ```
-(function() {
-  var sui = Bangle.setUI;
-  Bangle.setUI = function(mode, cb) {
-    var m = ("object"==typeof mode) ? mode.mode : mode;
-    if (m!="clock") return sui(mode,cb);
-    sui(); // clear
-    Bangle.CLOCK=1;
-    Bangle.swipeHandler = Bangle.showLauncher;
-    Bangle.on("swipe", Bangle.swipeHandler);
-  };
-})();
+Bangle.setUI("updown", function (dir) {
+  // dir is +/- 1 for swipes up/down
+  // dir is 0 when button pressed
+});
 ```
 
 The first argument can also be an object, in which case more options can be
-specified:
+specified with `mode:"custom"`:
 
 ```
 Bangle.setUI({
@@ -6111,7 +6120,25 @@ If `remove` is specified, `Bangle.showLauncher`, `Bangle.showClock`, `Bangle.loa
 may choose to just call the `remove` function and then load a new app without resetting Bangle.js.
 As a result, **if you specify 'remove' you should make sure you test that after calling `Bangle.setUI()`
 without arguments your app is completely unloaded**, otherwise you may end up with memory leaks or
-other issues when switching apps. Please see http://www.espruino.com/Bangle.js+Fast+Load for more details on this.
+other issues when switching apps. Please see the [Bangle.js Fast Load Tutorial](https://www.espruino.com/Bangle.js+Fast+Load) for more details on this.
+
+**Note:** You can override this function in boot code to change the interaction
+mode with the watch. For instance you could make all clocks start the launcher
+with a swipe by using:
+
+```
+(function() {
+  var sui = Bangle.setUI;
+  Bangle.setUI = function(mode, cb) {
+    var m = ("object"==typeof mode) ? mode.mode : mode;
+    if (m!="clock") return sui(mode,cb);
+    sui(); // clear
+    Bangle.CLOCK=1;
+    Bangle.swipeHandler = Bangle.showLauncher;
+    Bangle.on("swipe", Bangle.swipeHandler);
+  };
+})();
+```
 */
 /*JSON{
     "type" : "staticmethod", "class" : "Bangle", "name" : "setUI", "patch":true,
@@ -6218,4 +6245,30 @@ void jsbangle_push_event(JsBangleEvent type, uint16_t value) {
   evt.data.chars[1] = (char)((value>>8) & 0xFF);
   evt.data.chars[2] = (char)(value & 0xFF);
   jshPushEvent(&evt);
+}
+
+/*JSON{
+  "type" : "powerusage",
+  "generate" : "jswrap_banglejs_powerusage"
+}*/
+void jswrap_banglejs_powerusage(JsVar *devices) {
+  // https://www.espruino.com/Bangle.js2#power-consumption
+#ifdef BANGLEJS_F18
+  if (jswrap_banglejs_isLCDOn())
+    jsvObjectSetChildAndUnLock(devices, "LCD", jsvNewFromInteger(40000));
+#endif
+#ifdef BANGLEJS_Q3
+  if (jswrap_banglejs_isBacklightOn())
+    jsvObjectSetChildAndUnLock(devices, "LCD_backlight", jsvNewFromInteger(14000));
+  if (!jswrap_banglejs_isLocked())
+    jsvObjectSetChildAndUnLock(devices, "LCD_touch", jsvNewFromInteger(1600));
+#endif
+  if (jswrap_banglejs_isHRMOn())
+    jsvObjectSetChildAndUnLock(devices, "HRM", jsvNewFromInteger(700));
+  if (jswrap_banglejs_isGPSOn())
+    jsvObjectSetChildAndUnLock(devices, "GPS", jsvNewFromInteger(20000));
+  if (jswrap_banglejs_isCompassOn())
+    jsvObjectSetChildAndUnLock(devices, "compass", jsvNewFromInteger(600));
+  if (jswrap_banglejs_isBarometerOn())
+    jsvObjectSetChildAndUnLock(devices, "baro", jsvNewFromInteger(200));
 }

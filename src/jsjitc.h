@@ -82,7 +82,7 @@ typedef struct {
   JsVar *initCode;
   /// How many blocks deep are we? blockCount=0 means we're writing to the 'code' var
   int blockCount;
-  /// An Object mapping var name -> index on the stack
+  /// An Object mapping var name -> index on the stack (index can also include some flags - see jsjFactorIDAndUnLock)
   JsVar *vars;
   /// How many words (not bytes) are on the stack reserved for variables?
   int varCount;
@@ -126,7 +126,7 @@ void jsjcLiteral64(int reg, uint64_t data);
 // Call a function
 #ifdef DEBUG_JIT_CALLS
 void _jsjcCall(void *c, const char *name);
-#define jsjcCall(c) _jsjcCall(c, STRINGIFY(c))
+#define jsjcCall(c) _jsjcCall(c, ESPR_STRINGIFY(c))
 #else
 void jsjcCall(void *c);
 #endif

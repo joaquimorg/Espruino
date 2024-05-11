@@ -24,6 +24,7 @@
  * functions should follow the expected conventions.
  */
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "jshardware.h"
 #include "jshardwareUart.h"
@@ -47,15 +48,25 @@
 
 #include "jswrap_esp32_network.h"
 
+#if ESP_IDF_VERSION_MAJOR>=4
+#include "soc/uart_reg.h"
+#include "esp_mac.h"
+#endif
 #include "esp_attr.h"
 #include "esp_wifi.h"
 #include "esp_system.h"
-#include "esp_spi_flash.h"
 #include "esp_task_wdt.h"
 #include "rom/ets_sys.h"
 #include "rom/uart.h"
 #include "driver/gpio.h"
 #include "soc/gpio_sig_map.h"
+
+#if ESP_IDF_VERSION_MAJOR>=5
+#include "esp_flash.h"
+#include "soc/gpio_reg.h"
+#else
+#include "esp_spi_flash.h"
+#endif
 
 #include "jshardwareI2c.h"
 #include "jshardwareSpi.h"
@@ -107,9 +118,13 @@ void IRAM_ATTR gpio_intr_handler(void* arg){
   IOEventFlags exti;
   Pin gpio_num = 0;
   uint32_t gpio_intr_status = READ_PERI_REG(GPIO_STATUS_REG);   //read status to get interrupt status for GPIO0-31
+#ifndef CONFIG_IDF_TARGET_ESP32C3
   uint32_t gpio_intr_status_h = READ_PERI_REG(GPIO_STATUS1_REG);//read status1 to get interrupt status for GPIO32-39
+#endif
   SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, gpio_intr_status);    //Clear intr for gpio0-gpio31
+#ifndef CONFIG_IDF_TARGET_ESP32C3
   SET_PERI_REG_MASK(GPIO_STATUS1_W1TC_REG, gpio_intr_status_h); //Clear intr for gpio32-39
+#endif
   do {
     g_pinState[gpio_num] = 0;
     if(gpio_num < 32) {
@@ -118,10 +133,12 @@ void IRAM_ATTR gpio_intr_handler(void* arg){
          jshPushIOWatchEvent(exti);
       }
     } else {
+#ifndef CONFIG_IDF_TARGET_ESP32C3
       if(gpio_intr_status_h & BIT(gpio_num - 32)) {
         exti = pinToEV_EXTI(gpio_num);
         jshPushIOWatchEvent(exti);
       }
+#endif
     }
   } while(++gpio_num < GPIO_PIN_COUNT);
 }
@@ -142,7 +159,7 @@ void jshPinDefaultPullup() {
   jshPinSetStateRange(21,22,JSHPINSTATE_GPIO_IN_PULLUP);
   jshPinSetStateRange(25,27,JSHPINSTATE_GPIO_IN_PULLUP);
   jshPinSetStateRange(34,39,JSHPINSTATE_GPIO_IN_PULLUP);
-  
+
 }
 
 /**
@@ -205,7 +222,7 @@ int jshGetSerialNumber(unsigned char *data, int maxChars) {
   return 6;
 }
 
-void jshInterruptOff() { 
+void jshInterruptOff() {
   taskDISABLE_INTERRUPTS();
 }
 
@@ -220,8 +237,15 @@ bool jshIsInInterrupt() {
 
 /// Enter simple sleep mode (can be woken up by interrupts). Returns true on success
 bool jshSleep(JsSysTime timeUntilWake) {
+#if ESP_IDF_VERSION_MAJOR>=4
+  double ms = jshGetMillisecondsFromTime(timeUntilWake);
+  if (ms>50) ms=50; // hack for now - ideally jshHadEvent called from UART IRQs would break out of vTaskDelay
+  vTaskDelay(ms / portTICK_PERIOD_MS);
+#else
   UNUSED(timeUntilWake);
-   return true;
+  // we never sleep in older IDFs
+#endif
+  return true;
 } // End of jshSleep
 
 
@@ -298,7 +322,11 @@ void jshPinSetState(
   gpio_num_t gpioNum = pinToESP32Pin(pin);
   gpio_set_direction(gpioNum, mode);
   gpio_set_pull_mode(gpioNum, pull_mode);
+#if ESP_IDF_VERSION_MAJOR>=5
+  esp_rom_gpio_pad_select_gpio(gpioNum);
+#else
   gpio_pad_select_gpio(gpioNum);
+#endif
   g_pinState[pin] = state; // remember what we set this to...
 }
 
@@ -308,12 +336,12 @@ void jshPinSetState(
  * \return The current state of the selected pin.
  */
 JshPinState jshPinGetState(Pin pin) {
-  if ( jshPinGetValue(pin) & 1 ) 
+  if ( jshPinGetValue(pin) & 1 )
     return g_pinState[pin] | JSHPINSTATE_PIN_IS_ON;
   return g_pinState[pin];
 }
 
-/** 
+/**
  * Check if state is default - return true if default
 */
 bool jshIsPinStateDefault(Pin pin, JshPinState state) {
@@ -330,7 +358,11 @@ void jshPinSetValue(
     bool value //!< The new value of the pin.
   ) {
   gpio_num_t gpioNum = pinToESP32Pin(pin);
+#if ESP_IDF_VERSION_MAJOR>=5
+  gpio_iomux_out(gpioNum,SIG_GPIO_OUT_IDX,0);  // reset pin to be GPIO in case it was used as rmt or something else
+#else
   gpio_matrix_out(gpioNum,SIG_GPIO_OUT_IDX,0,0);  // reset pin to be GPIO in case it was used as rmt or something else
+#endif
   gpio_set_level(gpioNum, (uint32_t)value);
 }
 
@@ -375,7 +407,7 @@ JshPinFunction jshPinAnalogOutput(Pin pin,
   }
   else{
   if(flags & JSAOF_ALLOW_SOFTWARE){
-    if (!jshGetPinStateIsManual(pin)){ 
+    if (!jshGetPinStateIsManual(pin)){
         BITFIELD_SET(jshPinSoftPWM, pin, 0);
         jshPinSetState(pin, JSHPINSTATE_GPIO_OUT);
       }
@@ -412,7 +444,11 @@ void jshSetOutputValue(JshPinFunction func, int value) {
 
 void jshEnableWatchDog(JsVarFloat timeout) {
   wdt_enabled = true;
-  esp_task_wdt_init((int)(timeout+0.5), true); //enable panic so ESP32 restarts
+  esp_task_wdt_init((int)(timeout+0.5)
+#if !(ESP_IDF_VERSION_MAJOR>=5)
+   , true
+#endif
+  ); //enable panic so ESP32 restarts
   esp_task_wdt_add(NULL); //add current thread to WDT watch
 }
 
@@ -526,7 +562,7 @@ void jshUSARTKick(IOEventFlags device) {
 #ifdef BLUETOOTH
     case EV_BLUETOOTH:
       gatts_sendNUSNotification(c);
-      break; 
+      break;
 #endif
     case EV_SERIAL1:
       uart_tx_one_char((uint8_t)c);
@@ -534,7 +570,7 @@ void jshUSARTKick(IOEventFlags device) {
     default:
       writeSerial(device,(uint8_t)c);
       break;
-    //if(device == EV_SERIAL1) uart_tx_one_char((uint8_t)c); 
+    //if(device == EV_SERIAL1) uart_tx_one_char((uint8_t)c);
     //else writeSerial(device,(uint8_t)c);
   }
     c = jshGetCharToTransmit(device);
@@ -576,7 +612,7 @@ JsSysTime CALLED_FROM_INTERRUPT jshGetSystemTime() { // in us -- can be called a
 void jshSetSystemTime(JsSysTime newTime) {
   struct timeval tm;
   struct timezone tz;
-  
+
   tm.tv_sec=(time_t)(newTime/1000000L);
   tm.tv_usec=(suseconds_t) (newTime - tm.tv_sec * 1000000L);
   tz.tz_minuteswest=0;
@@ -612,8 +648,8 @@ bool jshIsDeviceInitialised(IOEventFlags device) {
 
 // the esp32 temperature sensor - undocumented library function call. Unsure of values returned.
 JsVarFloat jshReadTemperature() {
-  extern uint8_t temprature_sens_read();
-  return temprature_sens_read();
+  jsError(">> jshReadTemperature Not implemented");
+  return NAN;
 }
 
 // the esp8266 can read the VRef but then there's no analog input, so we don't support this
@@ -651,10 +687,19 @@ void jshFlashRead(
 
   if(len == 1){ // Can't read a single byte using the API, so read 4 and select the byte requested
     uint word;
+#if ESP_IDF_VERSION_MAJOR>=5
+    esp_flash_read(NULL, addr & 0xfffffffc,&word,4);
+#else
     spi_flash_read(addr & 0xfffffffc,&word,4);
+#endif
     *(uint8_t *)buf = (word >> ((addr & 3) << 3 )) & 255;
+  } else {
+#if ESP_IDF_VERSION_MAJOR>=5
+    esp_flash_read(NULL, addr, buf, len);
+#else
+    spi_flash_read(addr, buf, len);
+#endif
   }
-  else spi_flash_read(addr, buf, len);
 }
 
 
@@ -669,7 +714,11 @@ void jshFlashWrite(
     uint32_t addr, //!< Flash address to write into
     uint32_t len   //!< Length of data to write
   ) {
+#if ESP_IDF_VERSION_MAJOR>=5
+  esp_flash_write(NULL, addr, buf, len);
+#else
   spi_flash_write(addr, buf, len);
+#endif
 }
 
 
@@ -685,7 +734,7 @@ bool jshFlashGetPage(
   if (addr >= FLASH_MAX) return false;
   *startAddr = addr & ~(FLASH_PAGE-1);
   *pageSize = FLASH_PAGE;
-  return true; 
+  return true;
 }
 
 void addFlashArea(JsVar *jsFreeFlash, uint32_t addr, uint32_t length) {
@@ -714,7 +763,11 @@ JsVar *jshFlashGetFree() {
 void jshFlashErasePage(
     uint32_t addr //!<
   ) {
+#if ESP_IDF_VERSION_MAJOR>=5
+  esp_flash_erase_region(NULL, addr >> FLASH_PAGE_SHIFT, FLASH_PAGE);
+#else
   spi_flash_erase_sector(addr >> FLASH_PAGE_SHIFT);
+#endif
 }
 
 size_t jshFlashGetMemMapAddress(size_t ptr) {
@@ -749,4 +802,10 @@ gpio_num_t pinToESP32Pin(Pin pin) {
 /// Perform a proper hard-reboot of the device
 void jshReboot() {
   esp_restart(); // Call the ESP-IDF to restart the ESP32.
+}
+
+/* Adds the estimated power usage of the microcontroller in uA to the 'devices' object. The CPU should be called 'CPU' */
+void jsvGetProcessorPowerUsage(JsVar *devices) {
+  jsvObjectSetChildAndUnLock(devices, "CPU", jsvNewFromInteger(20000));
+  // standard power usage of ESP32S3 without Wifi
 }

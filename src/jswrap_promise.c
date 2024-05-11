@@ -12,7 +12,9 @@
  *
  * ES6 Promise implementation
  * ----------------------------------------------------------------------------
+ * See https://github.com/espruino/Espruino/pull/2454 for better understanding.
  */
+
 
 #include "jsutils.h"
 
@@ -23,12 +25,28 @@
 #include "jsinteractive.h"
 #include "jswrapper.h"
 
-#define JS_PROMISE_THEN_NAME JS_HIDDEN_CHAR_STR"thn"
-#define JS_PROMISE_CATCH_NAME JS_HIDDEN_CHAR_STR"cat"
-#define JS_PROMISE_REMAINING_NAME JS_HIDDEN_CHAR_STR"left"
-#define JS_PROMISE_RESULT_NAME JS_HIDDEN_CHAR_STR"res"
-#define JS_PROMISE_RESOLVED_NAME "resolved"
+// field names
+#define JS_PROMISE_STATE_NAME "state" ///< Promise: the state of the promise, one of JsPromiseStates(below)
+#define JS_PROMISE_THEN_NAME JS_HIDDEN_CHAR_STR"thn" ///< Promise: array of reactions for resolving
+#define JS_PROMISE_CATCH_NAME JS_HIDDEN_CHAR_STR"cat" ///< Promise: array of reactions for rejecting
+#define JS_PROMISE_REMAINING_NAME JS_HIDDEN_CHAR_STR"n" ///< Promise: int used in Promise.all to wait for as many promises are are needed
+#define JS_PROMISE_RESULT_NAME JS_HIDDEN_CHAR_STR"res" ///< Promise: array used in Promise.all for results
+#define JS_PROMISE_VALUE_NAME JS_HIDDEN_CHAR_STR"val" ///< Promise: the value of this promise when it's resolved
 
+// Prombox/reaction aren't user visible anyway so don't bother with JS_HIDDEN_CHAR_STR to hide them
+#define JS_PROMISE_ISRESOLVED_NAME "resl" // Prombox: boolean set when the Promise is resolved
+#define JS_PROMISE_PROM_NAME "prom" ///< Prombox: link to promise
+#define JS_PROMISE_NEXTBOX_NAME "next" ///< Reaction: link to next PromBox
+#define JS_PROMISE_CALLBACK_NAME "cb" ///< Reaction: link to callback function
+
+
+
+/// Used in JS_PROMISE_STATE_NAME
+typedef enum {
+    JS_PROMISE_STATE_PENDING,
+    JS_PROMISE_STATE_REJECTED,
+    JS_PROMISE_STATE_FULFILLED
+} JsPromiseStates;
 
 /*JSON{
   "type" : "class",
@@ -39,103 +57,79 @@
 This is the built-in class for ES6 Promises
 */
 
-void _jswrap_promise_queueresolve(JsVar *promise, JsVar *data);
-void _jswrap_promise_queuereject(JsVar *promise, JsVar *data);
-void _jswrap_promise_add(JsVar *parent, JsVar *callback, bool resolve);
+static void _jswrap_prombox_resolve(JsVar *prombox, JsVar *data);
+static void _jswrap_prombox_reject(JsVar *prombox, JsVar *data);
+static void _jswrap_prombox_resolve_or_reject(JsVar *prombox, JsVar *data, bool resolving);
+static JsVar *jspromise_create_prombox(JsVar ** promise);
 
-bool _jswrap_promise_is_promise(JsVar *promise) {
+static bool _jswrap_promise_is_promise(JsVar *promise) {
   JsVar *constr = jspGetConstructor(promise);
   bool isPromise = constr && (void*)constr->varData.native.ptr==(void*)jswrap_promise_constructor;
   jsvUnLock(constr);
   return isPromise;
 }
 
-
-void _jswrap_promise_resolve_or_reject(JsVar *promise, JsVar *data, JsVar *fn) {
-  // remove any existing handlers since we already have them in `fn`
-  // If while we're iterating below a function re-adds to the chain then
-  // we can execute that later
-  // https://github.com/espruino/Espruino/issues/894#issuecomment-402553934
-  jsvObjectRemoveChild(promise, JS_PROMISE_THEN_NAME); // remove 'resolve' and 'reject' handlers
-  jsvObjectRemoveChild(promise, JS_PROMISE_CATCH_NAME); // remove 'resolve' and 'reject' handlers
-  JsVar *chainedPromise = jsvObjectGetChildIfExists(promise, "chain");
-  jsvObjectRemoveChild(promise, "chain"); // unlink chain
-  // execute handlers from `fn`
-  JsVar *result = 0;
-  if (jsvIsArray(fn)) {
-    JsvObjectIterator it;
-    jsvObjectIteratorNew(&it, fn);
-    bool first = true;
-    while (jsvObjectIteratorHasValue(&it)) {
-      JsVar *f = jsvObjectIteratorGetValue(&it);
-      JsVar *v = jspExecuteFunction(f, promise, 1, &data);
-      if (first) {
-        first = false;
-        result = v;
-      } else jsvUnLock(v);
-      jsvUnLock(f);
-      jsvObjectIteratorNext(&it);
-    }
-    jsvObjectIteratorFree(&it);
-  } else if (fn) {
-    result = jspExecuteFunction(fn, promise, 1, &data);
-  }
-
-  JsVar *exception = jspGetException();
-  if (exception) {
-    _jswrap_promise_queuereject(chainedPromise, exception);
-    jsvUnLock3(exception, result, chainedPromise);
-    return;
-  }
-
-  if (chainedPromise) {
-    if (_jswrap_promise_is_promise(result)) {
-      // if we were given a promise, loop its 'then' in here
-      JsVar *fnres = jsvNewNativeFunction((void (*)(void))_jswrap_promise_queueresolve, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS));
-      JsVar *fnrej = jsvNewNativeFunction((void (*)(void))_jswrap_promise_queuereject, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS));
-      if (fnres && fnrej) {
-        jsvObjectSetChild(fnres, JSPARSE_FUNCTION_THIS_NAME, chainedPromise); // bind 'this'
-        jsvObjectSetChild(fnrej, JSPARSE_FUNCTION_THIS_NAME, chainedPromise); // bind 'this'
-        _jswrap_promise_add(result, fnres, true);
-        _jswrap_promise_add(result, fnrej, false);
-      }
-      jsvUnLock2(fnres,fnrej);
-    } else {
-      _jswrap_promise_queueresolve(chainedPromise, result);
-    }
-  }
-  jsvUnLock2(result, chainedPromise);
+static JsVar *_jswrap_promise_native_with_prombox(void (*fnPtr)(JsVar*,JsVar*), JsVar *prombox) {
+  JsVar *fn = jsvNewNativeFunction((void (*)(void))fnPtr, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS));
+  jsvObjectSetChild(fn, JSPARSE_FUNCTION_THIS_NAME, prombox);
+  return fn;
 }
-void _jswrap_promise_resolve_or_reject_chain(JsVar *promise, JsVar *data, bool resolve) {
-  const char *eventName = resolve ? JS_PROMISE_THEN_NAME : JS_PROMISE_CATCH_NAME;
-  if (_jswrap_promise_is_promise(data)) {
-    jsExceptionHere(JSET_ERROR, "Resolving a Promise with a value that is a Promise is not currently supported");
-    return;
-  }
-  // if we didn't have a catch, traverse the chain looking for one
-  JsVar *fn = jsvObjectGetChildIfExists(promise, eventName);
-  if (!fn) {
-    JsVar *chainedPromise = jsvObjectGetChildIfExists(promise, "chain");
-    while (chainedPromise) {
-      fn = jsvObjectGetChildIfExists(chainedPromise, eventName);
-      if (fn) {
-        _jswrap_promise_resolve_or_reject(chainedPromise, data, fn);
-        jsvUnLock2(fn, chainedPromise);
-        return;
+
+// A single reaction chain - this is recursive until a promise is returned or chain ends. data can be undefined/0
+static void _jswrap_promise_reaction_call(JsVar *promise, JsVar *reaction, JsVar *data, JsVar *isThen) {
+  JsVar * nextPromBox = jsvObjectGetChildIfExists(reaction, JS_PROMISE_NEXTBOX_NAME);
+  JsVar * nextProm = jsvObjectGetChildIfExists(nextPromBox, JS_PROMISE_PROM_NAME);
+  if (nextPromBox) {
+    if (nextProm) {
+      bool threw = false;
+      JsVar * retVal;
+      JsVar * callback = jsvObjectGetChildIfExists(reaction, JS_PROMISE_CALLBACK_NAME);
+      if (callback) {
+        JsExecFlags oldExecute = execInfo.execute;
+        retVal = jspeFunctionCall(callback, 0, promise, false, 1, &data);
+        execInfo.execute = oldExecute; // if there were errors executing the function, get rid of them
+        JsVar *exception = jspGetException(); // if there was an exception, reject with it
+        if (exception) {
+          threw = true;
+          jsvUnLock(retVal);
+          retVal = exception;
+        }
+        jsvUnLock(callback);
       }
-      JsVar *n = jsvObjectGetChildIfExists(chainedPromise, "chain");
-      jsvUnLock(chainedPromise);
-      chainedPromise = n;
+      else {
+        //pass-through
+        if (!jsvGetBool(isThen)) {
+          threw = true;
+        }
+        retVal = data;
+      }
+      _jswrap_prombox_resolve_or_reject(nextPromBox, retVal, !threw); // resolve if threw=false
+
+      if (callback) jsvUnLock(retVal);
+      jsvUnLock(nextProm);
     }
+    jsvUnLock(nextPromBox);
   }
-  if (resolve)
-    jsvObjectSetChild(promise, JS_PROMISE_RESOLVED_NAME, data);
+}
+// Value can be undefined/0
+static void _jswrap_promise_queue_reaction(JsVar *promise, JsVar *reaction, JsVar *value, bool isThenCb) {
+  JsVar *fn = jsvNewNativeFunction((void (*)(void))_jswrap_promise_reaction_call,
+    JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS)|(JSWAT_JSVAR<<JSWAT_BITS*2)|(JSWAT_JSVAR<<JSWAT_BITS*3));
   if (fn) {
-    _jswrap_promise_resolve_or_reject(promise, data, fn);
-    jsvUnLock(fn);
-  } else if (!resolve) {
-    JsVar *previouslyResolved = jsvFindChildFromString(promise, JS_PROMISE_RESOLVED_NAME);
-    if (!previouslyResolved) {
+    jsvObjectSetChild(fn, JSPARSE_FUNCTION_THIS_NAME, promise); // bind 'this'
+    JsVar *bIsThenCb = jsvNewFromBool(isThenCb);
+    JsVar *args[] = {reaction, value, bIsThenCb};
+    jsiQueueEvents(promise, fn, args, 3);
+    jsvUnLock2(fn, bIsThenCb);
+  }
+}
+static void _jswrap_promise_seal(JsVar *promise, JsVar *data,bool resolving) {
+  jsvObjectSetChildAndUnLock(promise, JS_PROMISE_STATE_NAME, jsvNewFromInteger(resolving ? JS_PROMISE_STATE_FULFILLED : JS_PROMISE_STATE_REJECTED));
+
+  const char *eventName = resolving ? JS_PROMISE_THEN_NAME : JS_PROMISE_CATCH_NAME;
+  JsVar *reactions = jsvObjectGetChildIfExists(promise, eventName);
+  if (!reactions) {
+    if (!resolving) {
       jsExceptionHere(JSET_ERROR, "Unhandled promise rejection: %v", data);
       // If there was an exception with a stack trace, pass it through so we can keep adding stack to it
       JsVar *stack = 0;
@@ -143,55 +137,123 @@ void _jswrap_promise_resolve_or_reject_chain(JsVar *promise, JsVar *data, bool r
         jsvObjectSetChildAndUnLock(execInfo.hiddenRoot, JSPARSE_STACKTRACE_VAR, stack);
       }
     }
-    jsvUnLock(previouslyResolved);
+  } else {
+    if (jsvIsArray(reactions)) {
+      JsvObjectIterator it;
+      jsvObjectIteratorNew(&it, reactions);
+      while (jsvObjectIteratorHasValue(&it)) {
+        JsVar *reaction = jsvObjectIteratorGetValue(&it);
+        _jswrap_promise_queue_reaction(promise,reaction,data,resolving);
+        jsvUnLock(reaction);
+        jsvObjectIteratorNext(&it);
+      }
+      jsvObjectIteratorFree(&it);
+    } else assert(!reactions);
+    jsvUnLock(reactions);
   }
 }
 
-void _jswrap_promise_resolve(JsVar *promise, JsVar *data) {
-  _jswrap_promise_resolve_or_reject_chain(promise, data, true);
-}
-void _jswrap_promise_queueresolve(JsVar *promise, JsVar *data) {
-  JsVar *fn = jsvNewNativeFunction((void (*)(void))_jswrap_promise_resolve, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS));
-  if (!fn) return;
-  jsvObjectSetChild(fn, JSPARSE_FUNCTION_THIS_NAME, promise); // bind 'this'
-  jsiQueueEvents(promise, fn, &data, 1);
-  jsvUnLock(fn);
-}
+static void _jswrap_prombox_resolve_or_reject(JsVar *prombox, JsVar *data, bool resolving) {
+  bool isResolved = jsvObjectGetBoolChild(prombox, JS_PROMISE_ISRESOLVED_NAME);
+  if (isResolved)
+    return;
 
-void _jswrap_promise_reject(JsVar *promise, JsVar *data) {
-  _jswrap_promise_resolve_or_reject_chain(promise, data, false);
-}
-void _jswrap_promise_queuereject(JsVar *promise, JsVar *data) {
-  JsVar *fn = jsvNewNativeFunction((void (*)(void))_jswrap_promise_reject, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS));
-  if (!fn) return;
-  jsvObjectSetChild(fn, JSPARSE_FUNCTION_THIS_NAME, promise); // bind 'this'
-  jsiQueueEvents(promise, fn, &data, 1);
-  jsvUnLock(fn);
-}
-
-void jswrap_promise_all_resolve(JsVar *promise, JsVar *index, JsVar *data) {
-  JsVarInt remaining = jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(promise, JS_PROMISE_REMAINING_NAME));
-  JsVar *arr = jsvObjectGetChildIfExists(promise, JS_PROMISE_RESULT_NAME);
-  if (arr) {
-    // set the result
-    jsvSetArrayItem(arr, jsvGetInteger(index), data);
-    // Update remaining list
-    remaining--;
-    jsvObjectSetChildAndUnLock(promise, JS_PROMISE_REMAINING_NAME, jsvNewFromInteger(remaining));
-    if (remaining==0) {
-      _jswrap_promise_queueresolve(promise, arr);
+  jsvObjectSetChildAndUnLock(prombox, JS_PROMISE_ISRESOLVED_NAME, jsvNewFromBool(true));
+  JsVar * promise = jsvObjectGetChildIfExists(prombox, JS_PROMISE_PROM_NAME);
+  if (promise) {
+    if (jsvIsEqual(data,promise)) {
+      jsExceptionHere(JSET_ERROR,"Illegal resolving to self");
+      jsvUnLock(promise);
+      return;
     }
-    jsvUnLock(arr);
+
+    jsvObjectSetChild(promise, JS_PROMISE_VALUE_NAME, data);
+    if (!resolving || !jsvIsObject(data) ) {
+      _jswrap_promise_seal(promise, data, resolving);
+      jsvUnLock(promise);
+      return;
+    }
+    bool isProm = _jswrap_promise_is_promise(data);
+    bool isThenable = false;
+    JsVar *then = jsvObjectGetChildIfExists(data,"then");
+    if (jsvIsFunction(then)) isThenable = true;
+
+    if (!isThenable && !isProm) {
+      _jswrap_promise_seal(promise, data, resolving);
+      jsvUnLock2(promise, then);
+      return;
+    }
+
+    JsVar *prombox = jsvNewObject();
+    JsVar *jsResolve = _jswrap_promise_native_with_prombox(_jswrap_prombox_resolve, prombox);
+    JsVar *jsReject = _jswrap_promise_native_with_prombox(_jswrap_prombox_reject, prombox);
+    if (prombox) {
+      jsvObjectSetChild(prombox, JS_PROMISE_PROM_NAME, promise);
+      jsvObjectSetChildAndUnLock(prombox,JS_PROMISE_ISRESOLVED_NAME,jsvNewFromBool(false));
+
+      if (isThenable) {
+        JsVar *args[2] = {jsResolve,jsReject};
+        JsExecFlags oldExecute = execInfo.execute;
+        jsvUnLock(jspeFunctionCall(then, 0, data, false, 2, args));
+        execInfo.execute = oldExecute; // if there were errors executing the function, get rid of them
+        JsVar *exception = jspGetException(); // if there was an exception, reject with it
+        if (exception) {
+          _jswrap_prombox_reject(prombox, exception);
+          jsvUnLock(exception);
+        }
+      } else {
+        jsvUnLock(jswrap_promise_then(data,jsResolve,jsReject));
+      }
+      jsvUnLock3(jsResolve,jsReject,prombox);
+    }
+    jsvUnLock2(promise, then);
   }
 }
-void jswrap_promise_all_reject(JsVar *promise, JsVar *data) {
-  JsVar *arr = jsvObjectGetChildIfExists(promise, JS_PROMISE_RESULT_NAME);
-  if (arr) {
-    // if not rejected before
-    jsvUnLock(arr);
-    jsvObjectRemoveChild(promise, JS_PROMISE_RESULT_NAME);
-    _jswrap_promise_queuereject(promise, data);
+
+static void _jswrap_prombox_resolve(JsVar *prombox, JsVar *data) {
+  _jswrap_prombox_resolve_or_reject(prombox, data, true);
+}
+
+static void _jswrap_prombox_reject(JsVar *prombox, JsVar *data) {
+  _jswrap_prombox_resolve_or_reject(prombox, data, false);
+}
+
+
+static void _jswrap_prombox_queueresolve_or_reject(JsVar *prombox, JsVar *data, bool isResolve) {
+  JsVar *fn = _jswrap_promise_native_with_prombox(isResolve ? _jswrap_prombox_resolve : _jswrap_prombox_reject, prombox);
+  if (!fn) return;
+  jsiQueueEvents(prombox, fn, &data, 1);
+  jsvUnLock(fn);
+}
+
+static void _jswrap_prombox_queueresolve(JsVar *prombox, JsVar *data) {
+  _jswrap_prombox_queueresolve_or_reject(prombox, data, true);
+}
+
+static void _jswrap_prombox_queuereject(JsVar *prombox, JsVar *data) {
+  _jswrap_prombox_queueresolve_or_reject(prombox, data, false);
+}
+
+
+static void jspromise_resolve_or_reject(JsVar *promise, JsVar *data, bool isResolve) {
+  // give the promise a prombox - ensure resolve once only in c.
+  // allows us to accept a promise instead of a prombox.
+  JsVar *prombox = jsvNewObject();
+  if (!prombox) {
+    return;
   }
+  jsvObjectSetChild(prombox, JS_PROMISE_PROM_NAME, promise);
+  //jsvObjectSetChildAndUnLock(prombox,JS_PROMISE_ISRESOLVED_NAME,jsvNewFromBool(false)); // not setting will still; return false
+  _jswrap_prombox_queueresolve_or_reject(prombox, data, isResolve);
+  jsvUnLock(prombox);
+}
+
+void jspromise_resolve(JsVar *promise, JsVar *data) {
+  jspromise_resolve_or_reject(promise, data, true);
+}
+
+void jspromise_reject(JsVar *promise, JsVar *data) {
+  jspromise_resolve_or_reject(promise, data, false);
 }
 
 /// Create a new promise
@@ -199,16 +261,22 @@ JsVar *jspromise_create() {
   return jspNewObject(0, "Promise");
 }
 
-/// Resolve the given promise
-void jspromise_resolve(JsVar *promise, JsVar *data) {
-  _jswrap_promise_queueresolve(promise, data);
-}
+/// Create a promise and put it inside a promise box (which we return in the argument)
+static JsVar *jspromise_create_prombox(JsVar ** promise) {
+  JsVar *p = jspromise_create();
+  if (!p) return 0;
+  JsVar *box = jsvNewObject();
+  if (!box) {
+    jsvUnLock(p);
+    return 0;
+  }
+  jsvObjectSetChildAndUnLock(p, JS_PROMISE_STATE_NAME, jsvNewFromInteger(JS_PROMISE_STATE_PENDING));
+  jsvObjectSetChildAndUnLock(box, JS_PROMISE_PROM_NAME, p);
+  //jsvObjectSetChildAndUnLock(box,JS_PROMISE_ISRESOLVED_NAME,jsvNewFromBool(false)); // not setting will still; return false
 
-/// Reject the given promise
-void jspromise_reject(JsVar *promise, JsVar *data) {
-  _jswrap_promise_queuereject(promise, data);
+  *promise = p;
+  return box;
 }
-
 
 /*JSON{
   "type" : "constructor",
@@ -226,28 +294,68 @@ Create a new Promise. The executor function is executed immediately (before the
 constructor even returns) and
  */
 JsVar *jswrap_promise_constructor(JsVar *executor) {
-  JsVar *obj = jspromise_create();
-  if (obj) {
-    // create resolve and reject
-    JsVar *args[2] = {
-        jsvNewNativeFunction((void (*)(void))_jswrap_promise_queueresolve, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS)),
-        jsvNewNativeFunction((void (*)(void))_jswrap_promise_queuereject, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS))
-    };
-    // bind 'this' to functions
-    if (args[0]) jsvObjectSetChild(args[0], JSPARSE_FUNCTION_THIS_NAME, obj);
-    if (args[1]) jsvObjectSetChild(args[1], JSPARSE_FUNCTION_THIS_NAME, obj);
+  if (!executor) {
+    jsExceptionHere(JSET_ERROR,"Function required in promise constructor");
+    return 0;
+  }
+  JsVar * promise;
+  JsVar *promBox = jspromise_create_prombox(&promise);
+  if (!promBox) return 0;
+  if (promise) {
+    //this=prombox, data
+    JsVar *resolve = _jswrap_promise_native_with_prombox(_jswrap_prombox_queueresolve, promBox);
+    JsVar *reject = _jswrap_promise_native_with_prombox(_jswrap_prombox_queuereject, promBox);
+
+    JsVar *args[2] = {resolve,reject};
     // call the executor
+    // emulates try
     JsExecFlags oldExecute = execInfo.execute;
-    if (executor) jsvUnLock(jspeFunctionCall(executor, 0, obj, false, 2, args));
-    execInfo.execute = oldExecute;
-    jsvUnLockMany(2, args);
+    jsvUnLock(jspeFunctionCall(executor, 0, promise, false, 2, args));
+    execInfo.execute = oldExecute; // if there were errors executing the function, get rid of them
+    // If we got an exception while executing, queue a rejection
     JsVar *exception = jspGetException();
     if (exception) {
-      _jswrap_promise_queuereject(obj, exception);
+      _jswrap_prombox_queuereject(promBox, exception);
       jsvUnLock(exception);
     }
+    jsvUnLock2(resolve,reject);
   }
-  return obj;
+  jsvUnLock(promBox);
+  return jsvLockAgain(promise);
+}
+
+static void _jswrap_prombox_all_resolve(JsVar *prombox, JsVar *index, JsVar *data) {
+  JsVar * promise = jsvObjectGetChildIfExists(prombox, JS_PROMISE_PROM_NAME);
+  if (promise) {
+    JsVarInt remaining = jsvObjectGetIntegerChild(promise, JS_PROMISE_REMAINING_NAME);
+    JsVar *arr = jsvObjectGetChildIfExists(promise, JS_PROMISE_RESULT_NAME);
+    if (arr) {
+      // set the result
+      jsvSetArrayItem(arr, jsvGetInteger(index), data);
+      // Update remaining list
+      remaining--;
+      jsvObjectSetChildAndUnLock(promise, JS_PROMISE_REMAINING_NAME, jsvNewFromInteger(remaining));
+      if (remaining==0) {
+        _jswrap_prombox_queueresolve(prombox, arr);
+      }
+      jsvUnLock(arr);
+    }
+    jsvUnLock(promise);
+  }
+}
+
+static void _jswrap_prombox_all_reject(JsVar *prombox, JsVar *data) {
+  JsVar * promise = jsvObjectGetChildIfExists(prombox, JS_PROMISE_PROM_NAME);
+  if (promise) {
+    JsVar *arr = jsvObjectGetChildIfExists(promise, JS_PROMISE_RESULT_NAME);
+    if (arr) {
+      // if not rejected before
+      jsvUnLock(arr);
+      jsvObjectRemoveChild(promise, JS_PROMISE_RESULT_NAME);
+      _jswrap_prombox_queuereject(prombox, data);
+    }
+    jsvUnLock(promise);
+  }
 }
 
 /*JSON{
@@ -270,49 +378,47 @@ JsVar *jswrap_promise_all(JsVar *arr) {
     jsExceptionHere(JSET_TYPEERROR, "Expecting something iterable, got %t", arr);
     return 0;
   }
-  JsVar *promise = jspNewObject(0, "Promise");
-  if (!promise) return 0;
-  JsVar *reject = jsvNewNativeFunction((void (*)(void))jswrap_promise_all_reject, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS));
-  if (!reject) return promise; // out of memory error
-  jsvObjectSetChild(reject, JSPARSE_FUNCTION_THIS_NAME, promise); // bind 'this'
-  JsVar *promiseResults = jsvNewEmptyArray();
-  int promiseIndex = 0;
-  int promisesComplete = 0;
-  JsvObjectIterator it;
-  jsvObjectIteratorNew(&it, arr);
-  while (jsvObjectIteratorHasValue(&it)) {
-    JsVar *p = jsvObjectIteratorGetValue(&it);
-    if (_jswrap_promise_is_promise(p)) {
-      JsVar *resolve = jsvNewNativeFunction((void (*)(void))jswrap_promise_all_resolve, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS)|(JSWAT_JSVAR<<(JSWAT_BITS*2)));
-      // NOTE: we use (this,JsVar,JsVar) rather than an int to avoid #2377 on emscripten, since that argspec is already used for forEach/otehrs
-      // bind the index variable
-      JsVar *indexVar = jsvNewFromInteger(promiseIndex);
-      jsvAddFunctionParameter(resolve, 0, indexVar);
-      jsvUnLock(indexVar);
-      jsvObjectSetChild(resolve, JSPARSE_FUNCTION_THIS_NAME, promise); // bind 'this'
-      jsvUnLock2(jswrap_promise_then(p, resolve, reject), resolve);
-    } else {
-      jsvSetArrayItem(promiseResults, promiseIndex, p);
-      promisesComplete++;
+  JsVar * promise;
+  JsVar *promBox = jspromise_create_prombox(&promise);
+  if (!promBox) return 0;
+  if (promise) {
+    JsVar *reject = _jswrap_promise_native_with_prombox(_jswrap_prombox_all_reject, promBox);
+    if (!reject) return jsvLockAgainSafe(promise); // out of memory error
+    JsVar *promiseResults = jsvNewEmptyArray();
+    int promiseIndex = 0;
+    int promisesComplete = 0;
+    JsvObjectIterator it;
+    jsvObjectIteratorNew(&it, arr);
+    while (jsvObjectIteratorHasValue(&it)) {
+      JsVar *p = jsvObjectIteratorGetValue(&it);
+      if (_jswrap_promise_is_promise(p)) {
+        JsVar *resolve = jsvNewNativeFunction((void (*)(void))_jswrap_prombox_all_resolve, JSWAT_VOID|JSWAT_THIS_ARG|(JSWAT_JSVAR<<JSWAT_BITS)|(JSWAT_JSVAR<<(JSWAT_BITS*2)));
+        // NOTE: we use (this,JsVar,JsVar) rather than an int to avoid #2377 on emscripten, since that argspec is already used for forEach/otehrs
+        // bind the index variable
+        JsVar *indexVar = jsvNewFromInteger(promiseIndex);
+        jsvAddFunctionParameter(resolve, 0, indexVar);
+        jsvObjectSetChild(resolve, JSPARSE_FUNCTION_THIS_NAME, promBox); // bind 'this'
+        jsvUnLock3(jswrap_promise_then(p, resolve, reject), resolve, indexVar);
+      } else {
+        jsvSetArrayItem(promiseResults, promiseIndex, p);
+        promisesComplete++;
+      }
+      jsvUnLock(p);
+      promiseIndex++;
+      jsvObjectIteratorNext(&it);
     }
-    jsvUnLock(p);
-    promiseIndex++;
-    jsvObjectIteratorNext(&it);
+    jsvObjectIteratorFree(&it);
+    if (promisesComplete==promiseIndex) { // already all sorted - return a resolved promise
+      promise = jswrap_promise_resolve(promiseResults);
+      jsvUnLock2(promise, promiseResults);
+    } else { // return our new promise that will resolve when everything is done
+      jsvObjectSetChildAndUnLock(promise, JS_PROMISE_REMAINING_NAME, jsvNewFromInteger(promiseIndex-promisesComplete));
+      jsvObjectSetChildAndUnLock(promise, JS_PROMISE_RESULT_NAME, promiseResults);
+    }
+    jsvUnLock2(reject,promBox);
   }
-  jsvObjectIteratorFree(&it);
-  if (promisesComplete==promiseIndex) { // already all sorted - return a resolved promise
-    jsvUnLock(promise);
-    promise = jswrap_promise_resolve(promiseResults);
-    jsvUnLock(promiseResults);
-  } else { // return our new promise that will resolve when everything is done
-    jsvObjectSetChildAndUnLock(promise, JS_PROMISE_REMAINING_NAME, jsvNewFromInteger(promiseIndex-promisesComplete));
-    jsvObjectSetChildAndUnLock(promise, JS_PROMISE_RESULT_NAME, promiseResults);
-  }
-
-  jsvUnLock(reject);
-  return promise;
+  return jsvLockAgainSafe(promise);
 }
-
 
 /*JSON{
   "type" : "staticmethod",
@@ -324,7 +430,7 @@ JsVar *jswrap_promise_all(JsVar *arr) {
     ["promises","JsVar","Data to pass to the `.then` handler"]
   ],
   "return" : ["JsVar","A new Promise"],
-  "typescript": "resolve<T extends any>(promises: T): Promise<T>;"
+  "typescript": "resolve<T extends any>(promises?: T): Promise<T>;"
 }
 Return a new promise that is already resolved (at idle it'll call `.then`)
 */
@@ -343,10 +449,13 @@ JsVar *jswrap_promise_resolve(JsVar *data) {
     if (promise) return promise;
   }
   // otherwise the returned promise will be fulfilled with the value.
-  promise = jspromise_create();
-  if (!promise) return 0;
-  jspromise_resolve(promise, data);
-  return promise;
+  JsVar *promBox = jspromise_create_prombox(&promise);
+  if (!promBox) return 0;
+  if (promise) {
+    _jswrap_prombox_queueresolve(promBox, data);
+  }
+  jsvUnLock(promBox);
+  return jsvLockAgainSafe(promise);
 }
 
 /*JSON{
@@ -362,65 +471,47 @@ JsVar *jswrap_promise_resolve(JsVar *data) {
 }
 Return a new promise that is already rejected (at idle it'll call `.catch`)
 */
+/*
+  Promise.reject()
+*/
 JsVar *jswrap_promise_reject(JsVar *data) {
-  JsVar *promise = jspromise_create();
-  if (!promise) return 0;
-  jspromise_reject(promise, data);
-  return promise;
+  // otherwise the returned promise will be fulfilled with the value.
+  JsVar * promise;
+  JsVar *promBox = jspromise_create_prombox(&promise);
+  if (!promBox) return 0;
+  if (promise) {
+    _jswrap_prombox_queuereject(promBox,data);
+  }
+  jsvUnLock(promBox);
+  return jsvLockAgainSafe(promise);
 }
 
-void _jswrap_promise_add(JsVar *parent, JsVar *callback, bool resolve) {
-  if (!jsvIsFunction(callback)) {
-    jsExceptionHere(JSET_TYPEERROR, "Callback is not a function");
-    return;
-  }
 
-  bool resolveImmediately = false;
-  JsVar *resolveImmediatelyValue = 0;
+/*
+Reactions
+*/
+JsVar *_jswrap_promise_new_reaction(JsVar *nextPromBox, JsVar *callback) {
+  JsVar *reaction = jsvNewObject();
+  if (!reaction) return 0;
+  jsvObjectSetChild(reaction, JS_PROMISE_CALLBACK_NAME, callback);
+  jsvObjectSetChild(reaction, JS_PROMISE_NEXTBOX_NAME, nextPromBox);
+  return reaction;
+}
 
-  if (resolve) {
-    // Check to see if promise has already been resolved
-    /* Note: we use jsvFindChildFromString not ObjectGetChild so we get the name.
-     * If we didn't then we wouldn't know if it was resolved, but with undefined */
-    JsVar *resolved = jsvFindChildFromString(parent, JS_PROMISE_RESOLVED_NAME);
-    if (resolved) {
-      resolveImmediately = true;
-      resolveImmediatelyValue = jsvSkipNameAndUnLock(resolved);
-    }
-  }
-
-
+void _jswrap_promise_add_reaction(JsVar *parent, JsVar * nextPromBox, JsVar *callback, bool resolve) {
+  // reaction = [{cb:,box:},...]
+  JsVar *reaction = _jswrap_promise_new_reaction(nextPromBox,callback);
+  if (!reaction) return;
   const char *name = resolve ? JS_PROMISE_THEN_NAME : JS_PROMISE_CATCH_NAME;
   JsVar *c = jsvObjectGetChildIfExists(parent, name);
-  if (!c) {
-    jsvObjectSetChild(parent, name, callback);
+  if (jsvIsArray(c)) {
+    jsvArrayPush(c, reaction);
   } else {
-    if (jsvIsArray(c)) {
-      jsvArrayPush(c, callback);
-    } else {
-      JsVar *fns[2] = {c,callback};
-      JsVar *arr = jsvNewArray(fns, 2);
-      jsvObjectSetChild(parent, name, arr);
-      jsvUnLock(arr);
-    }
     jsvUnLock(c);
+    jsvObjectSetChildAndUnLock(parent, name, jsvNewArray(&reaction, 1));
   }
-
-  if (resolveImmediately) { // If so, queue a resolve event
-    _jswrap_promise_queueresolve(parent, resolveImmediatelyValue);
-    jsvUnLock(resolveImmediatelyValue);
-  }
+  jsvUnLock2(c,reaction);
 }
-
-static JsVar *jswrap_promise_get_chained_promise(JsVar *parent) {
-  JsVar *chainedPromise = jsvObjectGetChildIfExists(parent, "chain");
-  if (!chainedPromise) {
-    chainedPromise = jspNewObject(0, "Promise");
-    jsvObjectSetChild(parent, "chain", chainedPromise);
-  }
-  return chainedPromise;
-}
-
 /*JSON{
   "type" : "method",
   "class" : "Promise",
@@ -436,12 +527,34 @@ static JsVar *jswrap_promise_get_chained_promise(JsVar *parent) {
 }
  */
 JsVar *jswrap_promise_then(JsVar *parent, JsVar *onFulfilled, JsVar *onRejected) {
-  _jswrap_promise_add(parent, onFulfilled, true);
-  if (onRejected)
-    _jswrap_promise_add(parent, onRejected, false);
-  return jswrap_promise_get_chained_promise(parent);
-}
+  JsVar *nextProm;
+  JsVar *nextPromBox = jspromise_create_prombox(&nextProm);
+  if (!nextPromBox) return 0;
+  if (nextProm) {
 
+    if (!jsvIsFunction(onFulfilled)) onFulfilled = 0;
+    if (!jsvIsFunction(onRejected)) onRejected = 0;
+    int s = jsvObjectGetIntegerChild(parent, JS_PROMISE_STATE_NAME);
+    if (s == JS_PROMISE_STATE_PENDING) {
+      // Create reaction and attach to promise.
+      _jswrap_promise_add_reaction(parent, nextPromBox, onFulfilled, true);
+      _jswrap_promise_add_reaction(parent, nextPromBox, onRejected, false);
+    } else {
+      // case: Already resolved, fire Reaction.
+      JsVar *resolveNowCallback = s == JS_PROMISE_STATE_FULFILLED ? onFulfilled : onRejected;
+      JsVar *reaction = _jswrap_promise_new_reaction(nextPromBox,resolveNowCallback);
+      if (reaction) {
+        JsVar *value = jsvObjectGetChildIfExists(parent, JS_PROMISE_VALUE_NAME);
+        // Already resolved, go straight to firing reaction.
+        _jswrap_promise_queue_reaction(parent,reaction,value,false);
+
+        jsvUnLock2(value, reaction);
+      }
+    }
+  }
+  jsvUnLock(nextPromBox);
+  return jsvLockAgainSafe(nextProm);
+}
 /*JSON{
   "type" : "method",
   "class" : "Promise",
@@ -455,7 +568,7 @@ JsVar *jswrap_promise_then(JsVar *parent, JsVar *onFulfilled, JsVar *onRejected)
 }
  */
 JsVar *jswrap_promise_catch(JsVar *parent, JsVar *onRejected) {
-  _jswrap_promise_add(parent, onRejected, false);
-  return jswrap_promise_get_chained_promise(parent);
+  return jswrap_promise_then(parent,0,onRejected);
 }
+
 #endif // ESPR_NO_PROMISES

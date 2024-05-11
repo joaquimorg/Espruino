@@ -183,7 +183,7 @@ static void _jswrap_object_keys_or_property_names_iterator(
   unsigned int i;
   unsigned short symbolCount = READ_FLASH_UINT16(&symbols->symbolCount);
   for (i=0;i<symbolCount;i++) {
-    unsigned short strOffset = READ_FLASH_UINT16(&symbols->symbols[i].strOffset);
+    unsigned short strOffset = JSWSYMPTR_OFFSET(&symbols->symbols[i]);
 #ifndef USE_FLASH_MEMORY
     JsVar *name = jsvNewFromString(&symbols->symbolChars[strOffset]);
 #else
@@ -1032,8 +1032,7 @@ void jswrap_object_removeListener(JsVar *parent, JsVar *event, JsVar *callback) 
         // it's an array, search for the index
         JsVar *idx = jsvGetIndexOf(eventList, callback, true);
         if (idx) {
-          jsvRemoveChild(eventList, idx);
-          jsvUnLock(idx);
+          jsvRemoveChildAndUnLock(eventList, idx);
         }
       }
       jsvUnLock(eventList);
@@ -1078,8 +1077,7 @@ void jswrap_object_removeAllListeners(JsVar *parent, JsVar *event) {
     JsVar *eventList = jsvFindChildFromVar(parent, eventName, true);
     jsvUnLock(eventName);
     if (eventList) {
-      jsvRemoveChild(parent, eventList);
-      jsvUnLock(eventList);
+      jsvRemoveChildAndUnLock(parent, eventList);
     }
   } else if (jsvIsUndefined(event)) {
     // Eep. We must remove everything beginning with '#on' (JS_EVENT_PREFIX)
@@ -1170,7 +1168,7 @@ void jswrap_function_replaceWith(JsVar *oldFunc, JsVar *newFunc) {
         // don't copy function code - just use it as-is. But we do have to
         // make a new NAME for it!
         JsVar *fnCode = jsvSkipName(el);
-        copy = jsvMakeIntoVariableName(jsvNewFromStringVar(el,  0, JSVAPPENDSTRINGVAR_MAXLENGTH), fnCode);
+        copy = jsvMakeIntoVariableName(jsvNewFromStringVarComplete(el), fnCode);
         jsvUnLock(fnCode);
       } else
         copy = jsvCopy(el, true);
@@ -1230,7 +1228,7 @@ JsVar *jswrap_function_apply_or_call(JsVar *parent, JsVar *thisArg, JsVar *argsA
   if (jsvIsIterable(argsArray)) {
     argC = (unsigned int)jsvGetLength(argsArray);
     if (argC>JS_MAX_FUNCTION_ARGUMENTS) {
-      jsExceptionHere(JSET_ERROR, "Array passed to Function.apply is too big! Maximum "STRINGIFY(JS_MAX_FUNCTION_ARGUMENTS)" arguments, got %d", argC);
+      jsExceptionHere(JSET_ERROR, "Array passed to Function.apply is too big! Maximum "ESPR_STRINGIFY(JS_MAX_FUNCTION_ARGUMENTS)" arguments, got %d", argC);
       return 0;
     }
     args = (JsVar**)alloca((size_t)argC * sizeof(JsVar*));

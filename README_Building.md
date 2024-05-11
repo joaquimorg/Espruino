@@ -26,10 +26,20 @@ GitHub now automatically builds Espruino for the most popular targets.
 
 Simply go to `https://github.com/espruino/Espruino/actions`, click on the build you're interested in,
 then scroll down to the `Artefacts` heading. Just click on an artefact (for instance `PUCKJS`) to download
-a zip containing the files.
+a zip **containing** the files.
+
+To perform a DFU update on an nRF52 device, you need to unzip the `BOARDNAME.zip` file and
+then **the zip file inside that** called `espruino_2vXX.YY_boardname.zip` is the one you 
+need to use for the firmware updates. **On MacOS it may not be immediately apparent that 
+the thing in `BOARDNAME.zip` named `espruino_2vXX.YY_boardname` is another zip file, and not a folder.**
 
 If you fork the Espruino repository and make changes yourself you should be able
 to see the builds for your changes at `https://github.com/YOUR_USERNAME/Espruino/actions`
+
+**Note:** the firmware files produced by this method are for uploads via a bootloader only.
+If you need a full binary file for uploading [via SWD](https://www.espruino.com/AdvancedDebug)
+you'll need to follow the instructions below.
+
 
 ## Under Linux (recommended)
 

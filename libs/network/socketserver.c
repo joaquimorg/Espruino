@@ -146,7 +146,7 @@ bool httpParseHeaders(JsVar **receiveData, JsVar *objectForData, bool isServer) 
             jsvAppendStringVar(hVal, *receiveData, (size_t)valueStart, (size_t)(strIdx-valueStart));
           JsVar *hKey = jsvNewFromEmptyString();
           if (hKey) {
-            jsvMakeIntoVariableName(hKey, hVal);
+            hKey = jsvMakeIntoVariableName(hKey, hVal);
             jsvAppendStringVar(hKey, *receiveData, (size_t)lastLineStart, (size_t)(colonPos-lastLineStart));
             jsvAddName(vHeaders, hKey);
             jsvUnLock(hKey);
@@ -589,8 +589,7 @@ bool socketServerConnectionsIdle(JsNetwork *net) {
       _socketConnectionKill(net, connection);
       JsVar *connectionName = jsvObjectIteratorGetKey(&it);
       jsvObjectIteratorNext(&it);
-      jsvRemoveChild(arr, connectionName);
-      jsvUnLock(connectionName);
+      jsvRemoveChildAndUnLock(arr, connectionName);
     } else
       jsvObjectIteratorNext(&it);
     jsvUnLock2(connection, socket);
@@ -729,8 +728,7 @@ bool socketClientConnectionsIdle(JsNetwork *net) {
         _socketConnectionKill(net, connection);
         JsVar *connectionName = jsvObjectIteratorGetKey(&it);
         jsvObjectIteratorNext(&it);
-        jsvRemoveChild(arr, connectionName);
-        jsvUnLock(connectionName);
+        jsvRemoveChildAndUnLock(arr, connectionName);
         socketClosed = true;
 
         // fire error event, if there is an error
@@ -897,8 +895,7 @@ void serverClose(JsNetwork *net, JsVar *server) {
     // remove from array
     JsVar *idx = jsvGetIndexOf(arr, server, true);
     if (idx) {
-      jsvRemoveChild(arr, idx);
-      jsvUnLock(idx);
+      jsvRemoveChildAndUnLock(arr, idx);
     } else
       jsWarn("Server not found!");
     jsvUnLock(arr);
@@ -969,7 +966,7 @@ void clientRequestWrite(JsNetwork *net, JsVar *httpClientReqVar, JsVar *data, Js
       jsvUnLock(headers);
       if (!hasHostHeader) {
         JsVar *host = jsvObjectGetChildIfExists(options, "host");
-        int port = (int)jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(options, "port"));
+        int port = (int)jsvObjectGetIntegerChild(options, "port");
         if (port>0 && port!=80)
           jsvAppendPrintf(sendData, "Host: %v:%d\r\n", host, port);
         else
@@ -1026,7 +1023,7 @@ void clientRequestConnect(JsNetwork *net, JsVar *httpClientReqVar) {
   SocketType socketType = socketGetType(httpClientReqVar);
 
   JsVar *options = jsvObjectGetChildIfExists(httpClientReqVar, HTTP_NAME_OPTIONS_VAR);
-  unsigned short port = (unsigned short)jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(options, "port"));
+  unsigned short port = (unsigned short)jsvObjectGetIntegerChild(options, "port");
 
   uint32_t host_addr = 0;
   JsVar *hostNameVar = jsvObjectGetChildIfExists(options, "host");

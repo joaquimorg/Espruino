@@ -21,6 +21,8 @@ void jswrap_jolt_setDriverMode(int driver, JsVar *mode);
 
 bool jswrap_jolt_selfTest();
 
+void jswrap_jolt_hwinit();
 void jswrap_jolt_init();
 void jswrap_jolt_kill();
 bool jswrap_jolt_idle();
+void jswrap_jolt_powerusage(JsVar *devices);

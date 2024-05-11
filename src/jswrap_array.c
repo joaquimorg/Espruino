@@ -301,7 +301,7 @@ static JsVar *_jswrap_array_iterate_with_callback(
             } else { // map
               JsVar *name = jsvNewFromInteger(idxValue);
               if (name) { // out of memory?
-                jsvMakeIntoVariableName(name, cb_result);
+                name = jsvMakeIntoVariableName(name, cb_result);
                 jsvAddName(result, name);
                 jsvUnLock(name);
               }
@@ -599,8 +599,7 @@ JsVar *jswrap_array_splice(JsVar *parent, JsVarInt index, JsVar *howManyVar, JsV
         goToNext = false;
         JsVar *toRemove = jsvObjectIteratorGetKey(&it);
         jsvObjectIteratorNext(&it);
-        jsvRemoveChild(parent, toRemove);
-        jsvUnLock(toRemove);
+        jsvRemoveChildAndUnLock(parent, toRemove);
       } else { // we're greater than the amount we need to remove now
         needToAdd = true;
         goToNext = false;

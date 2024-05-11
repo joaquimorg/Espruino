@@ -100,6 +100,7 @@ unsigned char jsvGetLocks(JsVar *v) { return (unsigned char)((v->flags>>JSV_LOCK
 #define JSV_IS_NUMERIC(f) ((f)>=_JSV_NUMERIC_START && (f)<=_JSV_NUMERIC_END)
 #define JSV_IS_STRING(f) ((f)>=_JSV_STRING_START && (f)<=_JSV_STRING_END)
 #define JSV_IS_STRING_EXT(f) ((f)>=JSV_STRING_EXT_0 && (f)<=JSV_STRING_EXT_MAX)
+#define JSV_IS_BASIC_STRING(f) ((f)>=JSV_STRING_0 && (f)<=JSV_STRING_MAX)
 #define JSV_IS_FLAT_STRING(f) (f)==JSV_FLAT_STRING
 #define JSV_IS_NATIVE_STRING(f) (f)==JSV_NATIVE_STRING
 #define JSV_IS_ARRAY(f) (f)==JSV_ARRAY
@@ -133,7 +134,7 @@ bool jsvIsFloat(const JsVar *v) { return v && (v->flags&JSV_VARTYPEMASK)==JSV_FL
 bool jsvIsBoolean(const JsVar *v) { if (!v) return false; char f = v->flags&JSV_VARTYPEMASK; return JSV_IS_BOOL(f); }
 bool jsvIsString(const JsVar *v) { if (!v) return false; char f = v->flags&JSV_VARTYPEMASK; return JSV_IS_STRING(f); } ///< String, or a NAME too
 bool jsvIsUTF8String(const JsVar *v) { if (!v) return false; char f = v->flags&JSV_VARTYPEMASK; return JSV_IS_UNICODE_STRING(f); } ///< Just a unicode string (UTF8 JsVar, pointing to a string)
-bool jsvIsBasicString(const JsVar *v) { if (!v) return false; char f = v->flags&JSV_VARTYPEMASK; return f>=JSV_STRING_0 && f<=JSV_STRING_MAX; } ///< Just a string (NOT a name/flatstr/nativestr or flashstr)
+bool jsvIsBasicString(const JsVar *v) { if (!v) return false; char f = v->flags&JSV_VARTYPEMASK; return JSV_IS_BASIC_STRING(f); } ///< Just a string (NOT a name/flatstr/nativestr or flashstr)
 bool jsvIsStringExt(const JsVar *v) { if (!v) return false; char f = v->flags&JSV_VARTYPEMASK; return JSV_IS_STRING_EXT(f); } ///< The extra bits dumped onto the end of a string to store more data
 bool jsvIsFlatString(const JsVar *v) { if (!v) return false; char f = v->flags&JSV_VARTYPEMASK; return JSV_IS_FLAT_STRING(f); }
 bool jsvIsNativeString(const JsVar *v) { if (!v) return false; char f = v->flags&JSV_VARTYPEMASK; return JSV_IS_NATIVE_STRING(f); }
@@ -1253,8 +1254,13 @@ JsVar *jsvMakeIntoVariableName(JsVar *var, JsVar *valueOrZero) {
   } else if (jsvIsUTF8String(var)) {
     var->flags = (var->flags & (JsVarFlags)~JSV_VARTYPEMASK) | JSV_NAME_UTF8_STRING;
 #endif
-  } else if (varType>=_JSV_STRING_START && varType<=_JSV_STRING_END) {
-    if (jsvGetCharactersInVar(var) > JSVAR_DATA_STRING_NAME_LEN) {
+  } else if (JSV_IS_STRING(varType)) {
+    if (JSV_IS_NONAPPENDABLE_STRING(varType)) {
+      JsVar *name = jsvNewWithFlags(JSV_NAME_STRING_0);
+      jsvAppendStringVarComplete(name, var);
+      jsvUnLock(var);
+      var = name;
+    } else if (jsvGetCharactersInVar(var) > JSVAR_DATA_STRING_NAME_LEN) {
       /* Argh. String is too large to fit in a JSV_NAME! We must chomp
        * new STRINGEXTs to put the data in
        */
@@ -1329,10 +1335,12 @@ JsVar *jsvMakeIntoVariableName(JsVar *var, JsVar *valueOrZero) {
   return var;
 }
 
-void jsvMakeFunctionParameter(JsVar *v) {
+JsVar *jsvMakeFunctionParameter(JsVar *v) {
   assert(jsvIsString(v));
-  if (!jsvIsName(v)) jsvMakeIntoVariableName(v,0);
+  if (!jsvIsName(v))
+    v = jsvMakeIntoVariableName(v,0);
   v->flags = (JsVarFlags)(v->flags | JSV_NATIVE);
+  return v;
 }
 
 /// Add a new unnamed function parameter to a function - use this when binding function arguments. This unlocks paramName if specified, but not value.
@@ -1341,7 +1349,7 @@ void jsvAddFunctionParameter(JsVar *fn, JsVar *paramName, JsVar *value) {
   if (!paramName) paramName = jsvNewFromEmptyString();
   assert(jsvIsString(paramName));
   if (paramName) {
-    jsvMakeFunctionParameter(paramName); // force this to be called a function parameter
+    paramName = jsvMakeFunctionParameter(paramName); // force this to be called a function parameter
     jsvSetValueOfName(paramName, value);
     jsvAddName(fn, paramName);
     jsvUnLock(paramName);
@@ -1550,7 +1558,7 @@ JsVar *jsvAsString(JsVar *v) {
   JsVar *str = 0;
   // If it is string-ish, but not quite a string, copy it
   if (jsvHasCharacterData(v) && jsvIsName(v)) {
-    str = jsvNewFromStringVar(v,0,JSVAPPENDSTRINGVAR_MAXLENGTH);
+    str = jsvNewFromStringVarComplete(v);
   } else if (jsvIsString(v)) { // If it is a string - just return a reference
     str = jsvLockAgain(v);
   } else if (jsvIsObject(v)) { // If it is an object and we can call toString on it
@@ -1646,6 +1654,8 @@ JsVar *jsvAsArrayIndex(JsVar *index) {
         jsvUnLock2(i,is);
       }
     }
+    // jsvAsString would do this anyway, but this is faster
+    return jsvLockAgain(index);
   } else if (jsvIsFloat(index)) {
     // if it's a float that is actually integral, return an integer...
     JsVarFloat v = jsvGetFloat(index);
@@ -1914,7 +1924,20 @@ void jsvAppendStringVar(JsVar *var, const JsVar *str, size_t stridx, size_t maxL
   jsvStringIteratorFree(&dst);
 }
 
-/** Create a new variable from a substring. argument must be a string. stridx = start char or str, maxLength = max number of characters (can be JSVAPPENDSTRINGVAR_MAXLENGTH) */
+/** Create a new String from a substring in RAM. It is always writable. jsvNewFromStringVar can reference a non-writable string.
+The Argument must be a string. stridx = start char or str, maxLength = max number of characters (can be JSVAPPENDSTRINGVAR_MAXLENGTH) */
+JsVar *jsvNewWritableStringFromStringVar(const JsVar *str, size_t stridx, size_t maxLength) {
+  JsVar *var = jsvNewFromEmptyString();
+  jsvAppendStringVar(var, str, stridx, maxLength);
+#ifdef ESPR_UNICODE_SUPPORT
+  if (jsvIsUTF8String(str))
+    var = jsvNewUTF8StringAndUnLock(var);
+#endif
+  return var;
+}
+
+/** Create a new variable from a substring. If a Native or Flash String, the memory area will be referenced (so the new string may not be writable)
+The Argument must be a string. stridx = start char or str, maxLength = max number of characters (can be JSVAPPENDSTRINGVAR_MAXLENGTH) */
 JsVar *jsvNewFromStringVar(const JsVar *str, size_t stridx, size_t maxLength) {
   if (jsvIsNativeString(str) || jsvIsFlashString(str)) {
     // if it's a flash string, just change the pointer (but we must check length)
@@ -1926,13 +1949,12 @@ JsVar *jsvNewFromStringVar(const JsVar *str, size_t stridx, size_t maxLength) {
     res->varData.nativeStr.len = (JsVarDataNativeStrLength)maxLength;
     return res;
   }
-  JsVar *var = jsvNewFromEmptyString();
-  if (var) jsvAppendStringVar(var, str, stridx, maxLength);
-#ifdef ESPR_UNICODE_SUPPORT
-  if (jsvIsUTF8String(str))
-    var = jsvNewUTF8StringAndUnLock(var);
-#endif
-  return var;
+  return jsvNewWritableStringFromStringVar(str, stridx, maxLength);
+}
+
+/** Create a new writable string from a string (flash/native strings will be cloned, not referenced). argument must be a string. */
+JsVar *jsvNewFromStringVarComplete(JsVar *var) {
+  return jsvNewWritableStringFromStringVar(var, 0, JSVAPPENDSTRINGVAR_MAXLENGTH);
 }
 
 /** Append all of str to var. Both must be strings.  */
@@ -2676,7 +2698,7 @@ JsVar *jsvCopyNameOnly(JsVar *src, bool linkChildren, bool keepAsName) {
         /* it's not a simple name string - it has STRING_EXT bits on the end.
          * Because the max length of NAME and STRING is different we must just
          * copy */
-        dst = jsvNewFromStringVar(src, 0, JSVAPPENDSTRINGVAR_MAXLENGTH);
+        dst = jsvNewFromStringVarComplete(src);
         if (!dst) return 0;
       } else {
         flags = (flags & (JsVarFlags)~JSV_VARTYPEMASK) | (JSV_STRING_0 + jsvGetCharactersInVar(src));
@@ -2724,7 +2746,7 @@ JsVar *jsvCopyNameOnly(JsVar *src, bool linkChildren, bool keepAsName) {
 JsVar *jsvCopy(JsVar *src, bool copyChildren) {
   if (jsvIsFlatString(src)) {
     // Copy a Flat String into a non-flat string - it's just safer
-    return jsvNewFromStringVar(src, 0, JSVAPPENDSTRINGVAR_MAXLENGTH);
+    return jsvNewFromStringVarComplete(src);
   }
   JsVar *dst = jsvNewWithFlags(src->flags & JSV_VARIABLEINFOMASK);
   if (!dst) return 0; // out of memory
@@ -2962,7 +2984,7 @@ JsVar *jsvFindChildFromString(JsVar *parent, const char *name) {
       childref = jsvGetNextSibling(child);
     }
   } else { // 4 or less chars, so if 4 chars match, there is no StringExt + length matches, then we're good without jsvIsStringEqual
-    int charsInName = 0;
+    size_t charsInName = 0;
     while (name[charsInName])
       charsInName++;
     while (childref) {
@@ -3023,13 +3045,14 @@ JsVar *jsvCreateNewChild(JsVar *parent, JsVar *index, JsVar *child) {
   return newChild;
 }
 
-/** Try and turn the supplied variable into a name. If not, make a new one. This locks again. */
+/** Try and turn the supplied variable into a name. If not, make a new one. The result is locked but
+ * the parameter should still be unlocked by the caller. */
 JsVar *jsvAsName(JsVar *var) {
   if (!var) return 0;
   if (jsvGetRefs(var) == 0) {
     // Not reffed - great! let's just use it
     if (!jsvIsName(var))
-      var = jsvMakeIntoVariableName(var, 0);
+      return jsvMakeIntoVariableName(jsvLockAgain(var), 0);
     return jsvLockAgain(var);
   } else { // it was reffed, we must add a new one
     return jsvMakeIntoVariableName(jsvCopy(var, false), 0);
@@ -3108,15 +3131,18 @@ void jsvRemoveChild(JsVar *parent, JsVar *child) {
   jsvSetNextSibling(child, 0);
   if (wasChild)
     jsvUnRef(child);
+}
 
+void jsvRemoveChildAndUnLock(JsVar *parent, JsVar *child) {
+  jsvRemoveChild(parent, child);
+  jsvUnLock(child);
 }
 
 void jsvRemoveAllChildren(JsVar *parent) {
   assert(jsvHasChildren(parent));
   while (jsvGetFirstChild(parent)) {
     JsVar *v = jsvLock(jsvGetFirstChild(parent));
-    jsvRemoveChild(parent, v);
-    jsvUnLock(v);
+    jsvRemoveChildAndUnLock(parent, v);
   }
 }
 
@@ -3168,6 +3194,21 @@ JsVar *jsvObjectGetChildI(JsVar *obj, const char *name) {
   return jsvSkipNameAndUnLock(jsvFindChildFromStringI(obj, name));
 }
 
+/// Same as jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(obj, name))
+bool jsvObjectGetBoolChild(JsVar *obj, const char *name) {
+  return jsvGetBoolAndUnLock(jsvObjectGetChildIfExists(obj, name));
+}
+
+/// Same as jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(obj, name))
+JsVarInt jsvObjectGetIntegerChild(JsVar *obj, const char *name) {
+  return jsvGetIntegerAndUnLock(jsvObjectGetChildIfExists(obj, name));
+}
+
+/// Same as jsvGetFloatAndUnLock(jsvObjectGetChildIfExists(obj, name))
+JsVarFloat jsvObjectGetFloatChild(JsVar *obj, const char *name) {
+  return jsvGetFloatAndUnLock(jsvObjectGetChildIfExists(obj, name));
+}
+
 /// Set the named child of an object, and return the child (so you can choose to unlock it if you want)
 JsVar *jsvObjectSetChild(JsVar *obj, const char *name, JsVar *child) {
   assert(jsvHasChildren(obj));
@@ -3199,10 +3240,8 @@ void jsvObjectSetChildAndUnLock(JsVar *obj, const char *name, JsVar *child) {
 
 void jsvObjectRemoveChild(JsVar *obj, const char *name) {
   JsVar *child = jsvFindChildFromString(obj, name);
-  if (child) {
-    jsvRemoveChild(obj, child);
-    jsvUnLock(child);
-  }
+  if (child)
+    jsvRemoveChildAndUnLock(obj, child);
 }
 
 /** Set the named child of an object, and return the child (so you can choose to unlock it if you want).
@@ -3490,6 +3529,11 @@ JsVarInt jsvArrayPushAndUnLock(JsVar *arr, JsVar *value) {
   JsVarInt l = jsvArrayPush(arr, value);
   jsvUnLock(value);
   return l;
+}
+
+/// Adds a new String element to the end of an array, and returns the new length. Same as jsvArrayPushAndUnLock(arr, jsvNewFromString(str))
+JsVarInt jsvArrayPushString(JsVar *arr, const char *string) {
+  return jsvArrayPushAndUnLock(arr, jsvNewFromString(string));
 }
 
 // Push 2 integers onto the end of an array
@@ -3831,14 +3875,14 @@ JsVar *jsvMathsOp(JsVar *a, JsVar *b, int op) {
       }
 #endif
       // Don't copy 'da' if it's not used elsewhere (eg we made it in 'jsvAsString' above)
-      if (jsvIsBasicString(da) && jsvGetLocks(da)==1 && jsvGetRefs(da)==0)
+      JsVarFlags daf = da->flags & JSV_VARTYPEMASK;
+      if (JSV_IS_BASIC_STRING(daf) && jsvGetLocks(da)==1 && jsvGetRefs(da)==0)
         v = jsvLockAgain(da);
-      else if (JSV_IS_NONAPPENDABLE_STRING(da->flags & JSV_VARTYPEMASK) || jsvIsUTF8String(da)) {
+      else if (JSV_IS_NONAPPENDABLE_STRING(daf) || JSV_IS_UNICODE_STRING(daf)) {
         // It's a string, but it can't be appended - don't copy as copying will just keep the same var type!
         // Instead we create a new string var by copying
         // opt: should we allocate a flat string here? but repeated appends would then be slow
-        v = jsvNewFromEmptyString(); // don't use jsvNewFromStringVar as this does a copy for native/flash strs too
-        if (v) jsvAppendStringVar(v, da, 0, JSVAPPENDSTRINGVAR_MAXLENGTH);
+        v = jsvNewFromStringVarComplete(da);
       } else // otherwise just copy it
         v = jsvCopy(da, false);
       if (v) // could be out of memory
