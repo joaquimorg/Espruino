@@ -150,6 +150,9 @@ void jshPinSetStateRange( Pin start, Pin end, JshPinState state ) {
 }
 
 void jshPinDefaultPullup() {
+#ifdef CONFIG_IDF_TARGET_ESP32C3
+
+#else
   // 6-11 are used by Flash chip
   // 32-33 are routed to rtc for xtal
   // 16-17 are used for PSRAM (future use)
@@ -159,7 +162,7 @@ void jshPinDefaultPullup() {
   jshPinSetStateRange(21,22,JSHPINSTATE_GPIO_IN_PULLUP);
   jshPinSetStateRange(25,27,JSHPINSTATE_GPIO_IN_PULLUP);
   jshPinSetStateRange(34,39,JSHPINSTATE_GPIO_IN_PULLUP);
-
+#endif
 }
 
 /**
@@ -381,11 +384,15 @@ bool CALLED_FROM_INTERRUPT jshPinGetValue( // can be called at interrupt time
 
 
 JsVarFloat jshPinAnalog(Pin pin) {
+  if (pinInfo[pin].analog == JSH_ANALOG_NONE)
+    return NAN;
   return (JsVarFloat) readADC(pin) / 4096;
 }
 
 
 int jshPinAnalogFast(Pin pin) {
+  if (pinInfo[pin].analog == JSH_ANALOG_NONE)
+    return 0;
   return readADC(pin) << 4;
 }
 
@@ -476,7 +483,11 @@ bool CALLED_FROM_INTERRUPT jshGetWatchedPinState(IOEventFlags eventFlag) { // ca
 bool jshCanWatch(
     Pin pin //!< The pin that we are asking whether or not we can watch it.
   ) {
+#ifdef CONFIG_IDF_TARGET_ESP32C3
+  return (pin!=18) && (pin!=19); // USB
+#else
   return pin == 0 || ( pin >= 12 && pin <= 19 ) || pin == 21 ||  pin == 22 || ( pin >= 25 && pin <= 27 ) || ( pin >= 34 && pin <= 39 );
+#endif
 }
 
 

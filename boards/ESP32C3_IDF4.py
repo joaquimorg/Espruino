@@ -13,7 +13,9 @@
 # as various source and header files for Espruino.
 # ----------------------------------------------------------------------------------------
 
-
+# ###########################################################
+# #      THIS IS BETA - C3/IDF4 SUPPORT IS NOT READY YET       #
+# ###########################################################
 
 # A Note about the 'variables' parameter on ESP32 Builds
 # ------------------------------------------------------
@@ -46,26 +48,26 @@
 
 import pinutils;
 info = {
- 'name'                     : "ESP32",
+ 'name'                     : "ESP32C3",
  'espruino_page_link'       : 'ESP32',
  'default_console'          : "EV_SERIAL1",
  'default_console_baudrate' : "115200",
  'variables'                : 16383, # See note above 
  'io_buffer_size'           : 1024, # How big is the input buffer (in 4 byte words). Default is 256, but this makes us less likely to drop data
- 'binary_name'              : 'espruino_%v_esp32.bin',
+ 'binary_name'              : 'espruino_%v_esp32c3.bin',
  'build' : {
    'optimizeflags' : '-Og',
    'libraries' : [
      'ESP32',
      'NET',
      'GRAPHICS',
-     'CRYPTO','SHA256','SHA512',
-     'TLS',
-     'TELNET',
-     'NEOPIXEL',
-     'FILESYSTEM',
-     'FLASHFS',
-     'BLUETOOTH'	 
+#     'CRYPTO','SHA256','SHA512',
+#     'TLS',
+#     'TELNET',
+#     'FILESYSTEM',
+#     'FLASHFS',
+     'BLUETOOTH',
+     'NEOPIXEL'     
    ],
    'makefile' : [
      'DEFINES+=-DESP_PLATFORM -DESP32=1',
@@ -78,15 +80,15 @@ info = {
 };
 
 chip = {
-  'part'    : "ESP32",
-  'family'  : "ESP32",
+  'part'    : "ESP32C3",
+  'family'  : "ESP32_IDF4",
   'package' : "",
-  'ram'     : 512,
+  'ram'     : 400,
   'flash'   : 0,
-  'speed'   : 240,
-  'usart'   : 3,
-  'spi'     : 2,
-  'i2c'     : 2,
+  'speed'   : 160,
+  'usart'   : 2,
+  'spi'     : 1,
+  'i2c'     : 1,
   'adc'     : 2,
   'dac'     : 0,
   'saved_code' : {
@@ -115,7 +117,7 @@ board_esp32["_css"] = """
   height: 435px;
   left: 50px;
   top: 170px;
-  background-image: url(img/ESP32.jpg);
+  background-image: url(img/ESP32C3.jpg);
 }
 #boardcontainer {
   height: 700px;
@@ -143,53 +145,23 @@ board_esp32["_css"] = """
 boards = [ board_esp32 ];
 
 def get_pins():
+  pins = pinutils.generate_pins(0,21) # 22 General Purpose I/O Pins.
 
-
-#  { "name":"PD20", "sortingname":"D20", "port":"D", "num":"30", "functions":{ "I2C1_SDA":0 }, "csv":{} },
-
-
-#  pins = pinutils.generate_pins(0,5);
-##6-11 are used by Flash chip
-#  pins.extend(pinutils.generate_pins(12,23));
-
-# pins.extend(pinutils.generate_pins(25,27));
-##32-33 are routed to rtc for xtal
-#  pins.extend(pinutils.generate_pins(34,39));
-
-#  pins = pinutils.fill_gaps_in_pin_list(pins);
-
-  pins = pinutils.generate_pins(0,39) # 40 General Purpose I/O Pins.
-
-  pinutils.findpin(pins, "PD36", True)["functions"]["ADC1_IN0"]=0;
-  pinutils.findpin(pins, "PD37", True)["functions"]["ADC1_IN1"]=0;
-  pinutils.findpin(pins, "PD38", True)["functions"]["ADC1_IN2"]=0;
-  pinutils.findpin(pins, "PD39", True)["functions"]["ADC1_IN3"]=0;
-  pinutils.findpin(pins, "PD32", True)["functions"]["ADC1_IN4"]=0;
-  pinutils.findpin(pins, "PD33", True)["functions"]["ADC1_IN5"]=0;
-  pinutils.findpin(pins, "PD34", True)["functions"]["ADC1_IN6"]=0;
-  pinutils.findpin(pins, "PD35", True)["functions"]["ADC1_IN7"]=0;
-
-#ADC2 not supported yet, waiting for driver from espressif
-#  pinutils.findpin(pins, "PD4", True)["functions"]["ADC2_IN0"]=0;
-#  pinutils.findpin(pins, "PD0", True)["functions"]["ADC2_IN1"]=0;
-#  pinutils.findpin(pins, "PD2", True)["functions"]["ADC2_IN2"]=0;
-#  pinutils.findpin(pins, "PD15", True)["functions"]["ADC2_IN3"]=0;
-#  pinutils.findpin(pins, "PD13", True)["functions"]["ADC2_IN4"]=0;
-#  pinutils.findpin(pins, "PD12", True)["functions"]["ADC2_IN5"]=0;
-#  pinutils.findpin(pins, "PD14", True)["functions"]["ADC2_IN6"]=0;
-#  pinutils.findpin(pins, "PD27", True)["functions"]["ADC2_IN7"]=0;
-
-  pinutils.findpin(pins, "PD25", True)["functions"]["DAC_OUT1"]=0;
-  pinutils.findpin(pins, "PD26", True)["functions"]["DAC_OUT2"]=0;
-
-  pinutils.findpin(pins, "PD0", True)["functions"]["LED_1"]=0;
-
-  pinutils.findpin(pins, "PD10", True)["functions"]["USART0_TX"]=0;
-  pinutils.findpin(pins, "PD16", True)["functions"]["USART2_RX"]=0;
-  pinutils.findpin(pins, "PD17", True)["functions"]["USART2_TX"]=0;
-  pinutils.findpin(pins, "PD32", True)["functions"]["USART0_RX"]=0;
+  pinutils.findpin(pins, "PD0", True)["functions"]["ADC1_IN0"]=0;
+  pinutils.findpin(pins, "PD1", True)["functions"]["ADC1_IN1"]=0;
+  pinutils.findpin(pins, "PD2", True)["functions"]["ADC1_IN2"]=0;
+  pinutils.findpin(pins, "PD3", True)["functions"]["ADC1_IN3"]=0;
+  pinutils.findpin(pins, "PD4", True)["functions"]["ADC1_IN4"]=0;
+  # pinutils.findpin(pins, "PD5", True)["functions"]["ADC2_IN0"]=0;  
+  # On supermini D8 is (inverted) LED
+  # On supermini D9 is (inverted) Button
+  # D12-D17 are SPI (internal SPI) - not sure they should even be exposed??
+  
+  #18/19 are USB
+  pinutils.findpin(pins, "PD20", True)["functions"]["USART0_RX"]=0;
+  pinutils.findpin(pins, "PD21", True)["functions"]["USART0_TX"]=0;  
 
   # everything is non-5v tolerant
-  #for pin in pins:
-  #  pin["functions"]["3.3"]=0;
+  for pin in pins:
+    pin["functions"]["3.3"]=0;
   return pins
