@@ -1495,7 +1495,7 @@ NO_INLINE void jswrap_pinetime40_init() {
   
   if (showSplashScreen) {
     char addrStr[20];
-    JsVar* addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
+    JsVar* addr = jswrap_ble_getAddress(true); // Write MAC address in bottom right
     jsvGetString(addr, addrStr, sizeof(addrStr));
     jsvUnLock(addr);
 
