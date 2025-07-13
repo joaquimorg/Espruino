@@ -18,6 +18,7 @@
 #include "jswrap_arraybuffer.h" // for jswrap_io_peek
 #include "jswrapper.h" // for JSWAT_VOID
 #include "jstimer.h" // for digitalPulse
+#include "jspin.h"
 
 #ifdef ESP32
 #include "freertos/FreeRTOS.h"
@@ -30,7 +31,7 @@
   "generate_full" : "jswrap_io_peek(addr,count,1)",
   "params"        : [
     ["addr", "int", "The address in memory to read"],
-    ["count", "int", "[optional] the number of items to read. If >1 a Uint8Array will be returned."]
+    ["count", "int", "[optional] the number of items to read. If >1 a `Uint8Array` will be returned."]
   ],
   "return"        : ["JsVar","The value of memory at the given location"],
   "typescript"    : [
@@ -58,7 +59,7 @@ Write 8 bits of memory at the given location - VERY DANGEROUS!
   "generate_full" : "jswrap_io_peek(addr,count,2)",
   "params" : [
     ["addr","int","The address in memory to read"],
-    ["count","int","[optional] the number of items to read. If >1 a Uint16Array will be returned."]
+    ["count","int","[optional] the number of items to read. If >1 a `Uint16Array` will be returned."]
   ],
   "return" : ["JsVar","The value of memory at the given location"],
   "typescript" : [
@@ -86,7 +87,7 @@ Write 16 bits of memory at the given location - VERY DANGEROUS!
   "generate_full" : "jswrap_io_peek(addr,count,4)",
   "params" : [
     ["addr","int","The address in memory to read"],
-    ["count","int","[optional] the number of items to read. If >1 a Uint32Array will be returned."]
+    ["count","int","[optional] the number of items to read. If >1 a `Uint32Array` will be returned."]
   ],
   "return" : ["JsVar","The value of memory at the given location"],
   "typescript" : [
@@ -171,9 +172,13 @@ void jswrap_io_poke(JsVarInt addr, JsVar *data, int wordSize) {
   "params" : [
     ["pin","pin",["The pin to use","You can find out which pins to use by looking at [your board's reference page](#boards) and searching for pins with the `ADC` markers."]]
   ],
-  "return" : ["float","The Analog Value of the Pin between 0(GND) and 1(VCC). See below."]
+  "return" : ["float","The analog value of the `Pin` between 0(GND) and 1(VCC). See below."]
 }
 Get the analogue value of the given pin.
+
+* The value is normally greater than or equal to 0, however in some cases nRF52-based boards can produce values
+less than 0 when the ADC voltage is slightly less than the chip's internal GND.
+* The value returned will always be *less* than 1, even when the ADC reads full range. For example a 12 bit ADC may return 4095 as a full-range value, but this is divided by 4096 to produce `analogRead`'s output value.
 
 This is different to Arduino which only returns an integer between 0 and 1023
 
@@ -518,22 +523,7 @@ JsVar *jswrap_io_getPinMode(Pin pin) {
     jsExceptionHere(JSET_ERROR, "Invalid pin");
     return 0;
   }
-  JshPinState m = jshPinGetState(pin)&JSHPINSTATE_MASK;
-  const char *text = 0;
-  switch (m) {
-  case JSHPINSTATE_ADC_IN :             text = "analog"; break;
-  case JSHPINSTATE_GPIO_IN :            text = "input"; break;
-  case JSHPINSTATE_GPIO_IN_PULLUP :     text = "input_pullup"; break;
-  case JSHPINSTATE_GPIO_IN_PULLDOWN :   text = "input_pulldown"; break;
-  case JSHPINSTATE_GPIO_OUT :           text = "output"; break;
-  case JSHPINSTATE_GPIO_OUT_OPENDRAIN : text = "opendrain"; break;
-  case JSHPINSTATE_GPIO_OUT_OPENDRAIN_PULLUP : text = "opendrain_pullup"; break;
-  case JSHPINSTATE_AF_OUT :             text = "af_output"; break;
-  case JSHPINSTATE_AF_OUT_OPENDRAIN :   text = "af_opendrain"; break;
-  default: break;
-  }
-  if (text) return jsvNewFromString(text);
-  return 0;
+  return jshGetPinStateString(jshPinGetState(pin));
 }
 
 
@@ -697,7 +687,7 @@ void jswrap_io_shiftOut(JsVar *pins, JsVar *options, JsVar *data) {
   "params" : [
     ["function", "JsVar", "A Function or String to be executed"],
     ["pin", "pin", "The pin to watch"],
-    ["options", "JsVar","If a boolean or integer, it determines whether to call this once (false = default) or every time a change occurs (true). Can be an object of the form `{ repeat: true/false(default), edge:'rising'/'falling'/'both'(default), debounce:10}` - see below for more information."]
+    ["options", "JsVar","If a boolean or integer, it determines whether to call this once (false = default) or every time a change occurs (true). Can be an object of the form `{ repeat: true/false(default), edge:'rising'/'falling'/'both', debounce:10}` - see below for more information."]
   ],
   "return" : ["JsVar","An ID that can be passed to clearWatch"],
   "typescript" : "declare function setWatch(func: ((arg: { state: boolean, time: number, lastTime: number }) => void) | string, pin: Pin, options?: boolean | { repeat?: boolean, edge?: \"rising\" | \"falling\" | \"both\", debounce?: number, irq?: boolean, data?: Pin, hispeed?: boolean }): number;"
@@ -721,7 +711,7 @@ information (all optional):
    // setting irq:true will call that function in the interrupt itself
    irq : false(default)
    // Advanced: If specified, the given pin will be read whenever the watch is called
-   // and the state will be included as a 'data' field in the callback
+   // and the state will be included as a 'data' field in the callback (`debounce:0` is required)
    data : pin
    // Advanced: On Nordic devices, a watch may be 'high' or 'low' accuracy. By default low
    // accuracy is used (which is better for power consumption), but this means that
@@ -740,7 +730,7 @@ The `function` callback is called with an argument, which is an object of type
    When using `edge:'rising'` or `edge:'falling'`, this is not the same as when
    the function was last called.
  * `data` is included if `data:pin` was specified in the options, and can be
-   used for reading in clocked data
+   used for reading in clocked data. It will only work if `debounce:0` is used
 
 For instance, if you want to measure the length of a positive pulse you could
 use `setWatch(function(e) { console.log(e.time-e.lastTime); }, BTN, {
@@ -817,7 +807,9 @@ JsVar *jswrap_interface_setWatch(
       return 0;
     }
     isIRQ = jsvObjectGetBoolChild(repeatOrObject, "irq");
+#ifdef NRF5X
     isHighSpeed = jsvObjectGetBoolChild(repeatOrObject, "hispeed");
+#endif
     dataPin = jshGetPinFromVarAndUnLock(jsvObjectGetChildIfExists(repeatOrObject, "data"));
   } else
     repeat = jsvGetBool(repeatOrObject);

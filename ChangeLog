@@ -1,4 +1,194 @@
-          : Graphics: Ensure floodFill sets modified area correctly
+          : Add `E.internal` as a way to access the 'hidden root' containing Espruino internal variables that previously needed `global["\xff"]`
+            Bangle.js: Fix back handler not removed when using E.setUI with a back button but without widgets (#2636)
+            nRF52: Add 'slaveLatency' option to BluetoothRemoteGATTServer.connect, default changed from 2 to 4
+            nRF52: Add 'phy' and 'mtu' events to NRF/BluetoothDevice when these change on a connection
+            MDBT42Q: Remove SHA512 from the build (needs 2.5k flash, rarely used)
+            Bangle.js2: Adjust accelerometer axes for HRM algorithm to more closely match the datasheet
+            nRF52: Add NRF/BluetoothRemoteGATTServer.updateConnection for setting the phy
+            Bangle.js2: Add Bangle.setOptions({hrmStaticSampleTime})
+
+     2v27 : nRF5x: Ensure Bluetooth notifications work correctly when two separate connections use the same handle for their characteristics
+            nRF5x: Remove handlers from our handlers array when a device is disconnected
+            Bangle.js: Fix wrapString when wrapping a non-UTF8 string containing UTF8 characters (fix #2633) 
+            Ensure jshPushIOCharEvent is more stable when the FIFO is full
+            Bangle.js: g.findFont now attempts to use Intl:2 if there's room. Also fix memory leak
+            nRF52840: Add E.getVDDH() method to get VDDH voltage
+            Fix issue handling multi-line tempated strings pasted to REPL (2v26 regression)
+            Add a backtrace command to debugger, add console.trace command, set Error.stack in constructor (fix #2490)
+            Error.stack/stack dump now uses more standard file:line:col format
+            Out of memory errors now show a backtrace (previously it was very hard to track these down)
+            Increase chars shown in strings in console to 60            
+            If debugging via bluetooth and we disconnect, quit debugging (locks Bluetooth otherwise)
+            Remove Line Number handling code (most code will be run out of Storage now, where we know the line number)
+            Debugger now uses jslPrintPosition to print file+line+col, is aware of Modules.addCached that IDE adds and discounts it
+            Fix Math.sin on negative numbers on extremely constrained builds (Bangle.js 1/Microbit) where we have to use a very small sin implementation (#2637)
+            Bangle.js2: Calling Bangle.getPressure() while a conversion is in progress now returns the same promise (so it will complete as soon as pressure data is ready) rather than erroring
+            Bangle.js2: Fix 2v22 regression where `E.showMenu({test:{}})` would display 'test:undefined'
+            Fat FS: Added `r+` file open mode (and allow w+ to read)
+            Fat FS: If can't allocate file, attempt defragmentation and try again
+            E.defrag() now defrags everything, including Flat Strings (fix #1740)
+            ESP32: Fix 2v26 regression which stopped many pins from being watched
+            Puck.js: Revert second timer accuracy tweak that broke Puck.IR in 2v26
+            E.setFlags({onErrorSave:true}) now saves any uncaught errors to a file in Storage called ERROR (#2583)
+            E.setFlags({onErrorFlash:true}) now flashes the red LED for 200ms on any uncaught errors
+            Puck.js: Fix Puck.magTemp() for hardware 2.1
+
+     2v26 : nRF5x: ensure TIMER1_IRQHandler doesn't always wake idle loop up (fix #1900)
+            Puck.js: On v2.1 ensure Puck.mag behaves like other variants - just returning the last reading (avoids glitches when used with Puck.magOn)
+            Fix escaping of `\r` in built-in modules, fixed regression that stopped Espruino WiFi 2v25 from connecting to Wifi
+            BLE: always return privacy info from NRF.getSecurityStatus(), regardless of connection state
+            Linux SDL build: mouse events now create `E.on("touch"` events like on CYD
+            nRF52: Bootloader now doesn't reset RESETREAS
+            nRF52: If we reboot because of LOCKUP, don't enable DCDC converter
+            Bangle.js2: Test screen now fails if no DCDC enabled
+            Bangle.js: Ensure fake LED1/LED2 remember state
+            Ensure E.setComparator is added to the build for nRF52
+            Bangle.js2: Update test to use accelerometer to test vibration motor
+            Build: Allow creating UF2 images
+            XiaoBLE: Add board: Seeed XIAO BLE
+            nRF5x: Allow entering UF2 bootloader mode by calling E.rebootToDFU() (on boards that have such a bootloader)
+            Graphics: Graphics.asImage() can now take x/y/w/h options to make only part of the graphics into an image
+            STM32: Revert hasSystemSlept=true before _WFI that caused jsTimer to get corrupted
+            Pipboy: allow audio files to be played at the same time as (silent) video. add audioStopped/videoStopped events and audioStop method
+            Pipboy: Pip.audioStartVar(wav,{overlap:true}) can now play sounds over the top of other sounds. audioRead now doesn't stop audio playback
+            STM32: Ensure proper distribution of analogRead values (now `0<=analogRead()<1` as on other boards) and add docs (fix #2612)
+            Change ioBuffer FIFO from 4 byte blocks to variable length blocks. Far more efficient for USB/BLE/other block data
+            STM32: Fix spi.write usage on same port that SD card is used with (fix #2613)
+            Bangle.js2: Added new Renaissance fonts and g.findFont function for selecting the best font
+            Bangle.js2: Fix issue when an onchange callback from E.showMenu submenu changes the menu immediately
+            Bangle.js: Added 'bpmMin/bpmMax' and 'activity' to 'health' event and 'Bangle.getHealthStatus'
+            Fix potential overflow of locks - favour small memory leak over accidental free if this ever happens (fix #2616)
+            micro:bit2: Ensure we don't initialise the I2C1 peripheral (we use software I2C internally)
+            Unlock functionCode early in function execution to reduce locks needed during recursion (#2616)
+            nRF52: Improve software timer accuracy by keeping timer running while executing jstUtilTimerInterruptHandler (fix #2620)
+            Bangle.js: setUI/etc now don't draw a 'back' icon if there is no widget bar (or it's hidden)
+            ESP32: Remove FlashFS, adjust partitions to increase available Storage from 256kB to 896kB
+            Storage: Don't attempt to compact if it's obvious that we don't have space for the file even when compacted
+            Increase Packet timeout from 1 to 5 sec (increase reliability over slow Bluetooth LE connections)
+            Bangle.js: fix .setUI back button stopped being drawn in the leftmost position after recent changes.
+            Fix 2v25 regression where `(new Date() instanceof Date) == false` (instanceof on objects that contain a `valueOf` method)
+            Storage: Ensure compaction removes any files with invalid file types
+            Puck.js: v2.2 compatibility
+            Graphics: stringMetrics (and so findFont) now doesn't set unrenderableChars for strings with a '\n' character
+            Bangle.js2: showPrompt better alignment of text if no title, and add buttonHeight option
+            nRF52: Move SDK15 builds from 6.0.0 to binary-compatible 6.1.1 softdevice (Jolt.js/Bangle.js 2)
+            Templated strings without Templates now treated as normal strings (fix #2577)
+            Add pretokenisation of 8/16 bit ints (fix #2563)
+            nRF5x: Fix BLE connection timeout (was 40ms, not 4s) for more reliable outgoing connections
+            Bangle.js2/Jolt.js: Increase GAP_EVENT_LENGTH to allow coded phy connections (1.2k more RAM used)
+            nRF52840: Ensure scannable is disabled (and warn) when advertising on coded phy
+            nRF52840: Allow scan parameters to be passed to `connect` (enabling coded phy connection)
+            nRF52840: Allow 1mbps,coded/coded,1mbps and up to double-length advertising in 'extended' advertising mode
+            BLE: Ensure all Espruino devices advertise the Espruino 0x0590 manufacturer ID by default
+               - The default Nordic UART scan response will be removed in future to reduce power usage
+            nRF52: Ensure that if enabled the HID service gets added to the main advertising packet (#2631)
+            nRF52: Fix unreliable internal flash writes when writing >2k (big issue for compaction) (fix #2509)
+            nRF52: Don't break out of flash erase/writes if interrupted (Ctrl-C) - these shouldn't take too long and can corrupt data if interruptable
+            Bangle.js2_iflash: If we can't write a JS file to internal flash, attempt to write to external instead
+            Bangle.js2_iflash: require("Storage").getStats() now sums both Storage pools by default
+
+     2v25 : ESP32C3: Get analogRead working correctly
+            Graphics: Adjust image alignment when rotating images to avoid cropping (fix #2535)
+            Bangle.js1: Switch to space-optimised sin/atan/atan2 to save enough space to continue building
+            ESP32C3: don't allow AP *AND* STA mode at the same time - solves issues when just calling 'wifi.connect' at boot
+            Emulator: ensure we include CallFunction stubs for Promises (fix regression after Promise refactor)
+            Pin.getInfo() now returns 'output' and 'mode' values, allowing the state of the output register to be queried
+            E.sendUSBHID now returns false if USB disconnected
+            (new Array(3)).includes(undefined) fix
+            USB: Disable software flow control as USB itself handles flow control
+            Graphics.createArrayBuffer can now be given an ArrayBuffer on initialisation (so it doesn't always try and allocate one)
+            Added packet transfer protocol for reliable code/file uploads - see README_Protocol.md
+            STM32F4: shorter timeout used for I2C/etc
+            STM32: add E.getClock() for retrieving more info on system clocks
+            Graphics: g.setColor(-1) now sets color to 0xFFFF (previously it would break antialiasing)
+            Added I2C.unsetup function
+            STM32: Stay away when USB is connected, even if no app is reading
+            Remove Ctrl-A/D/E/U/W code handling to free up flash space (the IDE/or VT100 terminals all use escape codes)
+            Ensure that 1%0.0===NaN (fix #2556)
+            Ensure Number("1A")==NaN, previously we just parsed the digits we could (fix #2555)
+            First argument of operators is now dereferenced before parsing second argument (fix #2547)
+            Ensure x%Infinity===x (fix #2542)
+            Bangle.js: Remove meridian from default locale.time function (to match 'Languages' app)
+            nRF5x: When finding the CCCD for a Bluetooth Characteristic, now check at +2 as well as +1 (fix Bluefruit NUS TX)
+            Jolt.js: Increase Storage area from 40kb to 400kb
+            nRF5x: Don't add BLE UART write events into the input buffer
+            ESP32: Timers are now turned off when requested - digitalPulse/soft pwm/writeAtTime more accurate
+            Bangle.js2: Remove debug log messages from E.showScroller
+            STM32F4: Update stm32f4xx_ll_usb to fix over-buffered USB CDC tx after being woken from deep sleep
+            Waveform: Add 'npin' option to allow +/- output on two pins
+            Waveform: Add ability to play directly from Storage
+            Puck.js: Remove networking support from default build, add PUCKJS_NETWORK -> espruino_2vxx_puckjs_network.zip builds for those that need it
+            Bangle.js: Added fastpaths for 2 and 4 bit arraybuffers, and massively improve 1 bit fills
+            Graphic.createArrayBuffer msb now defaults to true as it's rare to ever need msb:false
+            Ensure Math.random() can never be `1` as per spec (was unlikely before, but possible)
+            Add Math.randInt: not in spec, but very useful for embedded
+            Fix debugging of switch statements (fix #2562)
+            Network: enable parsing of 'https' URL and TLS flag even even TLS not built in (#2410)
+            removeListener while executing events no longer stops subsequent listeners from executing (#2151)
+            jsvObjectIterator is now safe even if not called on something iterable
+            X.on now always allocates an array - tidies up code (fix #2559)
+            Bangle.js: E.showMenu no longer sends the internal `l` menu object as argument when running the callback function.
+            Bangle.js2: GPS request RMC packet automatically (so GPS speed/time work even without AGPS) (fix #2354)
+            Bangle.js2: GPS now detects binary CASIC packets and splits them into their own GPS-raw event
+            Bangle.js2: Pass the modified touch event on through both E.showScroller and E.showMenu (to enable more complex interaction with menus).
+            Bangle.js: Add Bangle.setOptions({manualWatchdog:true}) to enable users to supply their own JS watchdog
+            Bangle.js2: DFU update from flash now retries if CRC doesn't match
+            Bangle.js2: Bootloader now shows 'Hold button to turn on' to avoid users assuming it is dead when it's not
+            Bangle.js2: Bootloader now 'Hold BTN to reboot' not 'BTN1 = REBOOT'/etc
+            ESP32C3: don't kick connected BLE devices off if reset() is called
+            ESP32C3: disable warnings about "BT_BTM: BTM_GetSecurityFlags false"
+            Handle semicolons between field declarations in classes
+            Ensure that pretokenised Strings are loaded as Flat Strings when executed from a String in RAM
+            E.nativeCall also checks to see if getting data as a flat string failed (could have caused segfault)
+            Fix for regression after #2547 fix (left hand operand of maths with a valueOf method)
+            X.on now allocates a new array for each new handler added, stops new handlers being called for the event that's currently being handled (#2559)
+            RegExp: add optimisation for RegExp that is simply checking if a string ends with something
+            Bangle.js: .setUI now only clears back widget if it hasn't been hidden by widget_utils
+            Fix UtilTimer timings when new task added infront of existing tasks (fix #2575)
+            Graphics: Fix issue where drawLine for 2px horizontal lines only drew a 1px dot
+            nRF52: Add E.setComparator to enable interrupts from LPCOMP
+            Add Serial.isConnected to check if Bluetooth/USB/etc actually connected
+            Pixl.js: Remove Wiznet W5100 support from default build (there's now a espruino_#v##_pixljs_wiznet.zip without JIT enabled) to ensure we have enough flash to continue builds
+            Enable nostartfiles optimisation for Pixl,MDBT42 and nRF52DK
+            STM32F4: Add SDIO support
+            STM32: Ensure we kick the WDT if auto kicking is enabled and in deep sleep (avoids having to to it manually and wait 30ms for USB to wake up/shut down)
+            Allow a 'file receive' packet which can request Espruino sends a file as binary packets (also fix files not being closed if transmission fails)
+            Fix parsing of semicolons in DO with a statement: `do print(a);while(a--);`
+            In SAVE_ON_FLASH builds (Microbit 1) remove getSerial, Math.LN*/LOG*SQRT* constants, passwords, Serial/I2C/SPI.find, Date.toUTCString
+            ESP32: add setIP and setAPIP 
+            Graphics.wrapString fix issue with missing final char if immediately after a '.' or other char we can split after (#2572)
+            Graphics: g.dump/asBMP can now output 16 bit images
+            Crypto: Add support for AES CCM (enabled on Bangle.js 2) 
+            Add Serial over SWD vis RTT (enabled on Bangle.js 2)
+            
+     2v24 : Bangle.js2: Add 'Bangle.touchRd()', 'Bangle.touchWr()'
+            Bangle.js2: After Bangle.showTestScreen, put Bangle.js into a hard off state (not soft off)
+            Fix for unexpected power draw on newest batch of Bangle.js devices
+            Puck.js: skip CRT startup code to save ~300b
+            Fix memory leak when using Pin.getInfo on a pin with ADCs (and non-reporting of analogs)
+            Puck.js/Jolt.js: Ensure that firmware update ZIPs *do not* perform a self test at boot until they pass (only hex files that are used at the factory do)
+            Bangle.js2: If tapping at the bottom of the screen on a menu that is <12px onscreen, choose the menu item above (#3476)
+            Bangle.js: Ensure that the first button press event after a reboot is propagated to setWatch
+            Fix lexing of regex at the start of a if/loop (#2529)
+            ESP32: remove interrupt on/off code as it just causes a crash
+            ESP32: jshPinWatch now returns correct value (event ID vs pin number)
+            JS in the binary now uses jspExecuteJSFunctionCode which helps to skip a parsing step
+            JS modules that are included are now pretokenised
+            Bangle.js2: Now using pre-minified showRecoveryMenu and showTestScreen
+            Bangle.js2: Including Layout module in internal flash
+
+     2v23 : Fix XON/OFF thresholds to be based off the correct buffer size
+            Bangle.js2: Added BANGLE2_IFLASH target for firmware using internal flash for js files (currently only partially working)
+            Storage: If using internal+external, automatically put .bootcde and any libs in internal (as well as .js and .boot0)
+            Bangle.js2: Allow configuring device privacy to use random BLE addresses
+            Fix STM32 Nucleo regression from ESPR_PACKED_SYMPTR
+            Fixed issue with static fields in classes if defined before the constructor (fix #2517)
+            Jolt.js: ensure GPIO attached to outputs always default to input at startup
+            Graphics: Fix drawString centered multi-line alignment with UTF8 (fix #2519)
+            Bangle.js2: Fix 2v22 regression of overlays starting at nonzero offsets (#2520)
+            nRF52: Fix 2v22 regression that caused timekeeping to be off by ~500ppm
+         
+     2v22 : Graphics: Ensure floodFill sets modified area correctly
             nRF52: Lower expected BLE XTAL accuracy to 50ppm (can improve BLE stability on some Bangle.js 2)
             Emulator: force stack alignment of 'data' variable when accessing ArrayBuffers (fix #2463)
             Swapped GCC version from 8.2.1 to 13.2.1 (fix #2455)
@@ -50,7 +240,11 @@
               - also speed up ObjectGetInteger by not requiring a new var to be allocated to unpack a NAME_INT
             jsvSkipName speed improvements by avoiding repeated masking of flags
             No longer call jsvKill/Init when resetting, but just jsvReset (this avoids free+malloc on ESP32)
-            Bangle.js2: Bangle.setLCDOverlay can now take an object with {id:str, onRemove:fn} to deal with multiple users of overlays better
+            Bangle.js2: Bangle.setLCDOverlay can now take an object with {id:str, remove:fn} to deal with multiple users of overlays better
+            Bangle.js1: Fix issue where going out of and back into a menu would cause 'Back' to be added twice (fix #2470)
+            Bangle.js2: Added Graphics.filter (to allow gaussian/etc filters to be applied to graphics instances for borders/blur)
+            Graphics.drawImages layer x/y can now be non-integer (smoother movement on scaled/rotated images)
+            Puck.js: Fix Puck.selfTest() regression
 
      2v21 : nRF52: free up 800b more flash by removing vector table padding
             Throw Exception when a Promise tries to resolve with another Promise (#2450)

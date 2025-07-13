@@ -149,7 +149,7 @@ Prints the contents of the debug log to the console.
  */
 void jswrap_ESP8266_printLog() {
   JsVar *line = esp8266_logGetLine();
-  while (jsvGetStringLength(line) > 0) {
+  while (!jsvIsEmptyString(line)) {
     jsiConsolePrintStringVar(line);
     jsvUnLock(line);
     line = esp8266_logGetLine();
@@ -227,10 +227,9 @@ following fields:
 * `cpuFrequency` - CPU operating frequency in Mhz.
 * `freeHeap` - Amount of free heap in bytes.
 * `maxCon` - Maximum number of concurrent connections.
-* `flashMap` - Configured flash size&map: '512KB:256/256' .. '4MB:512/512'
+* `flashMap` - Configured flash size&map: '512KB:256/256' .. `'4MB:512/512'`
 * `flashKB` - Configured flash size in KB as integer
-* `flashChip` - Type of flash chip as string with manufacturer & chip, ex: '0xEF
-  0x4016`
+* `flashChip` - Type of flash chip as string with manufacturer & chip, ex: `'0xEF 0x4016'`
 
 */
 JsVar *jswrap_ESP8266_getState() {

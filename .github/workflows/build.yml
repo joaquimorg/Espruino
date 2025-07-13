@@ -35,7 +35,7 @@ jobs:
   # normal builds
   build_main:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.enable_main }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       # devices to build for
       matrix:
@@ -59,11 +59,12 @@ jobs:
         make
       #  ./scripts/ci_upload.sh
     - name: Upload ${{ matrix.board }} build artifact
-      uses: actions/upload-artifact@v4.3.3
+      uses: actions/upload-artifact@v4.6.2
       with:
         name: ${{ matrix.board }}
         path: |
           bin/*.bin
+          bin/*.uf2
           bin/*.hex
           bin/*.tgz
           bin/*.zip
@@ -143,7 +144,7 @@ jobs:
   # emulator builds
   build_emulator:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.enable_emulator }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       # devices to build for
       matrix:  # banglejs,   banglejs2
@@ -165,7 +166,7 @@ jobs:
         make
         ./scripts/ci_upload.sh
     - name: Upload ${{ matrix.board }} build artifact
-      uses: actions/upload-artifact@v4.3.3
+      uses: actions/upload-artifact@v4.6.2
       with:
         name: ${{ matrix.board }}
         path: |
@@ -209,7 +210,7 @@ jobs:
  
 # Disable doc building for now 
 #  docs:
-#    runs-on: ubuntu-20.04      
+#    runs-on: ubuntu-24.04      
 #    steps:
 #    - name: makedocs
 #      run: make docs

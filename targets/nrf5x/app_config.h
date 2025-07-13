@@ -34,6 +34,8 @@
 #define USBD_ENABLED 1
 #define USBD_CONFIG_IRQ_PRIORITY 7
 #define USBD_CONFIG_DMASCHEDULER_MODE 0
+#define USBD_CONFIG_DMASCHEDULER_ISO_BOOST 1
+#define USBD_CONFIG_ISO_IN_ZLP 0
 
 #define POWER_ENABLED 1
 #define SYSTICK_ENABLED 1 // for USB errata
@@ -165,7 +167,7 @@
 #ifdef NRF5X_SDK_15 // SDK15/NRF52840
 
 // To allow advertising transmit via coded phy (connectable:true,scannable:false)
-// #define NRF_SDH_BLE_GAP_EVENT_LENGTH 10
+// #define NRF_SDH_BLE_GAP_EVENT_LENGTH 6
 #endif // NRF52840
 
 #ifdef NRF5X_SDK_17
@@ -176,7 +178,7 @@
 // This may limit throughput if a lot of binary data is sent, but in terminal mode operation it makes sure that the data is always displayed right after it is sent.
 #define APP_USBD_CDC_ACM_ZLP_ON_EPSIZE_WRITE 1
 #define NRFX_USBD_CONFIG_DMASCHEDULER_ISO_BOOST 1
-#define NRFX_USBD_CONFIG_IRQ_PRIORITY 6
+#define NRFX_USBD_CONFIG_IRQ_PRIORITY 7
 #endif // NRF5X_SDK_17
 
 #if ESPR_LSE_ENABLE

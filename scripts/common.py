@@ -68,9 +68,12 @@ if "check_output" not in dir( subprocess ):
 #                      // hwinit = function to run on Hardware Initialisation (called once at boot time, after jshInit, before jsvInit/etc)
 #                      // init = function to run on Initialisation (eg boot/load/reset/after save/etc)
 #                      // kill = function to run on Deinitialisation (eg before save/reset/etc)
-#                      // EV_xxx = Something to be called with a character in an IRQ when it is received (eg. EV_SERIAL1)
-#                      // powerusage = fn(JsVar*) called with an object, and should insert fields for deviec names and estimated power usage in uA
-#         "class" : "Double", "name" : "doubleToIntBits",
+#                      // EV_CUSTOM = Called whenever an event of type EV_CUSTOM is received (jswOnCustomEvent(eventFlags, data, dataLen))
+#                      // EV_xxx = Something to be called with a character in an IRQ when it is received (eg. EV_SERIAL1) (jswOnCharEvent)
+#                      // powerusage = fn(JsVar*) called with an object, and should insert fields for deviec names and estimated power usage in uA (jswGetPowerUsage)
+#         "class" : "Double",
+#         "name" : "doubleToIntBits",
+#         "deprecated" : "2v24", // mark that this may be removed in the future (version=when it was deprecated). Adds a comment to description
 #         "needs_parentName":true,           // optional - if for a method, this makes the first 2 args parent+parentName (not just parent)
 #         "generate_full|generate|wrap" : "*(JsVarInt*)&x", // if generate=false, it'll only be used for docs
 #         "generate_js" : "full/file/path.js", // you can supply a JS file instead of 'generate' above. Should be of the form '(function(args) { ... })'
@@ -205,10 +208,14 @@ def get_jsondata(is_for_document, parseArgs = True, boardObject = False):
         try:
           jsondata = json.loads(jsonstring)
           if len(description): jsondata["description"] = description;
+          else: jsondata["description"] = ""
           jsondata["filename"] = jswrap
           if jswrap[-2:]==".c":
             jsondata["include"] = jswrap[:-2]+".h"
           jsondata["githublink"] = "https://github.com/espruino/Espruino/blob/"+githash+"/"+jswrap+"#L"+str(linenumber)
+
+          if "deprecated" in jsondata and not "deprecated" in jsondata["description"].lower():
+            jsondata["description"] = "**DEPRECATED** - this will be removed in subsequent versions of Espruino\n\n" + jsondata["description"];
 
           dropped_prefix = "Dropped "
           if "name" in jsondata: dropped_prefix += jsondata["name"]+" "
@@ -260,7 +267,7 @@ def get_jsondata(is_for_document, parseArgs = True, boardObject = False):
             if len(targetjsondata) > 0:
               targetjsondata = targetjsondata[0]
               for key in jsondata:
-                if not key in ["type","class","name","patch"]:
+                if not key in ["type","class","name","patch","description"]:
                   print("Copying "+key+" --- "+jsondata[key])
                   targetjsondata[key] = jsondata[key]
             drop = True
@@ -421,7 +428,7 @@ def is_property(jsondata):
   return jsondata["type"]=="property" or jsondata["type"]=="staticproperty" or jsondata["type"]=="variable"
 
 def is_function(jsondata):
-  return jsondata["type"]=="function" or jsondata["type"]=="method"
+  return jsondata["type"]=="method" or jsondata["type"]=="staticmethod" or jsondata["type"]=="function"
 
 def get_prefix_name(jsondata):
   if jsondata["type"]=="event": return "event"
@@ -466,7 +473,6 @@ def get_ifdef_description(d):
   if d=="USE_SHA256": return "devices that support SHA256 (Espruino Pico, Espruino WiFi, Espruino BLE devices or Linux)"
   if d=="USE_SHA512": return "devices that support SHA512 (Espruino Pico, Espruino WiFi, Espruino BLE devices or Linux)"
   if d=="USE_CRYPTO": return "devices that support Crypto Functionality (Espruino Pico, Original, Espruino WiFi, Espruino BLE devices, Linux or ESP8266)"
-  if d=="USE_FLASHFS": return "devices with filesystem in Flash support enabled (ESP32 only)"
   if d=="USE_TERMINAL": return "devices with VT100 terminal emulation enabled (Pixl.js only)"
   if d=="USE_TELNET": return "devices with Telnet enabled (Linux, ESP8266 and ESP32)"
   if d=="USE_WIZNET": return "builds with support for WIZnet Ethernet modules built in"
@@ -526,3 +532,21 @@ def get_espruino_binary_address(board):
 
 def get_board_binary_name(board):
         return board.info["binary_name"].replace("%v", get_version());
+
+# Quote a normal string such that C can read it
+def as_c_string(s):
+        #We can't do this because amazingly "\xabc" in C is NOT "\xab"+"c"
+        #return re.sub(r"\\u00([0-9a-fA-F]{2})", r"\\x\1", json.dumps(s));
+        r = '"';
+        for i in range(len(s)):
+            ch = ord(s[i])
+            if ch == 34: # quote
+              r = r + '\\"'
+            elif ch == 92: # slash -> double-escape
+              r = r + '\\\\'
+            elif (ch>=32) and (ch<128):
+              r = r + s[i]
+            else:
+              r = r + "\\"+oct(ch)[2:].zfill(3)
+        return r + '"';
+

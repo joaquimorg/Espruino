@@ -44,6 +44,10 @@
 #define USE_RTC
 #endif
 
+#ifndef ESPR_MIN_WFI_TIME_MS
+#define ESPR_MIN_WFI_TIME_MS 0.1
+#endif
+
 #define IRQ_PRIOR_SPI 1 // we want to be very sure of not losing SPI (this is handled quickly too)
 #define IRQ_PRIOR_SYSTICK 2
 #define IRQ_PRIOR_USART 6 // a little higher so we don't get lockups of something tries to print
@@ -57,17 +61,28 @@
 unsigned short jshRTCPrescaler;
 unsigned short jshRTCPrescalerReciprocal; // (JSSYSTIME_SECOND << RTC_PRESCALER_RECIPROCAL_SHIFT) /  jshRTCPrescaler;
 #define RTC_PRESCALER_RECIPROCAL_SHIFT 10
-#define RTC_INITIALISE_TICKS 8 // SysTicks before we initialise the RTC - we need to wait until the LSE starts up properly
+#ifndef ESPR_RTC_INITIALISE_TICKS
+#define ESPR_RTC_INITIALISE_TICKS 10 // SysTicks before we initialise the RTC - we need to wait until ~2s the LSE starts up properly. At 84Mhz 2s=~10 ticks
+#endif
+
 #define JSSYSTIME_EXTRA_BITS 8 // extra bits we shove on under the RTC (we try and get these from SysTick)
 #define JSSYSTIME_SECOND_SHIFT 20
 #define JSSYSTIME_SECOND (1<<JSSYSTIME_SECOND_SHIFT) // Random value we chose - the accuracy we're allowing (1 microsecond)
-
 JsSysTime jshGetRTCSystemTime();
 #else
 #define jshGetRTCSystemTime jshGetSystemTime
 #endif
 
+#ifdef STM32F4
+#define RTC_BKP_DR0_NULL 0
+#define RTC_BKP_DR0_TURN_OFF 0x57A4DEAD
+#define RTC_BKP_DR0_BOOT_DFU 0xB00710AD
+#endif
+
 static JsSysTime jshGetTimeForSecond();
+
+/// Max time we can sleep in JsSysTime units for the watchdog timer - we need this so we don't get rebooted it auto kicking is enabled
+uint32_t watchdogSleepMax;
 
 // The amount of systicks for one second depends on the clock speed
 #define SYSTICKS_FOR_ONE_SECOND (1+(CLOCK_SPEED_MHZ*1000000/SYSTICK_RANGE))
@@ -727,7 +742,11 @@ static bool jshIsRTCAlreadySetup(bool andRunning) {
   if (jshIsRTCUsingLSE())
     return RCC_GetFlagStatus(RCC_FLAG_LSERDY) == SET;
   else
+#ifdef ESPR_RTC_ALWAYS_TRY_LSE
+    return false;
+#else
     return RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == SET;
+#endif
 }
 
 
@@ -814,7 +833,7 @@ void jshDoSysTick() {
     jshUSBReceiveLastActive++;
 #endif
 #ifdef USE_RTC
-  if (ticksSinceStart==RTC_INITIALISE_TICKS) {
+  if (ticksSinceStart==ESPR_RTC_INITIALISE_TICKS) {
     // Use LSI if the LSE hasn't stabilised
     bool isUsingLSI = RCC_GetFlagStatus(RCC_FLAG_LSERDY)==RESET;
     bool wasUsingLSI = !jshIsRTCUsingLSE();
@@ -863,7 +882,7 @@ void jshDoSysTick() {
   }
 
   JsSysTime time = jshGetRTCSystemTime();
-  if (!hasSystemSlept && ticksSinceStart>RTC_INITIALISE_TICKS) {
+  if (!hasSystemSlept && ticksSinceStart>ESPR_RTC_INITIALISE_TICKS) {
     /* Ok - slightly crazy stuff here. So the normal jshGetSystemTime is now
      * working off of the SysTick again to get the accuracy. But this means
      * that we can't just change lastSysTickTime to the current time, because
@@ -926,7 +945,12 @@ bool jshIsInInterrupt() {
 }
 
 //int JSH_DELAY_OVERHEAD = 0;
+#ifdef ESPR_DELAY_MULTIPLIER
+#define  JSH_DELAY_MULTIPLIER ESPR_DELAY_MULTIPLIER
+#else
 int JSH_DELAY_MULTIPLIER = 1;
+#endif
+
 void jshDelayMicroseconds(int microsec) {
   int iter = (int)(((long long)microsec * (long long)JSH_DELAY_MULTIPLIER) >> 10);
 //  iter -= JSH_DELAY_OVERHEAD;
@@ -935,6 +959,10 @@ void jshDelayMicroseconds(int microsec) {
 }
 
 void jshPinSetState(Pin pin, JshPinState state) {
+  if (pinInfo[pin].port & JSH_PIN_NEGATED) {
+    if (state==JSHPINSTATE_GPIO_IN_PULLUP) state=JSHPINSTATE_GPIO_IN_PULLDOWN;
+    else if (state==JSHPINSTATE_GPIO_IN_PULLDOWN) state=JSHPINSTATE_GPIO_IN_PULLUP;
+  }
   // if this is about to mess up the neopixel output, so reset our var so we know to re-init
   if (pin == jshNeoPixelPin)
     jshNeoPixelPin = PIN_UNDEFINED;
@@ -1007,6 +1035,9 @@ JshPinState jshPinGetState(Pin pin) {
 #else
   int mode = (port->MODER >> (pinNumber*2)) & 3;
   int pupd = (port->PUPDR >> (pinNumber*2)) & 3;
+  bool negated = pinInfo[pin].port & JSH_PIN_NEGATED;
+  if (negated && (pupd==1)) pupd=2;
+  else if (negated && (pupd==2)) pupd=1;
   if (mode==0) { // input
     if (pupd==1) return JSHPINSTATE_GPIO_IN_PULLUP;
     if (pupd==2) return JSHPINSTATE_GPIO_IN_PULLDOWN;
@@ -1082,6 +1113,7 @@ static NO_INLINE void jshPinSetFunction(Pin pin, JshPinFunction func) {
 }
 
 void jshPinSetValue(Pin pin, bool value) {
+  if (pinInfo[pin].port & JSH_PIN_NEGATED) value=!value;
 #ifdef STM32API2
     if (value)
       GPIO_SetBits(stmPort(pin), stmPin(pin));
@@ -1110,7 +1142,9 @@ void jshPinSetValue(Pin pin, bool value) {
 }
 
 bool jshPinGetValue(Pin pin) {
-  return GPIO_ReadInputDataBit(stmPort(pin), stmPin(pin)) != 0;
+  bool value = GPIO_ReadInputDataBit(stmPort(pin), stmPin(pin)) != 0;
+  if (pinInfo[pin].port & JSH_PIN_NEGATED) value=!value;
+  return value;
 }
 
 // ----------------------------------------------------------------------------
@@ -1145,11 +1179,82 @@ static void jshResetPeripherals() {
 #ifdef DEFAULT_CONSOLE_BAUDRATE
     inf.baudRate = DEFAULT_CONSOLE_BAUDRATE;
 #endif
+    inf.xOnXOff = true;
     jshUSARTSetup(DEFAULT_CONSOLE_DEVICE, &inf);
   }
 }
 
+#ifdef STM32F4
+// Jump to the DFU bootloader - this will (probably) only work when called at the start of jshInit(), via jshRebootToDFU()
+void jshJumpToDFU(void) {
+	void (*SysMemBootJump)(void);
+  // Set system memory address for bootloader
+#ifdef STM32F4
+  volatile uint32_t bootloaderAddress = 0x1FFF0000;
+#else
+  #error "DFU bootloader address not defined for this device - check ST app note AN2606"
+#endif
+  // Disable RCC and set it to default settings
+#ifdef USE_HAL_DRIVER
+	HAL_RCC_DeInit();
+  HAL_DeInit();
+#endif
+#ifdef USE_STDPERIPH_DRIVER
+	RCC_DeInit();
+#endif
+  // Disable systick timer and reset it to default values
+	SysTick->CTRL = 0;
+	SysTick->LOAD = 0;
+	SysTick->VAL = 0;
+  // Remap system memory to address 0x0000 0000 in address space
+#ifdef STM32F4
+    SYSCFG->MEMRMP = 0x01;
+#endif
+#ifdef STM32F0
+    SYSCFG->CFGR1 = 0x01;
+#endif
+  // Set jump memory location for system memory - use address with 4 bytes offset which specifies jump location where program starts
+	SysMemBootJump = (void (*)(void)) (*((uint32_t *)(bootloaderAddress + 4)));
+  // Set main stack pointer
+  __set_MSP(*(uint32_t *)bootloaderAddress);
+  // Actually call our function to jump to set location - this will start system memory execution
+	SysMemBootJump();
+}
+
+/// Reboot into DFU mode
+void jshRebootToDFU() {
+  PWR_BackupAccessCmd(ENABLE);
+  RTC_WriteBackupRegister(RTC_BKP_DR0, RTC_BKP_DR0_BOOT_DFU); // Write a magic number to the backup register
+  jshReboot();
+}
+
+void jshTurnOff() {
+  RTC_WriteBackupRegister(RTC_BKP_DR0, RTC_BKP_DR0_TURN_OFF); // ensure that if we wake up
+  PWR_WakeUpPinCmd(ENABLE);
+  PWR_EnterSTANDBYMode();
+}
+#endif
+
 void jshInit() {
+#ifdef STM32F4
+  /* If we turn off but the WDT is on, it'll just reset us and turn us back on. In that case
+  we detect that (with RTC_BKP_DR0_TURN_OFF written into RTC_BKP_DR0) and turn ourselves back off quickly */
+  if (RTC_ReadBackupRegister(RTC_BKP_DR0)==RTC_BKP_DR0_TURN_OFF) {
+    PWR_BackupAccessCmd(ENABLE);
+    RTC_WriteBackupRegister(RTC_BKP_DR0, RTC_BKP_DR0_NULL);
+    if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST)) {
+      PWR_WakeUpPinCmd(ENABLE);
+      PWR_EnterSTANDBYMode();
+    }
+  }
+  // Are we trying to reboot into the bootloader?
+  if (RTC_ReadBackupRegister(RTC_BKP_DR0)==RTC_BKP_DR0_BOOT_DFU) {
+    PWR_BackupAccessCmd(ENABLE);
+    RTC_WriteBackupRegister(RTC_BKP_DR0, RTC_BKP_DR0_NULL);
+    jshJumpToDFU();
+  }
+#endif
+
   int i;
   // reset some vars
   for (i=0;i<16;i++)
@@ -1227,7 +1332,7 @@ void jshInit() {
 #endif
 #endif // ESPRUINOBOARD
   jshInitDevices();
-#ifdef LED1_PININDEX
+#if (defined(LED1_PININDEX) && !defined(PIPBOY))
   // turn led on (status)
   jshPinOutput(LED1_PININDEX, 1);
 #endif
@@ -1247,7 +1352,7 @@ void jshInit() {
   // enable low speed internal oscillator (reset always kills this, and we might need it)
   RCC_LSICmd(ENABLE);
   // If RTC is already setup, just leave it alone!
-  if (!jshIsRTCAlreadySetup(false)) {
+  if (!jshIsRTCAlreadySetup(true)) {
     // Reset backup domain - allows us to set the RTC clock source
     RCC_BackupResetCmd(ENABLE);
     RCC_BackupResetCmd(DISABLE);
@@ -1284,9 +1389,9 @@ void jshInit() {
 #ifdef USE_RTC
   jshResetRTCTimer();
 #endif
-
+  jshResetDevices();
   jshResetPeripherals();
-#ifdef LED1_PININDEX
+#if (defined(LED1_PININDEX) && !defined(PIPBOY))
   // turn led back on (status) as it would have just been turned off
   jshPinOutput(LED1_PININDEX, 1);
 #endif
@@ -1371,6 +1476,7 @@ void jshInit() {
    for the RTC on the Espruino board hasn't settled down by this point
    (or it just may not be accurate enough).
    */
+#ifndef ESPR_DELAY_MULTIPLIER
 //  JSH_DELAY_OVERHEAD = 0;
   JSH_DELAY_MULTIPLIER = 1024;
   /* NOTE: we disable interrupts, so we can't spend longer than SYSTICK_RANGE in here
@@ -1403,6 +1509,13 @@ void jshInit() {
   JSH_DELAY_MULTIPLIER = (int)(1.024 * getSystemTimerFreq() * JSH_DELAY_MULTIPLIER / (tIter*1000));
 //  JSH_DELAY_OVERHEAD = (int)(tOverhead * JSH_DELAY_MULTIPLIER / tIter);
   jshInterruptOn();
+  //jsiConsolePrintf("JSH_DELAY_MULTIPLIER %d\n", JSH_DELAY_MULTIPLIER);
+#endif
+
+/*RCC_ClocksTypeDef clk;
+  RCC_GetClocksFreq(&clk);
+  jsiConsolePrintf("SYSCLK %d\n", clk.SYSCLK_Frequency);*/
+
 
   /* Enable Utility Timer Update interrupt. We'll enable the
    * utility timer when we need it. */
@@ -1420,7 +1533,7 @@ void jshInit() {
   }
 #endif
 
-#ifdef LED1_PININDEX
+#if (defined(LED1_PININDEX) && !defined(PIPBOY))
   // now hardware is initialised, turn led off
   jshPinOutput(LED1_PININDEX, 0);
 #endif
@@ -1441,7 +1554,7 @@ void jshIdle() {
   if (wasUSBConnected != USBConnected) {
     wasUSBConnected = USBConnected;
     if (USBConnected)
-      jshClearUSBIdleTimeout();
+      jshUSBReceiveLastActive = JSH_USB_MAX_INACTIVITY_TICKS; // set to max so we're not connected until the first data request
     if (USBConnected && jsiGetConsoleDevice()!=EV_LIMBO) {
       if (!jsiIsConsoleDeviceForced())
         jsiSetConsoleDevice(EV_USBSERIAL, false);
@@ -1559,7 +1672,7 @@ JsSysTime jshGetRTCSystemTime() {
 
 JsSysTime jshGetSystemTime() {
 #ifdef USE_RTC
-  if (ticksSinceStart<=RTC_INITIALISE_TICKS)
+  if (ticksSinceStart<=ESPR_RTC_INITIALISE_TICKS)
     return jshGetRTCSystemTime(); // Clock hasn't stabilised yet, just use whatever RTC value we currently have
   if (hasSystemSlept) {
     // reset SysTick counter. This will hopefully cause it
@@ -1787,7 +1900,7 @@ JsVarFloat jshPinAnalog(Pin pin) {
   if (!jshGetPinStateIsManual(pin))
     jshPinSetState(pin, JSHPINSTATE_ADC_IN);
 
-  return jshAnalogRead(pinInfo[pin].analog, false) / (JsVarFloat)65535;
+  return jshAnalogRead(pinInfo[pin].analog, false) / (JsVarFloat)65536;
 }
 
 /// Returns a quickly-read analog value in the range 0-65535
@@ -1891,6 +2004,11 @@ JshPinFunction jshPinAnalogOutput(Pin pin, JsVarFloat value, JsVarFloat freq, Js
       jsiConsolePrint("You can also use analogWrite(pin, val, {soft:true}) for Software PWM on this pin\n");
     return 0;
   }
+
+/* if negated... No need to invert when doing SW PWM
+  as the SW output is already negating it! */
+  if (pinInfo[pin].port & JSH_PIN_NEGATED)
+    value = 1-value;
 
   if (JSH_PINFUNCTION_IS_DAC(func)) {
 #if defined(ESPR_DAC_COUNT) && ESPR_DAC_COUNT>0
@@ -2032,13 +2150,17 @@ IOEventFlags jshPinWatch(Pin pin, bool shouldWatch, JshPinWatchFlags flags) {
 bool jshGetWatchedPinState(IOEventFlags device) {
   int exti = IOEVENTFLAGS_GETTYPE(device) - EV_EXTI0;
   Pin pin = watchedPins[exti];
-  if (jshIsPinValid(pin))
-    return GPIO_ReadInputDataBit(stmPort(pin), stmPin(pin));
+  if (jshIsPinValid(pin)) {
+    bool v = GPIO_ReadInputDataBit(stmPort(pin), stmPin(pin));
+    if (pinInfo[pin].port & JSH_PIN_NEGATED)
+      v = !v;
+    return v;
+  }
   return false;
 }
 
-bool jshIsEventForPin(IOEvent *event, Pin pin) {
-  return IOEVENTFLAGS_GETTYPE(event->flags) == pinToEVEXTI(pin);
+bool jshIsEventForPin(IOEventFlags eventFlags, Pin pin) {
+  return IOEVENTFLAGS_GETTYPE(eventFlags) == pinToEVEXTI(pin);
 }
 
 /** Usage:
@@ -2212,6 +2334,22 @@ void jshUSARTSetup(IOEventFlags device, JshUSARTInfo *inf) {
   // Enable USART
   USART_Cmd(USARTx, ENABLE);
 }
+
+void jshUSARTUnSetup(IOEventFlags device) {
+  if (!DEVICE_IS_USART(device))
+    return;
+  jshSetDeviceInitialised(device, false);
+  jshSetFlowControlEnabled(device, false, PIN_UNDEFINED);
+  JshPinFunction funcType = jshGetPinFunctionFromDevice(device);
+  if (funcType==0) return; // not a proper serial port, ignore it
+  USART_TypeDef *USARTx = (USART_TypeDef *)setDeviceClockCmd(funcType, ENABLE);
+  if (!USARTx) return;
+  USART_ITConfig(USARTx, USART_IT_RXNE, DISABLE);
+  USART_ITConfig(USARTx, USART_IT_TXE, DISABLE);
+  USART_Cmd(USARTx, ENABLE);
+  setDeviceClockCmd(funcType, DISABLE);
+}
+
 #endif
 
 /** Kick a device into action (if required). For instance we may need
@@ -2391,7 +2529,6 @@ void jshI2CSetup(IOEventFlags device, JshI2CInfo *inf) {
   jshSetDeviceInitialised(device, true);
   JshPinFunction funcType = jshGetPinFunctionFromDevice(device);
 
-  enum {pinSCL, pinSDA };
   Pin pins[2] = { inf->pinSCL, inf->pinSDA };
   JshPinFunction functions[2] = { JSH_I2C_SCL, JSH_I2C_SDA };
   I2C_TypeDef *I2Cx = (I2C_TypeDef *)checkPinsForDevice(funcType, 2, pins, functions);
@@ -2415,6 +2552,16 @@ void jshI2CSetup(IOEventFlags device, JshI2CInfo *inf) {
 
   I2C_Init(I2Cx, &I2C_InitStructure);
   I2C_Cmd(I2Cx, ENABLE);
+}
+
+void jshI2CUnSetup(IOEventFlags device) {
+  JshPinFunction funcType = jshGetPinFunctionFromDevice(device);
+  I2C_TypeDef *I2Cx = (I2C_TypeDef *)setDeviceClockCmd(funcType, ENABLE);
+  if (!I2Cx) return;
+
+  I2C_Cmd(I2Cx, DISABLE);
+  I2C_DeInit(I2Cx);
+  jshSetDeviceInitialised(device, false);
 }
 
 #if !defined(STM32F3)
@@ -2548,6 +2695,8 @@ void jshClearUSBIdleTimeout() {
 
 /// Enter simple sleep mode (can be woken up by interrupts). Returns true on success
 bool jshSleep(JsSysTime timeUntilWake) {
+  bool isAutoWDT = jsiStatus & JSIS_WATCHDOG_AUTO;
+
 #ifdef USE_RTC
   /* TODO:
        Check jsiGetConsoleDevice to make sure we don't have to wake on USART (we can't do this fast enough)
@@ -2562,13 +2711,13 @@ bool jshSleep(JsSysTime timeUntilWake) {
 #else
       (timeUntilWake > (jshGetTimeForSecond()*16*2/jshRTCPrescaler)) &&  // if there's less time that this then we can't go to sleep because we can't be sure we'll wake in time
 #endif
-      !jstUtilTimerIsRunning() && // if the utility timer is running (eg. digitalPulse, Waveform output, etc) then that would stop
+      !jstUtilTimerIsRunning() && // if the utility timer is running (eg. digitalPulse, Waveform output, etc) then that would stop so we can't sleep
       !jshHasTransmitData() && // if we're transmitting, we don't want USART/etc to get slowed down
 #ifdef USB
-      !jshIsUSBSERIALConnected() &&
+      !USB_IsConnected() &&
       jshLastWokenByUSB+jshGetTimeForSecond()<jshGetRTCSystemTime() && // if woken by USB, stay awake long enough for the PC to make a connection
 #endif
-      ticksSinceStart>RTC_INITIALISE_TICKS && // Don't sleep until RTC has initialised
+      ticksSinceStart>ESPR_RTC_INITIALISE_TICKS && // Don't sleep until RTC has initialised
       true
       ) {
     jsiSetSleep(JSI_SLEEP_DEEP);
@@ -2585,93 +2734,106 @@ bool jshSleep(JsSysTime timeUntilWake) {
     ADC_Cmd(ADC4, DISABLE); // ADC off
 #endif
 #ifdef USB
-    jshSetUSBPower(false);
+    jshSetUSBPower(false); // WARNING: takes 25ms
+    bool wokenByUSB = false;
 #endif // USB
 
+  do { // we loop here so we can half-wake to kick the WDT without incurring wait for USB
+    JsSysTime timeToSleep = timeUntilWake;
+    // Don't sleep so long the WDT goes off!
+    if (isAutoWDT && timeToSleep>watchdogSleepMax)
+      timeToSleep = watchdogSleepMax;
+    // if JSSYSTIME_MAX we just sleep as long as possible unless woken by something else
+    if (timeUntilWake!=JSSYSTIME_MAX)
+      timeUntilWake -= timeToSleep;
+    if (isAutoWDT) jshKickWatchDog();
     /* Add EXTI for Serial port */
     //jshPinWatch(JSH_PORTA_OFFSET+10, true);
     /* add exti for USB */
 #ifdef USB
 #ifdef STM32F1
-    // USB has 15k pull-down resistors (and STM32 has 40k pull up)
-    Pin usbPin = JSH_PORTA_OFFSET+11;
-    jshPinSetState(usbPin, JSHPINSTATE_GPIO_IN_PULLUP);
-    Pin oldWatch = watchedPins[pinInfo[usbPin].pin];
-    jshPinWatch(usbPin, true, JSPW_NONE);
+      // USB has 15k pull-down resistors (and STM32 has 40k pull up)
+      Pin usbPin = JSH_PORTA_OFFSET+11;
+      jshPinSetState(usbPin, JSHPINSTATE_GPIO_IN_PULLUP);
+      Pin oldWatch = watchedPins[pinInfo[usbPin].pin];
+      jshPinWatch(usbPin, true, JSPW_NONE);
 #endif
 #ifdef USB_VSENSE_PIN
-    // USB_VSENSE_PIN is connected to USB 5v (and pulled down by a 100k resistor)
-    // ... so wake up if it goes high
-    Pin oldWatch = watchedPins[pinInfo[USB_VSENSE_PIN].pin];
-    jshPinWatch(USB_VSENSE_PIN, true, JSPW_NONE);
+      // USB_VSENSE_PIN is connected to USB 5v (and pulled down by a 100k resistor)
+      // ... so wake up if it goes high
+      Pin oldWatch = watchedPins[pinInfo[USB_VSENSE_PIN].pin];
+      jshPinWatch(USB_VSENSE_PIN, true, JSPW_NONE);
 #endif
 #endif // USB
 
-    if (timeUntilWake!=JSSYSTIME_MAX) { // set alarm
-      unsigned int ticks = (unsigned int)(timeUntilWake/jshGetTimeForSecond()); // ensure we round down and leave a little time
+      if (timeToSleep!=JSSYSTIME_MAX) { // set alarm
+        unsigned int ticks = (unsigned int)(timeToSleep/jshGetTimeForSecond()); // ensure we round down and leave a little time
 
 #ifdef STM32F1
-      /* If we're going asleep for more than a few seconds,
-       * add one second to the sleep time so that when we
-       * wake up, we execute our timer immediately (even if it is a bit late)
-       * and don't waste power in shallow sleep. This is documented in setInterval */
-      if (ticks>3) ticks++; // sleep longer than we need
+        /* If we're going asleep for more than a few seconds,
+        * add one second to the sleep time so that when we
+        * wake up, we execute our timer immediately (even if it is a bit late)
+        * and don't waste power in shallow sleep. This is documented in setInterval */
+        if (ticks>3) ticks++; // sleep longer than we need
 
-      RTC_SetAlarm(RTC_GetCounter() + ticks);
-      RTC_ITConfig(RTC_IT_ALR, ENABLE);
-      //RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
-      RTC_WaitForLastTask();
+        RTC_SetAlarm(RTC_GetCounter() + ticks);
+        RTC_ITConfig(RTC_IT_ALR, ENABLE);
+        //RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
+        RTC_WaitForLastTask();
 #else // If available, just use the WakeUp counter
-      if (ticks < ((65536*16) / jshRTCPrescaler)) {
-        // if the delay is small enough, clock the WakeUp counter faster so we can sleep more accurately
-        RTC_WakeUpClockConfig(RTC_WakeUpClock_RTCCLK_Div16);
-        ticks = (unsigned int)((timeUntilWake*jshRTCPrescaler) / (jshGetTimeForSecond()*16));
-      } else { // wakeup in seconds
-        RTC_WakeUpClockConfig(RTC_WakeUpClock_CK_SPRE_16bits);
-        if (ticks > 65535) ticks = 65535;
+        if (ticks < ((65536*16) / jshRTCPrescaler)) {
+          // if the delay is small enough, clock the WakeUp counter faster so we can sleep more accurately
+          RTC_WakeUpClockConfig(RTC_WakeUpClock_RTCCLK_Div16);
+          ticks = (unsigned int)((timeToSleep*jshRTCPrescaler) / (jshGetTimeForSecond()*16));
+        } else { // wakeup in seconds
+          RTC_WakeUpClockConfig(RTC_WakeUpClock_CK_SPRE_16bits);
+          if (ticks > 65535) ticks = 65535;
+        }
+        RTC_SetWakeUpCounter(ticks - 1); // 0 based
+        RTC_ITConfig(RTC_IT_WUT, ENABLE);
+        RTC_WakeUpCmd(ENABLE);
+        RTC_ClearFlag(RTC_FLAG_WUTF);
+#endif
       }
-      RTC_SetWakeUpCounter(ticks - 1); // 0 based
-      RTC_ITConfig(RTC_IT_WUT, ENABLE);
-      RTC_WakeUpCmd(ENABLE);
-      RTC_ClearFlag(RTC_FLAG_WUTF);
-#endif
-    }
-    // set flag in case there happens to be a SysTick
-    hasSystemSlept = true;
-    // -----------------------------------------------
+      // set flag in case there happens to be a SysTick
+      hasSystemSlept = true;
+      // -----------------------------------------------
 #ifdef STM32F4
-    /* FLASH Deep Power Down Mode enabled */
-    PWR_FlashPowerDownCmd(ENABLE);
+      /* FLASH Deep Power Down Mode enabled */
+      PWR_FlashPowerDownCmd(ENABLE);
 #endif
-    /* Request to enter STOP mode with regulator in low power mode*/
-    PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
-    // -----------------------------------------------
-    if (timeUntilWake!=JSSYSTIME_MAX) { // disable alarm
+      /* Request to enter STOP mode with regulator in low power mode*/
+      PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
+      // -----------------------------------------------
+      if (timeToSleep!=JSSYSTIME_MAX) { // disable alarm
 #ifdef STM32F1
-      RTC_ITConfig(RTC_IT_ALR, DISABLE);
-      //RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
+        RTC_ITConfig(RTC_IT_ALR, DISABLE);
+        //RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
 #else
-      RTC_ITConfig(RTC_IT_WUT, DISABLE);
-      RTC_WakeUpCmd(DISABLE);
+        RTC_ITConfig(RTC_IT_WUT, DISABLE);
+        RTC_WakeUpCmd(DISABLE);
 #endif
-    }
+      }
 #ifdef USB
-    bool wokenByUSB = false;
+      wokenByUSB = false;
 #ifdef STM32F1
-    wokenByUSB = jshPinGetValue(usbPin)==0;
-    // remove watches on pins
-    jshPinWatch(usbPin, false, JSPW_NONE);
-    if (oldWatch!=PIN_UNDEFINED) jshPinWatch(oldWatch, true, JSPW_NONE);
-    jshPinSetState(usbPin, JSHPINSTATE_GPIO_IN);
+      wokenByUSB = jshPinGetValue(usbPin)==0;
+      // remove watches on pins
+      jshPinWatch(usbPin, false, JSPW_NONE);
+      if (oldWatch!=PIN_UNDEFINED) jshPinWatch(oldWatch, true, JSPW_NONE);
+      jshPinSetState(usbPin, JSHPINSTATE_GPIO_IN);
 #endif
 #ifdef USB_VSENSE_PIN
-    // remove watch and restore old watch if there was one
-    // setting that we've woken lets the board stay awake
-    // until a USB connection can be established
-    if (jshPinGetValue(USB_VSENSE_PIN)) wokenByUSB=true;
-    jshPinWatch(USB_VSENSE_PIN, false, JSPW_NONE);
-    if (oldWatch!=PIN_UNDEFINED) jshPinWatch(oldWatch, true, JSPW_NONE);
+      // remove watch and restore old watch if there was one
+      // setting that we've woken lets the board stay awake
+      // until a USB connection can be established
+      if (jshPinGetValue(USB_VSENSE_PIN)) wokenByUSB=true;
+      jshPinWatch(USB_VSENSE_PIN, false, JSPW_NONE);
+      if (oldWatch!=PIN_UNDEFINED) jshPinWatch(oldWatch, true, JSPW_NONE);
 #endif
+    } while (timeUntilWake>0 && !wokenByUSB && !jshHadEventDuringSleep);
+    jshHadEventDuringSleep = false;
+    if (isAutoWDT) jshKickWatchDog();
 #endif
     // recover oscillator
     RCC_HSEConfig(RCC_HSE_ON);
@@ -2683,16 +2845,21 @@ bool jshSleep(JsSysTime timeUntilWake) {
     }
     RTC_WaitForSynchro(); // make sure any RTC reads will be done
 #ifdef USB
-    jshSetUSBPower(true);
+    jshSetUSBPower(true); // WARNING: takes 3ms
     if (wokenByUSB)
       jshLastWokenByUSB = jshGetRTCSystemTime();
 #endif
     jsiSetSleep(JSI_SLEEP_AWAKE);
   } else
 #endif
-  if (timeUntilWake > jshGetTimeFromMilliseconds(0.1)) {
+  if (timeUntilWake > jshGetTimeFromMilliseconds(ESPR_MIN_WFI_TIME_MS)) {
     /* don't bother sleeping if the time period is so low we
      * might miss the timer */
+
+    // Dont' sleep too long if auto WDT enabled (we'll kick when we go around idle loop)
+    if (isAutoWDT && timeUntilWake > watchdogSleepMax)
+      timeUntilWake = watchdogSleepMax;
+
     JsSysTime sysTickTime;
 #ifdef USE_RTC
     sysTickTime = expectedSysTickTime*5/4;
@@ -2708,6 +2875,7 @@ bool jshSleep(JsSysTime timeUntilWake) {
     jsiSetSleep(JSI_SLEEP_ASLEEP);
     __WFI(); // Wait for Interrupt
     jsiSetSleep(JSI_SLEEP_AWAKE);
+    jshHadEventDuringSleep = false;
 
     /* We may have woken up before the wakeup event. If so
     then make sure we clear the event */
@@ -2855,10 +3023,16 @@ void jshEnableWatchDog(JsVarFloat timeout) {
 
     /* Enable IWDG (the LSI oscillator will be enabled by hardware) */
     IWDG_Enable();
+
+    // save timeout so when we sleep we don't sleep so long we get rebooted (use wdt time / 2)
+    watchdogSleepMax = (uint32_t)jshGetTimeFromMilliseconds(timeout*1000 / 2);
 }
 
 // Kick the watchdog
 void jshKickWatchDog() {
+#ifdef ESPR_DISABLE_KICKWATCHDOG_PIN // if this pin is asserted, don't kick the watchdog
+  if (jshPinGetValue(ESPR_DISABLE_KICKWATCHDOG_PIN)) return;
+#endif
   IWDG_ReloadCounter();
 }
 
@@ -3037,7 +3211,7 @@ void jshFlashWrite(void *buf, uint32_t addr, uint32_t len) {
 // Just pass data through, since we can access flash at the same address we wrote it
 size_t jshFlashGetMemMapAddress(size_t ptr) { return ptr; }
 
-int jshSetSystemClockPClk(JsVar *options, const char *clkName) {
+static int _jshToPClkDivisor(JsVar *options, const char *clkName) {
   JsVar *v = jsvObjectGetChildIfExists(options, clkName);
   JsVarInt i = jsvGetIntegerAndUnLock(v);
   if (i==1) return RCC_HCLK_Div1;
@@ -3050,6 +3224,15 @@ int jshSetSystemClockPClk(JsVar *options, const char *clkName) {
     return -2;
   }
   return -1;
+}
+
+static int _jshFromPClkDivisor(int div) {
+  if (div==RCC_HCLK_Div1) return 1;
+  if (div==RCC_HCLK_Div2) return 2;
+  if (div==RCC_HCLK_Div4) return 4;
+  if (div==RCC_HCLK_Div8) return 8;
+  if (div==RCC_HCLK_Div16) return 16;
+  return 0;
 }
 
 unsigned int jshSetSystemClock(JsVar *options) {
@@ -3084,9 +3267,9 @@ unsigned int jshSetSystemClock(JsVar *options) {
       return 0;
     }
   }
-  int pclk1 = jshSetSystemClockPClk(options, "PCLK1");
+  int pclk1 = _jshToPClkDivisor(options, "PCLK1");
   if (pclk1<-1) return 0;
-  int pclk2 = jshSetSystemClockPClk(options, "PCLK2");
+  int pclk2 = _jshToPClkDivisor(options, "PCLK2");
   if (pclk2<-1) return 0;
 
   // Run off external clock - 8Mhz - while we configure everything
@@ -3111,6 +3294,40 @@ unsigned int jshSetSystemClock(JsVar *options) {
 #else
   return 0;
 #endif
+}
+
+JsVar *jshGetSystemClock() {
+  JsVar *o = jsvNewObject();
+  if (!o) return 0;
+  RCC_ClocksTypeDef rcc;
+  RCC_GetClocksFreq(&rcc);
+  jsvObjectSetChildAndUnLock(o,"sysclk",jsvNewFromInteger((int)rcc.SYSCLK_Frequency));
+  jsvObjectSetChildAndUnLock(o,"hclk",jsvNewFromInteger((int)rcc.HCLK_Frequency));
+  jsvObjectSetChildAndUnLock(o,"pclk1",jsvNewFromInteger((int)rcc.PCLK1_Frequency));
+  jsvObjectSetChildAndUnLock(o,"pclk2",jsvNewFromInteger((int)rcc.PCLK2_Frequency));
+#ifdef STM32F4
+  // see RCC_PLLConfig - no function to read to do by hand
+  jsvObjectSetChildAndUnLock(o,"M",jsvNewFromInteger(RCC->PLLCFGR & RCC_PLLCFGR_PLLM));
+  jsvObjectSetChildAndUnLock(o,"N",jsvNewFromInteger((RCC->PLLCFGR & RCC_PLLCFGR_PLLN) >> 6));
+  jsvObjectSetChildAndUnLock(o,"P",jsvNewFromInteger((((int)(RCC->PLLCFGR & RCC_PLLCFGR_PLLP) >>16) + 1 ) *2));
+  jsvObjectSetChildAndUnLock(o,"Q",jsvNewFromInteger((RCC->PLLCFGR & RCC_PLLCFGR_PLLQ) >>24));
+  jsvObjectSetChildAndUnLock(o,"PCLK1",jsvNewFromInteger(_jshFromPClkDivisor(RCC->CFGR&RCC_CFGR_PPRE1)));
+  jsvObjectSetChildAndUnLock(o,"PCLK2",jsvNewFromInteger(_jshFromPClkDivisor((RCC->CFGR&RCC_CFGR_PPRE2)>>3)));
+  const char *rtcsrc = "?";
+  int rtcreg = RCC->BDCR & 0x00FF0300;
+  if (rtcreg==RCC_RTCCLKSource_LSE) rtcsrc="LSE";
+  else if (rtcreg==RCC_RTCCLKSource_LSI) rtcsrc="LSI";
+  else if ((rtcreg&0x00000300) == 0x00000300) rtcsrc="HSE_Div%d";
+  jsvObjectSetChildAndUnLock(o,"RTCCLKSource",jsvVarPrintf(rtcsrc, rtcreg>>16));
+#else
+  jsvObjectSetChildAndUnLock(o,"sysclk",jsvNewFromInteger(SystemCoreClock));
+#endif
+  jsvObjectSetChildAndUnLock(o,"LSIRDY",jsvNewFromBool(RCC_GetFlagStatus(RCC_FLAG_LSIRDY)));
+  jsvObjectSetChildAndUnLock(o,"LSERDY",jsvNewFromBool(RCC_GetFlagStatus(RCC_FLAG_LSERDY)));
+  jsvObjectSetChildAndUnLock(o,"LSION",jsvNewFromBool(RCC->CSR&RCC_CSR_LSION));
+  jsvObjectSetChildAndUnLock(o,"LSEON",jsvNewFromBool(RCC->BDCR&RCC_BDCR_LSEON));
+
+  return o;
 }
 
 /// Perform a proper hard-reboot of the device

@@ -29,12 +29,12 @@ info = {
      'CRYPTO',
      'NEOPIXEL',
      #'FILESYSTEM',
-     #'FLASHFS'
    ],
    'makefile' : [
      'FLASH_4MB=1',
      'ESP_FLASH_MAX=831488',
      'FLASH_BAUD=460800',
+     'BLACKLIST=boards/ESP8266.blocklist', # force some stuff to be removed to save space
      'USE_DEBUGGER=0', # We can't use debugger as RTOS needs jsiIdle to keep exiting
     ]
  }
@@ -52,8 +52,8 @@ chip = {
   'adc'     : 1,
   'dac'     : 0,
   'saved_code' : {
-    # 0x000000 + 4096 * ( 256 -  48 save - 1 wifi  - 4 reserved ) 
-    'address' :  0x0CB000, 
+    # 0x000000 + 4096 * ( 256 -  48 save - 1 wifi  - 4 reserved )
+    'address' :  0x0CB000,
     'page_size' : 4096,
     'pages' : 48,
     'flash_available' : 812, # firmware can be up to this size
@@ -119,11 +119,11 @@ def get_pins():
    { "name":"PD2",  "sortingname":"D02", "port":"D", "num":"2", "functions":{"USART2_TX":0}, "csv":{} },
    { "name":"PD3",  "sortingname":"D03", "port":"D", "num":"3", "functions":{"USART1_RX":0}, "csv":{} },
    { "name":"PD4",  "sortingname":"D04", "port":"D", "num":"4", "functions":{}, "csv":{} },
-   { "name":"PD5",  "sortingname":"D05", "port":"D", "num":"5",  "functions":{}, "csv":{} }, 
-   { "name":"PD6",  "sortingname":"D06", "port":"D", "num":"6",  "functions":{}, "csv":{} }, 
-   { "name":"PD7",  "sortingname":"D07", "port":"D", "num":"7",  "functions":{}, "csv":{} }, 
+   { "name":"PD5",  "sortingname":"D05", "port":"D", "num":"5",  "functions":{}, "csv":{} },
+   { "name":"PD6",  "sortingname":"D06", "port":"D", "num":"6",  "functions":{}, "csv":{} },
+   { "name":"PD7",  "sortingname":"D07", "port":"D", "num":"7",  "functions":{}, "csv":{} },
    { "name":"PD8",  "sortingname":"D08", "port":"D", "num":"8",  "functions":{}, "csv":{} },
-   { "name":"PD9",  "sortingname":"D09", "port":"D", "num":"9",  "functions":{}, "csv":{} }, 
+   { "name":"PD9",  "sortingname":"D09", "port":"D", "num":"9",  "functions":{}, "csv":{} },
    { "name":"PD10", "sortingname":"D10", "port":"D", "num":"10", "functions":{}, "csv":{} },
    { "name":"PD11", "sortingname":"D11", "port":"D", "num":"11", "functions":{}, "csv":{} },
    { "name":"PD12", "sortingname":"D12", "port":"D", "num":"12", "functions":{"SPI1_MISO":0}, "csv":{} },

@@ -26,11 +26,16 @@ info = {
      'NET',
      'TELNET',
      #'GRAPHICS',
-     'CRYPTO',
+     # 'CRYPTO', # just provides SHA1, but is now too big for 512k ESP8266 build
      'NEOPIXEL',
    ],
    'makefile' : [
-     'DEFINES+=-DSAVE_ON_FLASH_MATH', 
+     'DEFINES+=-DSAVE_ON_FLASH_MATH',
+     'DEFINES+=-DESPR_NO_LINE_NUMBERS',
+     'DEFINES+=-DESPR_LIMIT_DATE_RANGE',
+     'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', 
+     'DEFINES+=-DESPR_NO_REGEX_OPTIMISE', # save some storage space
+     'BLACKLIST=boards/ESP8266.blocklist', # force some stuff to be removed to save space
      'USE_DEBUGGER=0', # We can't use debugger as RTOS needs jsiIdle to keep exiting     
    ]
  }

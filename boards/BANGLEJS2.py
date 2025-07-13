@@ -26,7 +26,7 @@ info = {
 # 'default_console_baudrate' : "9600",
  'variables' : 12000, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
                       # Currently leaves around 38k of free stack - *loads* more than we need
- 'io_buffer_size' : 512, # How big is the input buffer (in 4 byte words). Default on nRF52 is 256
+ 'io_buffer_size' : 2048, # How big is the input buffer (in bytes). Default on nRF52 is 1024
  'bootloader' : 1,
  'binary_name' : 'espruino_%v_banglejs2.hex',
  'build' : {
@@ -36,19 +36,23 @@ info = {
      'TERMINAL',
      'GRAPHICS',
      'CRYPTO','SHA256','SHA512',
+     'AES_CCM',
      'LCD_MEMLCD',
      'TENSORFLOW',
+     'SWDCON', # RTT console over SWD
      'JIT' # JIT compiler enabled
    ],
    'makefile' : [
+     'DEFINES+=-DESPR_OFFICIAL_BOARD', # Don't display the donations nag screen
      'DEFINES += -DESPR_HWVERSION=2 -DBANGLEJS -DBANGLEJS_Q3',
 #     'DEFINES += -DCONFIG_GPIO_AS_PINRESET', # Allow the reset pin to work
      'DEFINES += -DCONFIG_NFCT_PINS_AS_GPIOS', # Allow us to use NFC pins as GPIO
      #'DEFINES += -DESPR_REGOUT0_1_8V=1', # this increases power draw, so probably not correct!
      'DEFINES += -DESPR_LSE_ENABLE', # Ensure low speed external osc enabled
      'DEFINES += -DNRF_SDH_BLE_GATT_MAX_MTU_SIZE=131', # 23+x*27 rule as per https://devzone.nordicsemi.com/f/nordic-q-a/44825/ios-mtu-size-why-only-185-bytes
+     'DEFINES += -DNRF_SDH_BLE_GAP_EVENT_LENGTH=6', # Needed to allow coded phy connections
      'DEFINES += -DCENTRAL_LINK_COUNT=2 -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=2', # allow two outgoing connections at once
-     'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3660', # set RAM base to match MTU=131 + CENTRAL_LINK_COUNT=2
+     'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3b70', # set RAM base to match MTU=131 + CENTRAL_LINK_COUNT=2 + GAP_EVENT_LENGTH=6
      'DEFINES += -DESPR_DCDC_ENABLE=1', # Use DC/DC converter
      'ESPR_BLUETOOTH_ANCS=1', # Enable ANCS (Apple notifications) support
      'DEFINES += -DSPIFLASH_SLEEP_CMD', # SPI flash needs to be explicitly slept and woken up
@@ -63,9 +67,12 @@ info = {
      'DEFINES+=-DESPR_BATTERY_FULL_VOLTAGE=0.3144',
      'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DGRAPHICS_ANTIALIAS -DESPR_PBF_FONTS',
      'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves 1k of flash
-     'DEFINES += -DESPR_NO_LINE_NUMBERS=1', # we execute mainly from flash, so line numbers can be worked out
      'INCLUDE += -I$(ROOT)/libs/banglejs -I$(ROOT)/libs/misc',
      'WRAPPERSOURCES += libs/banglejs/jswrap_bangle.c',
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_14.c',
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_17.c',
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_22.c',
+     'WRAPPERSOURCES += libs/graphics/jswrap_font_28.c',
      'WRAPPERSOURCES += libs/graphics/jswrap_font_6x15.c',
      'WRAPPERSOURCES += libs/graphics/jswrap_font_12x20.c',
      'SOURCES += libs/misc/nmea.c',
@@ -83,6 +90,7 @@ info = {
      'DEFINES += -DESPR_STORAGE_INITIAL_CONTENTS=1', # use banglejs2_storage_default
      'DEFINES += -DESPR_USE_STORAGE_CACHE=32', # Add a 32 entry cache to speed up finding files
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
+     'JSMODULESOURCES += libs/js/banglejs/Layout.min.js',
 
      'DFU_SETTINGS=--application-version 0xff --hw-version 52 --sd-req 0xa9,0xae,0xb6',
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key.pem',
@@ -90,6 +98,7 @@ info = {
      'DEFINES += -DBUTTONPRESS_TO_REBOOT_BOOTLOADER',
      'BOOTLOADER_SETTINGS_FAMILY=NRF52840',
      'DEFINES += -DESPR_BOOTLOADER_SPIFLASH', # Allow bootloader to flash direct from SPI flash
+     'DEFINES += -DESPR_BLE_PRIVATE_ADDRESS_SUPPORT',
      'NRF_SDK15=1'
    ]
  }
@@ -145,7 +154,7 @@ devices = {
   'VIBRATE' : { 'pin' : 'D19' },
   'GPS' : {
             'device' : 'Casic URANUS',
-            'pin_en' : 'D29', # IO expander P0
+            'pin_en' : 'D29',
             'pin_rx' : 'D30',
             'pin_tx' : 'D31'
           },

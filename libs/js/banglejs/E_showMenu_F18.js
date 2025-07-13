@@ -9,8 +9,8 @@
   var menuItems = Object.keys(items);
   if (options) {
     menuItems.splice(menuItems.indexOf(""),1);
-    if (options.back) { // handle 'options.back'
-      items["< Back"] = options.back;
+    if (options.back && !items["< Back"]) { // handle 'options.back'
+      items = Object.assign({"< Back":options.back},items);
       menuItems.unshift("< Back");
     }
   }
@@ -142,7 +142,7 @@
           item.onchange(item.value);
           l.draw(options.selected, options.selected);
         }
-      } else if ("function" == typeof item) item(l);
+      } else if ("function" == typeof item) item();
       else if ("object" == typeof item) {
         // if a number, go into 'edit mode'
         if ("number" == typeof item.value) {

@@ -484,7 +484,8 @@ Bangle.js 1 is only capable of detecting left/right swipes as it only contains a
 2 zone touchscreen.
 */
 /*TYPESCRIPT
-type TouchCallback = (button: number, xy?: { x: number, y: number }) => void;
+type TouchCallbackXY = { x: number, y: number, type: 0 | 2 };
+type TouchCallback = (button?: number, xy?: TouchCallbackXY) => void;
 */
 /*JSON{
   "type" : "event",
@@ -587,6 +588,7 @@ JshI2CInfo i2cHRM;
 #define PRESSURE_I2C &i2cPressure
 #define HRM_I2C &i2cHRM
 #define GPS_UART EV_SERIAL1
+#define GPS_CASIC 1 // handle decoding of 'CASIC' packets from the GPS
 #define HEARTRATE 1
 
 bool pressureBMP280Enabled = false;
@@ -919,6 +921,16 @@ TouchGestureType touchGesture; /// is JSBT_SWIPE is set, what happened?
 
 /// How often should we fire 'health' events?
 #define HEALTH_INTERVAL 600000 // 10 minutes (600 seconds)
+/// What is the current activity. In order of priority
+typedef enum {
+  HSA_UNKNOWN,
+  HSA_NOT_WORN,
+  HSA_WALKING,
+  HSA_EXERCISE,
+} PACKED_FLAGS HealthStateActivity;
+/// Strings for HealthStateActivity, matching https://codeberg.org/Freeyourgadget/Gadgetbridge/src/branch/master/app/src/main/java/nodomain/freeyourgadget/gadgetbridge/model/ActivityKind.java
+#define HSA_STRINGS "UNKNOWN","NOT_WORN","WALKING","EXERCISE"
+#define HSA_STRINGS_LEN 4
 /// Struct with currently tracked health info
 typedef struct {
   uint8_t index; ///< time_in_ms / HEALTH_INTERVAL - we fire a new Health event when this changes
@@ -926,8 +938,11 @@ typedef struct {
   uint16_t movementSamples; ///< Number of samples added to movement
   uint16_t stepCount; ///< steps during current period
   uint16_t bpm10;  ///< beats per minute (x10)
+  uint16_t bpm10min, bpm10max;  ///< beats per minute min and max (x10)
   uint8_t bpmConfidence; ///< confidence of current BPM figure
-} HealthState;
+  uint16_t sportActivityTime; ///< Time in msec spent doing high acceleration activity
+  HealthStateActivity activity; ///< what's the current activity
+} PACKED_FLAGS HealthState;
 /// Currently tracked health info during this period
 HealthState healthCurrent;
 /// Health info during the last period, used when firing a health event
@@ -966,13 +981,15 @@ typedef enum {
   JSBF_LOCKED        = 1<<18,
   JSBF_HRM_INSTANT_LISTENER = 1<<19,
   JSBF_LCD_DBL_REFRESH = 1<<20, ///< On Bangle.js 2, toggle extcomin twice for each poll interval (avoids screen 'flashing' behaviour off axis)
+  JSBF_MANUAL_WATCHDOG = 1<<21, ///< If set, we don't kick the WDT from the interrupt, so users can call it from their JS to ensure JS always stays running
 #ifdef BANGLEJS_Q3
   /** On some Bangle.js 2, BTN1 (which is used for reloading apps) gets a low resistance across it
   (possibly due to water damage) and the internal resistor can no longer overcome that resistance
   so the button appears stuck on. With this fix we force the button pin low just before reading to try
   and overcome that resistance, and we also disable the button watch interrupt. */
-  JSBF_BTN_LOW_RESISTANCE_FIX = 1<<21,
+  JSBF_BTN_LOW_RESISTANCE_FIX = 1<<22,
 #endif
+
 
   JSBF_DEFAULT = ///< default at power-on
       JSBF_WAKEON_TWIST|
@@ -1228,7 +1245,8 @@ void peripheralPollHandler() {
 #endif
 
   // Handle watchdog
-  if (!(jshPinGetValue(BTN1_PININDEX)
+  if (!(bangleFlags&JSBF_MANUAL_WATCHDOG) &&
+      !(jshPinGetValue(BTN1_PININDEX)
 #ifdef BTN2_PININDEX
        && jshPinGetValue(BTN2_PININDEX)
 #endif
@@ -1537,15 +1555,27 @@ void peripheralPollHandler() {
 #ifdef HEARTRATE_VC31_BINARY
     // Activity detection
     hrmSportActivity = ((hrmSportActivity*63)+MIN(accDiff,4096))>>6; // running average
-    if (hrmSportTimer < TIMER_MAX) {
+    if (hrmSportTimer < TIMER_MAX)
       hrmSportTimer += pollInterval;
-    }
-    if (hrmSportActivity > HRM_SPORT_ACTIVITY_THRESHOLD) // if enough movement, zero timer (enter sport mode)
+    if (hrmSportActivity > HRM_SPORT_ACTIVITY_THRESHOLD) { // if enough movement, zero timer (enter sport mode)
       hrmSportTimer = 0;
+      if (healthCurrent.sportActivityTime < TIMER_MAX)
+        healthCurrent.sportActivityTime += pollInterval;
+      // If we've been very active for over 30 seconds in our 10 minute slot, assume we're doing sport
+      if (healthCurrent.sportActivityTime > 30000) { // remember it can't be more than TIMER_MAX(60k)
+        if (healthCurrent.activity < HSA_EXERCISE)
+          healthCurrent.activity = HSA_EXERCISE;
+      }
+    }
     if (hrmSportMode>=0) // if HRM sport mode is forced, just use that
       hrmInfo.sportMode = hrmSportMode;
-    else  // else set to running mode if we've had enough activity recently
-      hrmInfo.sportMode = (hrmSportTimer < HRM_SPORT_ACTIVITY_TIMEOUT) ? SPORT_TYPE_RUNNING : SPORT_TYPE_NORMAL;
+    else { // else set to running mode if we've had enough activity recently
+      if (hrmSportTimer < HRM_SPORT_ACTIVITY_TIMEOUT) {
+        hrmInfo.sportMode =  SPORT_TYPE_RUNNING;
+      } else {
+        hrmInfo.sportMode =  SPORT_TYPE_NORMAL;
+      }
+    }
 #endif
     // Power saving
     if (bangleFlags & JSBF_POWER_SAVE) {
@@ -1608,6 +1638,8 @@ void peripheralPollHandler() {
         stepCounter += newSteps;
         healthCurrent.stepCount += newSteps;
         healthDaily.stepCount += newSteps;
+        if (healthCurrent.stepCount > 200 &&  healthCurrent.activity<HSA_WALKING) // if 200 steps in this 10 minute chunk, assume walking
+          healthCurrent.activity = HSA_WALKING;
         bangleTasks |= JSBT_STEP_EVENT;
         jshHadEvent();
       }
@@ -1677,8 +1709,15 @@ void peripheralPollHandler() {
   // Did we enter a new 10 minute interval?
   JsVarFloat msecs = jshGetMillisecondsFromTime(time);
   uint8_t healthIndex = (uint8_t)(msecs/HEALTH_INTERVAL);
-  if (healthIndex != healthCurrent.index) {
-    // we did - fire 'Bangle.health' event
+  if (healthIndex != healthCurrent.index) { // we did
+    // quick check - if we don't know what's happening and the Bangle isn't moving, assume it's not worn
+    if (healthCurrent.activity == HSA_UNKNOWN) {
+      uint32_t movement = healthCurrent.movement / healthCurrent.movementSamples;
+      if (movement < 120) healthCurrent.activity = HSA_NOT_WORN;
+    }
+    if (healthDaily.activity < healthCurrent.activity)
+      healthDaily.activity = healthCurrent.activity;
+    // now fire 'Bangle.health' event and reset the current health status
     healthLast = healthCurrent;
     healthStateClear(&healthCurrent);
     healthCurrent.index = healthIndex;
@@ -1723,8 +1762,20 @@ static void hrmHandler(int ppgValue) {
       healthDaily.bpmConfidence = hrmInfo.confidence;
       healthDaily.bpm10 = hrmInfo.bpm10;
     }
+    if (hrmInfo.confidence >= 90) {
+      if (hrmInfo.bpm10 < healthCurrent.bpm10min) healthCurrent.bpm10min = hrmInfo.bpm10;
+      if (hrmInfo.bpm10 < healthDaily.bpm10min) healthDaily.bpm10min = hrmInfo.bpm10;
+      if (hrmInfo.bpm10 > healthCurrent.bpm10max) healthCurrent.bpm10max = hrmInfo.bpm10;
+      if (hrmInfo.bpm10 > healthDaily.bpm10max) healthDaily.bpm10max = hrmInfo.bpm10;
+    }
     jshHadEvent();
   }
+#ifdef HEARTRATE_VC31_BINARY
+  if (!hrmInfo.isWorn) {
+    if (healthCurrent.activity == HSA_UNKNOWN)
+      healthCurrent.activity = HSA_NOT_WORN;
+  }
+#endif
   if (bangleFlags & JSBF_HRM_INSTANT_LISTENER) {
     // what if we already have HRM data that was queued - eg if working with FIFO?
     /*if (bangleTasks & JSBT_HRM_INSTANT_DATA)
@@ -1787,7 +1838,10 @@ void btnHandlerCommon(int button, bool state, IOEventFlags flags) {
       /* If it's a rising edge *or* it's within our debounce
        * period, reset the debounce timer and ignore it */
       lcdWakeButtonTime = t + jshGetTimeFromMilliseconds(100);
-      return;
+      /* We signal that we don't want to execute any user code by setting this
+      flag - it still allows the debounce state machine to be updated in jsinteractive
+      but tells a Bangle.js-specific ifdef to not call user code. */
+      flags |= EV_EXTI_DATA_PIN_HIGH;
     } else {
       /* if the next event is a 'down', > 100ms after the last event, we propogate it
        and subsequent events */
@@ -2405,14 +2459,14 @@ void jswrap_banglejs_setLCDOffset(int y) {
       ["img","JsVar","An image, or undefined to clear"],
       ["x","JsVar","The X offset the graphics instance should be overlaid on the screen with"],
       ["y","int","The Y offset the graphics instance should be overlaid on the screen with"],
-      ["options","JsVar","[Optional] object `{onRemove:fn, id:\"str\"}`"]
+      ["options","JsVar","[Optional] object `{remove:fn, id:\"str\"}`"]
     ],
     "#if" : "defined(BANGLEJS_Q3) || defined(DICKENS)",
     "typescript" : [
       "setLCDOverlay(img: any, x: number, y: number): void;",
       "setLCDOverlay(): void;",
-      "setLCDOverlay(img: any, x: number, y: number, options: { id : string, onRemove: () => void }): void;",
-      "setLCDOverlay(img: any, options: { id : string }}): void;"
+      "setLCDOverlay(img: any, x: number, y: number, options: { id : string, remove: () => void }): void;",
+      "setLCDOverlay(img: any, options: { id : string }): void;"
     ]
 }
 Overlay an image or graphics instance on top of the contents of the graphics buffer.
@@ -2426,34 +2480,19 @@ var img = require("heatshrink").decompress(atob(`lss4UBvvv///ovBlMyqoADv/VAwlV//
 GwIKCngWC14sB7QKCh4CBCwN/64KDgfACwWn6vWGwYsBCwOputWJgYsCgGqytVBQYsCLYOlqtqwAsFEINVrR4BFgghBBQosDEINWIQ
 YsDEIQ3DFgYhCG4msSYeVFgnrFhMvOAgsEkE/FhEggYWCFgIhDkEACwQKBEIYKBCwSGFBQJxCQwYhBBQTKDqohCBQhCCEIJlDXwrKE
 BQoWHBQdaCwuqJoI4CCwgKECwJ9CJgIKDq+qBYUq1WtBQf+BYIAC3/VBQX/tQKDz/9BQY5BAAVV/4WCBQJcBKwVf+oHBv4wCAAYhB`));
-Bangle.setLCDOverlay(img,66,66);
+Bangle.setLCDOverlay(img,66,66, {id: "myOverlay", remove: () => print("Removed")});
 ```
 
 Or use a `Graphics` instance:
 
 ```
-var ovr = Graphics.createArrayBuffer(100,100,1,{msb:true}); // 1bpp
-ovr.drawLine(0,0,100,100);
-ovr.drawRect(0,0,99,99);
-Bangle.setLCDOverlay(ovr,38,38, {id: "myOverlay"});
-```
-
-Although `Graphics` can be specified directly, it can often make more sense to
-create an Image from the `Graphics` instance, as this gives you access
-to color palettes and transparent colors. For instance this will draw a colored
-overlay with rounded corners:
-
-```
 var ovr = Graphics.createArrayBuffer(100,100,2,{msb:true});
+ovr.transparent = 0; // (optional) set a transparent color
+ovr.palette = new Uint16Array([0,0,g.toColor("#F00"),g.toColor("#FFF")]); // (optional) set a color palette
 ovr.setColor(1).fillRect({x:0,y:0,w:99,h:99,r:8});
 ovr.setColor(3).fillRect({x:2,y:2,w:95,h:95,r:7});
 ovr.setColor(2).setFont("Vector:30").setFontAlign(0,0).drawString("Hi",50,50);
-Bangle.setLCDOverlay({
-  width:ovr.getWidth(), height:ovr.getHeight(),
-  bpp:2, transparent:0,
-  palette:new Uint16Array([0,0,g.toColor("#F00"),g.toColor("#FFF")]),
-  buffer:ovr.buffer
-},38,38, {id: "myOverlay", onRemove: () => print("Removed")});
+Bangle.setLCDOverlay(ovr,38,38, {id: "myOverlay", remove: () => print("Removed")});
 ```
 
 To remove an overlay, simply call:
@@ -2465,6 +2504,9 @@ Bangle.setLCDOverlay(undefined, {id: "myOverlay"});
 Before 2v22 the `options` object isn't parsed, and as a result
 the remove callback won't be called, and `Bangle.setLCDOverlay(undefined)` will
 remove *any* active overlay.
+
+The `remove` callback is called when the current overlay is removed or replaced with
+another, but *not* if setLCDOverlay is called again with an image and the same ID.
 */
 void jswrap_banglejs_setLCDOverlay(JsVar *imgVar, JsVar *xv, int y, JsVar *options) {
   bool removingOverlay = jsvIsUndefined(imgVar);
@@ -2476,22 +2518,25 @@ void jswrap_banglejs_setLCDOverlay(JsVar *imgVar, JsVar *xv, int y, JsVar *optio
     id = jsvObjectGetChildIfExists(options, "id");
   }
   JsVar *ovrId = jsvObjectGetChildIfExists(execInfo.hiddenRoot, "lcdOvrId");
+  bool idIsDifferent = !jsvIsEqual(id, ovrId);
+  jsvUnLock(ovrId);
   // if we are removing overlay, and supplied an ID, and it's different to the current one, don't do anything
-  if (removingOverlay && id && !jsvIsEqual(id, ovrId)) {
-    jsvUnLock2(ovrId, id);
+  if (removingOverlay && id && idIsDifferent) {
+    jsvUnLock(id);
     return;
   }
-  jsvUnLock(ovrId);
-  // We're definitely changing overlay now... run the remove callback if it exists
-  JsVar *removeCb = jsvObjectGetChildIfExists(execInfo.hiddenRoot, "lcdOvrCb");
-  if (removeCb) {
-    jsiQueueEvents(0, removeCb, NULL, 0);
-    jsvUnLock(removeCb);
+  // We're definitely changing overlay now... run the remove callback if it exists and the ID is different
+  if (idIsDifferent) {
+    JsVar *removeCb = jsvObjectGetChildIfExists(execInfo.hiddenRoot, "lcdOvrCb");
+    if (removeCb) {
+      jsiQueueEvents(0, removeCb, NULL, 0);
+      jsvUnLock(removeCb);
+    }
   }
   // update the fields in the Bangle object
   if (imgVar) {
     jsvObjectSetOrRemoveChild(execInfo.hiddenRoot, "lcdOvrId", id);
-    removeCb = jsvIsObject(options) ? jsvObjectGetChildIfExists(options, "onRemove") : NULL;
+    JsVar *removeCb = jsvIsObject(options) ? jsvObjectGetChildIfExists(options, "remove") : NULL;
     jsvObjectSetOrRemoveChild(execInfo.hiddenRoot, "lcdOvrCb", removeCb);
     jsvUnLock(removeCb);
   } else { // we're removing the overlay, remove all callbacks
@@ -2661,6 +2706,9 @@ before reading and disabling the hardware watch on BTN1).
   off
 * `btnLoadTimeout` how many milliseconds does the home button have to be pressed
 for before the clock is reloaded? 1500ms default, or 0 means never.
+* `manualWatchdog` if set, this disables automatic kicking of the watchdog timer
+from the interrupt (when the button isn't held). You will then have to manually
+call `E.kickWatchdog()` from your code or the watch will reset after ~5 seconds.
 * `hrmPollInterval` set the requested poll interval (in milliseconds) for the
   heart rate monitor. On Bangle.js 2 only 10,20,40,80,160,200 ms are supported,
   and polling rate may not be exact. The algorithm's filtering is tuned for
@@ -2673,8 +2721,8 @@ for before the clock is reloaded? 1500ms default, or 0 means never.
 * `hrmGreenAdjust` - (Bangle.js 2, 2v19+) if false (default is true) the green LED intensity won't be adjusted to get the HRM sensor 'exposure' correct. This is reset when the HRM is initialised with `Bangle.setHRMPower`.
 * `hrmWearDetect` - (Bangle.js 2, 2v19+) if false (default is true) HRM readings won't be turned off if the watch isn't on your arm (based on HRM proximity sensor). This is reset when the HRM is initialised with `Bangle.setHRMPower`.
 * `hrmPushEnv` - (Bangle.js 2, 2v19+) if true (default is false) HRM environment readings will be produced as `Bangle.on(`HRM-env`, ...)` events. This is reset when the HRM is initialised with `Bangle.setHRMPower`.
-* `seaLevelPressure` (Bangle.js 2) Normally 1013.25 millibars - this is used for
-  calculating altitude with the pressure sensor
+* `hrmStaticSampleTime` - (Bangle.js 2, 2v28+) if true (default is false) force the HRM to use hrmPollInterval as the sample time rather than the real poll interval
+* `seaLevelPressure` (Bangle.js 2) Default 1013.25 millibars - this is used when calculating altitude from pressure sensor values from `Bangle.getPressure`/`pressure` events.
 * `lcdBufferPtr` (Bangle.js 2 2v21+) Return a pointer to the first pixel of the 3 bit graphics buffer used by Bangle.js for the screen (stride = 178 bytes)
 * `lcdDoubleRefresh` (Bangle.js 2 2v22+) If enabled, pulses EXTCOMIN twice per poll interval (avoids off-axis flicker)
 
@@ -2690,6 +2738,7 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
   bool wakeOnDoubleTap = bangleFlags&JSBF_WAKEON_DBLTAP;
   bool wakeOnTwist = bangleFlags&JSBF_WAKEON_TWIST;
   bool powerSave = bangleFlags&JSBF_POWER_SAVE;
+  bool manualWatchdog = bangleFlags&JSBF_MANUAL_WATCHDOG;
 #ifdef BANGLEJS_Q3
   bool lowResistanceFix = bangleFlags&JSBF_BTN_LOW_RESISTANCE_FIX;
 #endif
@@ -2723,6 +2772,7 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
       {"hrmGreenAdjust", JSV_BOOLEAN, &vcInfo.allowGreenAdjust},
       {"hrmWearDetect", JSV_BOOLEAN, &vcInfo.allowWearDetect},
       {"hrmPushEnv", JSV_BOOLEAN, &vcInfo.pushEnvData},
+      {"hrmStaticSampleTime", JSV_BOOLEAN, &vcInfo.useStaticSampleTime},
 #endif
 #ifdef PRESSURE_DEVICE
       {"seaLevelPressure", JSV_FLOAT, &barometerSeaLevelPressure},
@@ -2744,6 +2794,7 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
       {"wakeOnDoubleTap", JSV_BOOLEAN, &wakeOnDoubleTap},
       {"wakeOnTwist", JSV_BOOLEAN, &wakeOnTwist},
       {"powerSave", JSV_BOOLEAN, &powerSave},
+      {"manualWatchdog", JSV_BOOLEAN, &manualWatchdog},
 #ifdef BANGLEJS_Q3
       {"lowResistanceFix", JSV_BOOLEAN, &lowResistanceFix},
 #endif
@@ -2774,6 +2825,7 @@ JsVar * _jswrap_banglejs_setOptions(JsVar *options, bool createObject) {
     bangleFlags = (bangleFlags&~JSBF_WAKEON_DBLTAP) | (wakeOnDoubleTap?JSBF_WAKEON_DBLTAP:0);
     bangleFlags = (bangleFlags&~JSBF_WAKEON_TWIST) | (wakeOnTwist?JSBF_WAKEON_TWIST:0);
     bangleFlags = (bangleFlags&~JSBF_POWER_SAVE) | (powerSave?JSBF_POWER_SAVE:0);
+    bangleFlags = (bangleFlags&~JSBF_MANUAL_WATCHDOG) | (manualWatchdog?JSBF_MANUAL_WATCHDOG:0);
 #ifdef BANGLEJS_Q3
     bangleFlags = (bangleFlags&~JSBF_BTN_LOW_RESISTANCE_FIX) | (lowResistanceFix?JSBF_BTN_LOW_RESISTANCE_FIX:0);
 #endif
@@ -3525,6 +3577,8 @@ JsVar *jswrap_banglejs_getAccel() {
 * `steps` is the number of steps during this period
 * `bpm` the best BPM reading from HRM sensor during this period
 * `bpmConfidence` best BPM confidence (0-100%) during this period
+* `bpmMin`/`bpmMax` (2v26+) the minimum/maximum BPM reading from HRM sensor during this period (where confidence is over 90)
+* `activity` (2v26+) the currently assumed activity, one of "UNKNOWN","NOT_WORN","WALKING","EXERCISE"
 
 */
 static JsVar *_jswrap_banglejs_getHealthStatusObject(HealthState *health) {
@@ -3536,7 +3590,12 @@ static JsVar *_jswrap_banglejs_getHealthStatusObject(HealthState *health) {
 #ifdef HEARTRATE
     jsvObjectSetChildAndUnLock(o,"bpm",jsvNewFromFloat(health->bpm10 / 10.0));
     jsvObjectSetChildAndUnLock(o,"bpmConfidence",jsvNewFromInteger(health->bpmConfidence));
+    jsvObjectSetChildAndUnLock(o,"bpmMin",jsvNewFromFloat(health->bpm10min / 10.0));
+    jsvObjectSetChildAndUnLock(o,"bpmMax",jsvNewFromFloat(health->bpm10max / 10.0));
 #endif
+   const char *ACT_STRINGS[HSA_STRINGS_LEN] = { HSA_STRINGS };
+   if (health->activity < HSA_STRINGS_LEN)
+     jsvObjectSetChildAndUnLock(o,"activity",jsvNewFromString(ACT_STRINGS[health->activity]));
   }
   return o;
 }
@@ -3664,6 +3723,9 @@ NO_INLINE void jswrap_banglejs_hwinit() {
   jshPinOutput(TOUCH_PIN_RST, 0);
   jshDelayMicroseconds(1000);
   jshPinOutput(TOUCH_PIN_RST, 1);
+  // Ensure peripherals are forced off (GPIO can be open drain)
+  jswrap_banglejs_pwrHRM(false); // HRM off
+  jswrap_banglejs_pwrGPS(false); // GPS off
 
   // Check pressure sensor
   unsigned char buf[2];
@@ -3956,7 +4018,7 @@ NO_INLINE void jswrap_banglejs_init() {
     bool drawInfo = false;
     JsVar *img = jsfReadFile(jsfNameFromString(".splash"),0,0);
     int w,h;
-    if (!jsvIsString(img) || !jsvGetStringLength(img)) {
+    if (!jsvIsString(img) || jsvIsEmptyString(img)) {
       jsvUnLock(img);
       drawInfo = true;
       img = jswrap_banglejs_getLogo();
@@ -3965,7 +4027,7 @@ NO_INLINE void jswrap_banglejs_init() {
     h = (int)(unsigned char)jsvGetCharInString(img, 1);
     char addrStr[20];
 #ifndef EMULATED
-    JsVar *addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
+    JsVar *addr = jswrap_ble_getAddress(false); // Write MAC address in bottom right
 #else
     JsVar *addr = jsvNewFromString("Emulated");
 #endif
@@ -3986,7 +4048,7 @@ NO_INLINE void jswrap_banglejs_init() {
       else y += h-15;
       char addrStr[20];
 #ifndef EMULATED
-      JsVar *addr = jswrap_ble_getAddress(); // Write MAC address in bottom right
+      JsVar *addr = jswrap_ble_getAddress(false); // Write MAC address in bottom right
 #else
       JsVar *addr = jsvNewFromString("Emulated");
 #endif
@@ -4530,14 +4592,14 @@ bool jswrap_banglejs_idle() {
             JsVar *arr = jswrap_array_slice(v,0,0); // clone, so it's not referencing all of Tensorflow!
             jsvUnLock2(v,tf);
             //jsiConsolePrintf("TF queue\n");
-            JsVar *gesture = jspExecuteJSFunction("(function(a) {"
+            JsVar *gesture = jspExecuteJSFunctionCode("a",
               "var m=0,g;"
               "for (var i in a) if (a[i]>m) { m=a[i];g=i; }"
               "if (g!==undefined) {"
                 "var n=require('Storage').read('.tfnames');"
                 "if (n) g=n.split(',')[g];"
               "}"
-            "return g;})",NULL,1,&arr);
+            "return g;",0,NULL,1,&arr);
             JsVar *args[2] = {gesture,arr};
             jsiQueueObjectCallbacks(bangle, JS_EVENT_PREFIX"aiGesture", args, 2);
             jsvUnLock2(gesture,arr);
@@ -4661,7 +4723,7 @@ bool jswrap_banglejs_idle() {
 bool jswrap_banglejs_gps_character(char ch) {
 #ifdef GPS_PIN_RX
   // if too many chars, roll over since it's probably because we skipped a newline
-  // or messed the message length
+  // or messed up the message length
   if (gpsLineLength >= sizeof(gpsLine)) {
 #ifdef GPS_UBLOX
     if (inComingUbloxProtocol == UBLOX_PROTOCOL_UBX &&
@@ -4692,6 +4754,21 @@ bool jswrap_banglejs_gps_character(char ch) {
   }
 #endif // GPS_UBLOX
   gpsLine[gpsLineLength++] = ch;
+#ifdef GPS_CASIC
+  if (gpsLineLength>2 && gpsLine[0]==0xBA && gpsLine[1]==0xCE) {
+    if (gpsLineLength<4) return true; // not enough data for length
+    int len = gpsLine[2] | (gpsLine[3] << 8);
+    // 4 class, 5 = msg
+    // 4 byte checksum on end
+    if (gpsLineLength>=len+10) { // packet end!
+      memcpy(gpsLastLine, gpsLine, gpsLineLength);
+      gpsLastLineLength = gpsLineLength;
+      bangleTasks |= JSBT_GPS_DATA_LINE;
+      gpsClearLine();
+    }
+    return true;
+  }
+#endif
   if (
 #ifdef GPS_UBLOX
       inComingUbloxProtocol == UBLOX_PROTOCOL_NMEA &&
@@ -4710,8 +4787,20 @@ bool jswrap_banglejs_gps_character(char ch) {
     if (gpsLineLength > 2 && gpsLineLength <= NMEA_MAX_SIZE && gpsLine[gpsLineLength - 2] =='\r') {
       gpsLine[gpsLineLength - 2] = 0; // just overwriting \r\n
       gpsLine[gpsLineLength - 1] = 0;
-      if (nmea_decode(&gpsFix, (char *)gpsLine))
+      if (nmea_decode(&gpsFix, (char *)gpsLine)) {
         bangleTasks |= JSBT_GPS_DATA;
+#ifdef BANGLEJS_Q3
+        if (gpsFix.packetCount == 1) { // first packet
+          // https://github.com/espruino/Espruino/issues/2354 - on newer Bangle.js, speed/time may not be reported
+          // as there's no RMC packet by default. If we detect this in 1st packet send a command to fix it
+          if ((gpsFix.packetsParsed & NMEA_RMC)==0) {
+            jshTransmitPrintf(GPS_UART,"$PCAS03,1,0,0,1,1,0,0,0*03\r\n");
+          }
+        }
+#endif
+        // reset what packets we think we got
+        gpsFix.packetsParsed = NMEA_NONE;
+      }
       if (bangleTasks & (JSBT_GPS_DATA_PARTIAL|JSBT_GPS_DATA_LINE)) {
         // we were already waiting to post data, so lets not overwrite it
         bangleTasks |= JSBT_GPS_DATA_OVERFLOW;
@@ -4811,13 +4900,66 @@ JsVar *_jswrap_banglejs_i2cRd(JshI2CInfo *i2c, int i2cAddr, JsVarInt reg, JsVarI
 /*JSON{
     "type" : "staticmethod",
     "class" : "Bangle",
-    "name" : "accelWr",
-    "generate" : "jswrap_banglejs_accelWr",
+    "name" : "touchWr",
+    "generate" : "jswrap_banglejs_touchWr",
     "params" : [
       ["reg","int",""],
       ["data","int",""]
     ],
     "ifdef" : "BANGLEJS"
+}
+Writes a register on the touch controller
+*/
+void jswrap_banglejs_touchWr(JsVarInt reg, JsVarInt data) {
+#ifdef TOUCH_I2C
+  _jswrap_banglejs_i2cWr(TOUCH_I2C, TOUCH_ADDR, reg, data);
+#endif
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Bangle",
+    "name" : "touchRd",
+    "generate" : "jswrap_banglejs_touchRd",
+    "params" : [
+      ["reg","int","Register number to read"],
+      ["cnt","int","If specified, returns an array of the given length (max 128). If not (or 0) it returns a number"]
+    ],
+    "return" : ["JsVar",""],
+    "ifdef" : "BANGLEJS2",
+    "typescript" : [
+      "touchRd(reg: number, cnt?: 0): number;",
+      "touchRd(reg: number, cnt: number): number[];"
+    ]
+}
+Reads a register from the touch controller. See https://github.com/espruino/Espruino/issues/2146#issuecomment-2554296721 for a list
+of registers. When the touchscreen is off (eg the Bangle is locked) then reading from any register will return `255` (`0xFF`) -
+so ensure the Bangle is unlocked with `Bangle.setLocked(false)` before trying to read or write.
+
+For example `print(Bangle.touchRd(0xa7).toString(16))` returns the `ChipID` register, which is `0xB4` (CST816S) on older Bangles or `0xB6` (CST816D) on newer ones.
+
+**Note:** On Espruino 2v06 and before this function only returns a number (`cnt` is ignored).
+*/
+
+
+JsVar *jswrap_banglejs_touchRd(JsVarInt reg, JsVarInt cnt) {
+#ifdef TOUCH_I2C
+  return _jswrap_banglejs_i2cRd(TOUCH_I2C, TOUCH_ADDR, reg, cnt);
+#else
+  return 0;
+#endif
+}
+
+/*JSON{
+    "type" : "staticmethod",
+    "class" : "Bangle",
+    "name" : "accelWr",
+    "generate" : "jswrap_banglejs_accelWr",
+    "params" : [
+      ["reg","int","Register number to write"],
+      ["data","int","An integer value to write to the register"]
+    ],
+    "ifdef" : "BANGLEJS2"
 }
 Writes a register on the accelerometer
 */
@@ -5031,13 +5173,15 @@ void jswrap_banglejs_ioWr(JsVarInt mask, bool on) {
     "typescript" : "getPressure(): Promise<PressureData> | undefined;"
 }
 Read temperature, pressure and altitude data. A promise is returned which will
-be resolved with `{temperature, pressure, altitude}`.
+be resolved with `{temperature (C), pressure (hPa), altitude (meters)}`.
 
 If the Barometer has been turned on with `Bangle.setBarometerPower` then this
 will return with the *next* reading as of 2v21 (or the existing reading on 2v20 or earlier). If the Barometer is off,
 conversions take between 500-750ms.
 
-Altitude assumes a sea-level pressure of 1013.25 hPa
+Altitude assumes a sea-level pressure of 1013.25 hPa, but this cal be adjusted with
+a call to `Bangle.setOptions({ seaLevelPressure : 1013.25 })` - the Bangle.js Settings
+app contains a tool to adjust it.
 
 If there's no pressure device (for example, the emulator),
 this returns `undefined`, rather than a Promise.
@@ -5187,8 +5331,7 @@ JsVar *jswrap_banglejs_getBarometerObject() {
 JsVar *jswrap_banglejs_getPressure() {
 #ifdef PRESSURE_DEVICE
   if (promisePressure) {
-    jsExceptionHere(JSET_ERROR, "Conversion in progress");
-    return 0;
+    return jsvLockAgain(promisePressure); // just return the same promise if we were already doing a conversion
   }
   promisePressure = jspromise_create();
   if (!promisePressure) return 0;
@@ -5254,7 +5397,7 @@ JsVar *jswrap_banglejs_project(JsVar *latlong) {
   double lon = jsvObjectGetFloatChild(latlong,"lon");
   if (lat > latMax) lat=latMax;
   if (lat < -latMax) lat=-latMax;
-  double s = sin(lat * degToRad);
+  double s = jswrap_math_sin(lat * degToRad);
   JsVar *o = jsvNewObject();
   if (o) {
     jsvObjectSetChildAndUnLock(o,"x", jsvNewFromFloat(R * lon * degToRad));
@@ -5732,7 +5875,7 @@ Load the Bangle.js clock - this has the same effect as calling `Bangle.load()`.
     "type" : "staticmethod",
     "class" : "Bangle",
     "name" : "showRecoveryMenu",
-    "generate_js" : "libs/js/banglejs/Bangle_showRecoveryMenu.js",
+    "generate_js" : "libs/js/banglejs/Bangle_showRecoveryMenu.min.js",
     "ifdef" : "BANGLEJS"
 }
 Show a 'recovery' menu that allows you to perform certain tasks on your Bangle.
@@ -5750,7 +5893,7 @@ You can also enter this menu by restarting your Bangle while holding down the bu
     "type" : "staticmethod",
     "class" : "Bangle",
     "name" : "showTestScreen",
-    "generate_js" : "libs/js/banglejs/Bangle_showTestScreen.js",
+    "generate_js" : "libs/js/banglejs/Bangle_showTestScreen.min.js",
     "ifdef" : "BANGLEJS2"
 }
 (2v20 and later) Show a test screen that lights green when each sensor on the Bangle
@@ -5858,6 +6001,10 @@ On Bangle.js there are a few additions over the standard `graphical_menu`:
     menu is removed
   * (Bangle.js 2) `scroll : int` - an integer specifying how much the initial
     menu should be scrolled by
+* (Bangle.js 2) The mapped functions can consider the touch event that interacted with the entry:
+  `"Entry" : function(touch) { ... }`
+  * This is also true of `onchange` mapped functions in entry objects:
+    `onchange : (value, touch) => { ... }`
 * The object returned by `E.showMenu` contains:
   * (Bangle.js 2) `scroller` - the object returned by `E.showScroller` -
     `scroller.scroll` returns the amount the menu is currently scrolled by
@@ -5926,7 +6073,7 @@ E.showMessage("Lots of text will wrap automatically",{
     "return" : ["JsVar","A promise that is resolved when 'Ok' is pressed"],
     "ifdef" : "BANGLEJS",
     "typescript" : [
-      "showPrompt<T = boolean>(message: string, options?: { title?: string, buttons?: { [key: string]: T }, image?: string, remove?: () => void }): Promise<T>;",
+      "showPrompt<T = boolean>(message: string, options?: { title?: string, buttons?: { [key: string]: T }, buttonHeight?: number, image?: string, remove?: () => void }): Promise<T>;",
       "showPrompt(): void;"
     ]
 }
@@ -5967,7 +6114,8 @@ The second `options` argument can contain:
   title: "Hello",                       // optional Title
   buttons : {"Ok":true,"Cancel":false}, // optional list of button text & return value
   img: "image_string"                   // optional image string to draw
-  remove: function() { }                // Bangle.js: optional function to be called when the prompt is removed
+  remove: function() { }                // Bangle.js: optional function to be called when the prompt is removed#
+  buttonHeight : 30,                    // Bangle.js2: optional height to force the buttons to be
 }
 ```
 */
@@ -6000,6 +6148,7 @@ Supply an object containing:
   draw : function(idx, rect) { ... }
   // a function to call when the item is selected, touch parameter is only relevant
   // for Bangle.js 2 and contains the coordinates touched inside the selected item
+  // as well as the type of the touch - see `Bangle.touch`.
   select : function(idx, touch) { ... }
   // optional function to be called when 'back' is tapped
   back : function() { ...}
@@ -6014,7 +6163,7 @@ For example to display a list of numbers:
 E.showScroller({
   h : 40, c : 8,
   draw : (idx, r) => {
-    g.setBgColor((idx&1)?"#666":"#999").clearRect(r.x,r.y,r.x+r.w-1,r.y+r.h-1);
+    g.setBgColor((idx&1)?"#666":"#CCC").clearRect(r.x,r.y,r.x+r.w-1,r.y+r.h-1);
     g.setFont("6x8:2").drawString("Item Number\n"+idx,r.x+10,r.y+4);
   },
   select : (idx) => console.log("You selected ", idx)
@@ -6313,10 +6462,10 @@ JsVar *jswrap_banglejs_appRect() {
 
 
 /// Called from jsinteractive when an event is parsed from the event queue for Bangle.js (executed outside IRQ)
-void jsbangle_exec_pending(IOEvent *evt) {
-  assert(evt->flags & EV_BANGLEJS);
-  uint16_t value = ((uint8_t)evt->data.chars[1])<<8 | (uint8_t)evt->data.chars[2];
-  switch ((JsBangleEvent)evt->data.chars[0]) {
+void jsbangle_exec_pending(uint8_t *data, int dataLen) {
+  JsBangleEvent evt = (JsBangleEvent)data[0];
+  uint16_t value = data[1] | (data[2]<<8);
+  switch (evt) {
     case JSBE_HRM_ENV: {
       JsVar *bangle = jsvObjectGetChildIfExists(execInfo.root, "Bangle");
       if (bangle) {
@@ -6332,12 +6481,11 @@ void jsbangle_exec_pending(IOEvent *evt) {
 
 /// Called from jsinteractive when an event is parsed from the event queue for Bangle.js
 void jsbangle_push_event(JsBangleEvent type, uint16_t value) {
-  IOEvent evt;
-  evt.flags = EV_BANGLEJS;
-  evt.data.chars[0] = type;
-  evt.data.chars[1] = (char)((value>>8) & 0xFF);
-  evt.data.chars[2] = (char)(value & 0xFF);
-  jshPushEvent(&evt);
+  uint8_t buf[3];
+  buf[0] = type;
+  buf[1] = (uint8_t)value;
+  buf[2] = value>>8;
+  jshPushEvent(EV_BANGLEJS, buf, sizeof(buf));
 }
 
 /*JSON{

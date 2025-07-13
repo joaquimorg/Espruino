@@ -15,6 +15,9 @@
 #include "jsinteractive.h"
 #include "platform_config.h"
 
+/// set if we've had an event we need to deal with
+volatile bool jshHadEventDuringSleep = false;
+
 void jshUSARTInitInfo(JshUSARTInfo *inf) {
   inf->baudRate = DEFAULT_BAUD_RATE;
   inf->pinRX    = PIN_UNDEFINED;
@@ -130,6 +133,11 @@ __attribute__((weak)) void jshUSARTUnSetup(IOEventFlags device) {
   // placeholder - not all platforms implement this
 }
 
+__attribute__((weak)) void jshI2CUnSetup(IOEventFlags device) {
+  NOT_USED(device);
+  // placeholder - not all platforms implement this
+}
+
 /// Erase the flash pages containing the address.
 __attribute__((weak)) bool jshFlashErasePages(uint32_t startAddr, uint32_t byteLength) {
   uint32_t endAddr = startAddr + byteLength;
@@ -161,7 +169,16 @@ void jshKickSoftWatchDog() {
   }
 }
 
+/// Called when we have had an event that means we should execute JS
+void jshHadEvent() {
+  jshHadEventDuringSleep = true;
+}
+
 /* Returns the estimated power usage of the microcontroller */
-__attribute__((weak))void jsvGetProcessorPowerUsage(JsVar *devices) {
+__attribute__((weak)) void jsvGetProcessorPowerUsage(JsVar *devices) {
   // not implemented by default
+}
+
+__attribute__((weak)) JsVar *jshGetSystemClock() {
+  return 0;
 }

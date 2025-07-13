@@ -47,6 +47,7 @@ Class containing utility functions for
     "type" : "staticmethod",
     "class" : "Pixl",
     "name" : "getBatteryPercentage",
+    "deprecated" : true,
     "generate" : "jswrap_espruino_getBattery",
     "return" : ["int", "A percentage between 0 and 100" ]
 }
@@ -364,14 +365,14 @@ void jswrap_pixljs_init() {
   gfx.data.type = JSGRAPHICSTYPE_ARRAYBUFFER;
   gfx.data.flags = JSGRAPHICSFLAGS_ARRAYBUFFER_MSB;
   gfx.graphicsVar = graphics;
-  lcdInit_ArrayBuffer(&gfx);
+  lcdInit_ArrayBuffer(&gfx, NULL);
   graphicsSetVarInitial(&gfx);
   jsvObjectSetChild(execInfo.root, "g", graphics);
   jsvObjectSetChild(execInfo.hiddenRoot, JS_GRAPHICS_VAR, graphics);
   graphicsGetFromVar(&gfx, graphics);
   // Set initial image
   const unsigned char PIXLJS_IMG[] = {
-        251, 239, 135, 192, 0, 0, 31, 0, 0, 0, 125, 247, 195, 224, 0, 0, 15, 128, 0,
+        81,34,1, 251, 239, 135, 192, 0, 0, 31, 0, 0, 0, 125, 247, 195, 224, 0, 0, 15, 128, 0,
         0, 62, 251, 225, 240, 0, 0, 7, 192, 0, 0, 31, 125, 240, 248, 0, 0, 3, 224, 0,
         0, 15, 190, 248, 124, 0, 0, 1, 240, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
         224, 62, 0, 15, 128, 248, 124, 0, 0, 1, 240, 31, 0, 7, 192, 124, 62, 0, 0, 0,
@@ -389,6 +390,7 @@ void jswrap_pixljs_init() {
         0, 0, 0, 0, 0, 0, 0, 0, 1, 224, 0, 0, 0, 0, 0, 0, 0, 0, 7, 224, 0, 0, 0, 0, 0,
         0, 0, 0, 3, 240, 0, 0, 0, 0, 0, 0, 0, 0, 1, 240, 0, 63
   };
+  JsVar *img = jsvNewNativeString((char*)PIXLJS_IMG, sizeof(PIXLJS_IMG));
 
   // Create 'flip' fn
   JsVar *fn;
@@ -424,7 +426,7 @@ void jswrap_pixljs_init() {
         (jshPinGetValue(BTN4_PININDEX) == BTN4_ONSTATE)))
     splashScreen = jsfReadFile(jsfNameFromString(".splash"),0,0);
   if (jsvIsString(splashScreen)) {
-    if (jsvGetStringLength(splashScreen)) {
+    if (!jsvIsEmptyString(splashScreen)) {
       graphicsSetVar(&gfx);
       jsvUnLock(jswrap_graphics_drawImage(graphics, splashScreen,0,0,0));
       graphicsGetFromVar(&gfx, graphics);
@@ -435,16 +437,16 @@ void jswrap_pixljs_init() {
       for (int i=128;i>24;i-=4) {
         lcd_flip_gfx(&gfx);
         graphicsClear(&gfx);
-        graphicsDrawImage1bpp(&gfx,i,15,81,34,PIXLJS_IMG);
+        jswrap_graphics_drawImage(graphics, img, i, 15, NULL);
       }
     } else {
       // if a standard reset, just display logo
       graphicsClear(&gfx);
-      graphicsDrawImage1bpp(&gfx,24,15,81,34,PIXLJS_IMG);
+      jswrap_graphics_drawImage(graphics, img, 24, 15, NULL);
     }
     jswrap_graphics_drawCString(&gfx,28,39,JS_VERSION);
     // Write MAC address in bottom right
-    JsVar *addr = jswrap_ble_getAddress();
+    JsVar *addr = jswrap_ble_getAddress(false);
     char buf[20];
     jsvGetString(addr, buf, sizeof(buf));
     jsvUnLock(addr);
@@ -468,23 +470,7 @@ void jswrap_pixljs_init() {
   graphicsSetVar(&gfx);
 
   firstStart = false;
-  jsvUnLock(graphics);
-}
-
-/*JSON{
-  "type" : "kill",
-  "generate" : "jswrap_pixljs_kill"
-}*/
-void jswrap_pixljs_kill() {
-
-}
-
-/*JSON{
-  "type" : "idle",
-  "generate" : "jswrap_pixljs_idle"
-}*/
-bool jswrap_pixljs_idle() {
-  return false;
+  jsvUnLock2(graphics,img);
 }
 
 
@@ -512,7 +498,7 @@ DEPRECATED: Use `E.showMenu`
 type MenuBooleanItem = {
   value: boolean;
   format?: (value: boolean) => string;
-  onchange?: (value: boolean) => void;
+  onchange?: (value: boolean, evt?: TouchCallbackXY) => void;
 };
 
 /**
@@ -521,7 +507,7 @@ type MenuBooleanItem = {
 type MenuNumberItem = {
   value: number;
   format?: (value: number) => string;
-  onchange?: (value: number) => void;
+  onchange?: (value: number, evt?: TouchCallbackXY) => void;
   step?: number;
   min?: number;
   max?: number;
@@ -534,6 +520,7 @@ type MenuNumberItem = {
 type MenuOptions = {
   title?: string;
   back?: () => void;
+  remove?: () => void;
   selected?: number;
   fontHeight?: number;
   scroll?: number;
@@ -556,10 +543,10 @@ type Menu = {
   ""?: MenuOptions;
   [key: string]:
     | MenuOptions
-    | (() => void)
+    | ((e?: TouchCallbackXY) => void)
     | MenuBooleanItem
     | MenuNumberItem
-    | { value: string; onchange?: () => void }
+    | { value: string; onchange?: (value: unknown, evt?: TouchCallbackXY) => void }
     | undefined;
 };
 
@@ -568,9 +555,16 @@ type Menu = {
  *\/
 type MenuInstance = {
   draw: () => void;
-  move: (n: number) => void;
-  select: () => void;
+  scroller?: MenuScroller; // BangleJS 2
 };
+
+/**
+ * Menu scroller.
+ *\/
+type MenuScroller = {
+  scroll: number;
+};
+
 */
 
 /*JSON{

@@ -121,6 +121,9 @@ _LEX_OPERATOR2_START = _LEX_R_LIST_END+10, // padding for adding new symbols in 
     LEX_NULLISH = _LEX_OPERATOR2_START,
     LEX_RAW_STRING8, //< a pretokenised string stored as 0xD1,length,raw_binary_data
     LEX_RAW_STRING16, //< a pretokenised string stored as 0xD2,length_lo,length_hi,raw_binary_data
+    LEX_RAW_INT0, //< the integer value 0 stored as 0xD3
+    LEX_RAW_INT8, //< an integer value stored as 0xD4,value
+    LEX_RAW_INT16, //< an integer value stored as 0xD5,value_hi,value_lo
 _LEX_OPERATOR2_END = LEX_NULLISH,
 
 _LEX_TOKENS_END = _LEX_OPERATOR2_END, /* always the last entry for symbols */
@@ -137,6 +140,7 @@ typedef struct JslCharPos {
 
 void jslCharPosFree(JslCharPos *pos);
 void jslCharPosClone(JslCharPos *dstpos, JslCharPos *pos);
+void jslCharPosClear(JslCharPos *pos); ///< clear charpos (if was an undefined value)
 void jslCharPosFromLex(JslCharPos *dstpos);
 void jslCharPosNew(JslCharPos *dstpos, JsVar *src, size_t tokenStart);
 
@@ -156,12 +160,6 @@ typedef struct JsLex
   bool isUTF8;         ///< Is the current String a UTF8 String?
 #endif
 
-#ifndef ESPR_NO_LINE_NUMBERS
-  /** Amount we add to the line number when we're reporting to the user
-   * 1-based, so 0 means NO LINE NUMBER KNOWN */
-  uint16_t lineNumberOffset;
-#endif
-
   /* Where we get our data from...
    *
    * This is a bit more tricky than normal because the data comes from JsVars,
@@ -170,6 +168,11 @@ typedef struct JsLex
    */
   JsVar *sourceVar; // the actual string var
   JsvStringIterator it; // Iterator for the string
+
+  /// For stack traces - this is just a pointer to a function name if we have one (it's not 'owned')
+  JsVar *functionName;
+  /// For stack traces - this is just a pointer to the previous Lex on the stack
+  struct JsLex *lastLex;
 } JsLex;
 
 // The lexer
@@ -210,9 +213,6 @@ JsVar *jslNewStringFromLexer(JslCharPos *charFrom, size_t charTo);
 JsVar *jslNewTokenisedStringFromLexer(JslCharPos *charFrom, size_t charTo);
 #endif
 
-/// Return the line number at the current character position (this isn't fast as it searches the string)
-unsigned int jslGetLineNumber();
-
 /// Do we need a space between these two characters when printing a function's text?
 bool jslNeedSpaceBetween(unsigned char lastch, unsigned char ch);
 
@@ -220,10 +220,13 @@ bool jslNeedSpaceBetween(unsigned char lastch, unsigned char ch);
 void jslPrintTokenisedString(JsVar *code, vcbprintf_callback user_callback, void *user_data);
 
 /// Print position in the form 'line X col Y'
-void jslPrintPosition(vcbprintf_callback user_callback, void *user_data, size_t tokenPos);
+void jslPrintPosition(vcbprintf_callback user_callback, void *user_data, JsLex *lex, size_t tokenPos);
 
 /** Print the line of source code at `tokenPos`, prefixed with the string 'prefix' (0=no string).
  * Then, underneath it, print a '^' marker at the column tokenPos was at  */
-void jslPrintTokenLineMarker(vcbprintf_callback user_callback, void *user_data, size_t tokenPos, char *prefix);
+void jslPrintTokenLineMarker(vcbprintf_callback user_callback, void *user_data, JsLex *lex, size_t tokenPos, size_t prefixLength);
+
+/** Prints a full stack trace to the current callback function */
+void jslPrintStackTrace(vcbprintf_callback user_callback, void *user_data,  JsLex *lex);
 
 #endif /* JSLEX_H_ */

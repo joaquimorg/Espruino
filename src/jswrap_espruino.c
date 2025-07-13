@@ -134,6 +134,21 @@ E.on('touch',t=>{
 ```
 */
 
+
+/*JSON{
+  "type" : "staticproperty",
+  "class" : "E",
+  "name" : "internal",
+  "generate_full" : "jsvLockAgain(execInfo.hiddenRoot)",
+  "return" : ["JsVar","The 'hidden root'"]
+}
+(2v28+) A reference to the "hidden root" that contains
+internal Espruino JavaScript variables such as lists
+of timers and watches.
+
+On earlier firmwares this was accessible via `global["\xff"]`
+*/
+
 /*JSON{
   "type" : "staticmethod",
   "class" : "E",
@@ -180,6 +195,22 @@ times and average the results.
 
 While this is implemented on Espruino boards, it may not be implemented on other
 devices. If so it'll return NaN.
+ */
+
+/*JSON{
+  "type" : "staticmethod",
+  "#if" : "defined(NRF52833) || defined(NRF52840)",
+  "class" : "E",
+  "name" : "getVDDH",
+  "generate_full" : "jshReadVDDH()",
+  "return" : ["float","The voltage on VDDH input"]
+}
+Return the voltage on VDDH input
+
+**Note:** This value is calculated by reading the voltage on an internal
+voltage reference with the ADC. It will be slightly noisy, so if you need this
+for accurate measurements we'd recommend that you call this function several
+times and average the results.
  */
 
 
@@ -281,6 +312,10 @@ JsVar *jswrap_espruino_nativeCall(JsVarInt addr, JsVar *signature, JsVar *data) 
   JsVar *fn = jsvNewNativeFunction((void *)(size_t)addr, (unsigned short)argTypes);
   if (data) {
     JsVar *flat = jsvAsFlatString(data);
+    if (!flat) { // can't get a flat string!
+      jsvUnLock(fn);
+      return 0;
+    }
     jsvAddNamedChildAndUnLock(fn, flat, JSPARSE_FUNCTION_CODE_NAME);
   }
   return fn;
@@ -354,8 +389,13 @@ JsVarFloat jswrap_espruino_sum(JsVar *arr) {
   "typescript" : "variance(arr: string | number[] | ArrayBuffer, mean: number): number;"
 }
 Work out the variance of the contents of the given Array, String or ArrayBuffer
-and return the result. This is equivalent to `v=0;for (i in arr)
-v+=Math.pow(mean-arr[i],2)`
+and return the result. This is equivalent to:
+
+```
+v=0;
+for (i in arr)
+  v+=Math.pow(mean-arr[i],2);
+````
  */
 JsVarFloat jswrap_espruino_variance(JsVar *arr, JsVarFloat mean) {
   if (!(jsvIsIterable(arr))) {
@@ -429,6 +469,8 @@ JsVarFloat jswrap_espruino_convolve(JsVar *arr1, JsVar *arr2, int offset) {
   return conv;
 }
 
+
+#ifndef ESP8266 // ESP8266 seems unable to leave this out of the firmware, even with gc-sections/flto!
 #if defined(SAVE_ON_FLASH_MATH) || defined(BANGLEJS)
 #define FFTDATATYPE double
 #else
@@ -608,6 +650,8 @@ void jswrap_espruino_FFT(JsVar *arrReal, JsVar *arrImag, bool inverse) {
     _jswrap_espruino_FFT_setData(arrImag, vImag, 0, pow2);
 }
 
+#endif //!ESP8266
+
 /*JSON{
   "type" : "staticmethod",
   "ifndef" : "SAVE_ON_FLASH",
@@ -674,6 +718,71 @@ Espruino boards).
  */
 void jswrap_espruino_kickWatchdog() {
   jshKickWatchDog();
+}
+
+
+
+
+/*JSON{
+  "type" : "event",
+  "#if" : "defined(NRF52_SERIES) && !defined(SAVE_ON_FLASH)",
+  "class" : "E",
+  "name" : "comparator",
+  "params" : [
+    ["dir","int","The direction of the pin's state change"]
+  ]
+}
+Called when a bit rises or falls above a set level. See `E.setComparator` for setup.
+*/
+/*JSON{
+  "type" : "EV_CUSTOM",
+  "#if" : "defined(NRF52_SERIES) && !defined(SAVE_ON_FLASH)",
+  "generate" : "jswrap_espruino_setComparator_eventHandler"
+}
+*/
+void jswrap_espruino_setComparator_eventHandler(IOEventFlags eventFlags, uint8_t *data, int length) {
+#if defined(NRF52_SERIES) && !defined(SAVE_ON_FLASH)
+  // see jshSetComparator / E.setComparator
+  IOCustomEventFlags customFlags = *(IOCustomEventFlags*)data;
+  if ((customFlags & EVC_TYPE_MASK) == EVC_LPCOMP) {
+    JsVar *arg = jsvNewFromInteger((customFlags & EVC_DATA_LPCOMP_UP) ? 1 : -1);
+    jsiExecuteEventCallbackOn("E",JS_EVENT_PREFIX"comparator",1,&arg);
+    jsvUnLock(arg);
+  }
+#endif
+}
+/*JSON{
+  "type" : "staticmethod",
+  "#if" : "defined(NRF52_SERIES) && !defined(SAVE_ON_FLASH)",
+  "class" : "E",
+  "name" : "setComparator",
+  "generate" : "jswrap_espruino_setComparator",
+  "params" : [
+    ["pin","pin","The `Pin` to enable the comparator on"],
+    ["level","float","The level to trigger on, or `undefined` to disable. (see below for [Jolt.js](https://www.espruino.com/Jolt.js))"]
+  ]
+}
+(Added 2v25) Enable the nRF52 chip's `LPCOMP` hardware. When enabled, it creates an `E.on("comparator", ...)`
+event whenever the pin supplied rises or falls past the setpoint given (with 50mv hysteresis).
+
+```
+E.setComparator(D28, 8/16); // compare with VDD/2
+E.on("comparator", e => {
+  print(e); // 1 for up, or -1 for down
+});
+```
+
+**Note:** There is just one LPCOMP, so you can only enable the comparator on one pin.
+
+**On [Jolt.js](https://www.espruino.com/Jolt.js):** when using `E.setComparator` on the analog pins on the
+Terminal block (`H0`/`H2`/`H4`/`H6`), the `level` you give needs to be in volts. Because the comparator only
+works in 16 steps, you can only detect multiples of 1.37v (1.37/2.74/4.11/etc)
+
+ */
+void jswrap_espruino_setComparator(Pin pin, JsVarFloat level) {
+#if defined(NRF52_SERIES) && !defined(SAVE_ON_FLASH)
+  jshSetComparator(pin, level);
+#endif
 }
 
 /// Return an array of errors based on the current flags
@@ -762,6 +871,11 @@ code.
 * `unsyncFiles` - When writing files, *don't* flush all data to the SD card
   after each command (the default is *to* flush). This is much faster, but can
   cause filesystem damage if power is lost without the filesystem unmounted.
+* `jitDebug` - When JIT compiling, outputs debug info to the console
+* `onErrorSave` - (2v27+) when an uncaught error occurs, write it to a
+  file called `ERROR` in Storage (the file is not updated)
+* `onErrorFlash` - (2v27+) when an uncaught error occurs, flash the red LED
+  for 200ms (only on devices with a physical LED)
 */
 /*JSON{
   "type" : "staticmethod",
@@ -807,17 +921,13 @@ For instance:
 E.pipe("This is a really big String",
        {write: print},
        {chunkSize:1, complete:()=>print("Finished!")});
-
 // Pipe the numbers 1 to 100 to a StorageFile in Storage
 E.pipe({ n:0, read : function() { if (this.n<100) return (this.n++)+"\n"; }},
        require("Storage").open("testfile","w"));
-
 // Pipe a StorageFile straight to the Bluetooth UART
 E.pipe(require("Storage").open("testfile","r"), Bluetooth);
-
 // Pipe a normal file in Storage (not StorageFile) straight to the Bluetooth UART
 E.pipe(require("Storage").read("blob.txt"), Bluetooth);
-
 // Pipe a normal file in Storage as a response to an HTTP request
 function onPageRequest(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -833,7 +943,7 @@ require("http").createServer(onPageRequest).listen(80);
   "name" : "toArrayBuffer",
   "generate" : "jswrap_espruino_toArrayBuffer",
   "params" : [
-    ["str","JsVar","The string to convert to an ArrayBuffer"]
+    ["str","JsVar","The string to convert to an `ArrayBuffer`"]
   ],
   "return" : ["JsVar","An ArrayBuffer that uses the given string"],
   "return_object" : "ArrayBufferView",
@@ -923,12 +1033,18 @@ flat string of the same length, the backing string will be returned without
 doing a copy or other allocation. The same applies if there's a single argument
 which is itself a flat string.
 
-```JS
+```
 E.toString(0,1,2,"Hi",3)
 "\0\1\2Hi\3"
+```
+
+```
 E.toString(1,2,{data:[3,4], count:4},5,6)
 "\1\2\3\4\3\4\3\4\3\4\5\6"
->E.toString(1,2,{callback : () => "Hello World"},5,6)
+```
+
+```
+E.toString(1,2,{callback : () => "Hello World"},5,6)
 ="\1\2Hello World\5\6"
 ```
 
@@ -937,7 +1053,6 @@ or would return `undefined` if one couldn't be allocated. Now, it will return
 a normal (fragmented) String if a contiguous chunk of memory cannot be allocated.
 You can still check if the returned value is a Flat string using `E.getAddressOf(str, true)!=0`,
 or can use `E.toFlatString` instead.
-
  */
 JsVar *jswrap_espruino_toString(JsVar *args) {
   return jswrap_espruino_toStringX(args, false);
@@ -1078,13 +1193,13 @@ type Uint8ArrayResolvable =
   "name" : "toUint8Array",
   "generate" : "jswrap_espruino_toUint8Array",
   "params" : [
-    ["args","JsVarArray","The arguments to convert to a Uint8Array"]
+    ["args","JsVarArray","The arguments to convert to a `Uint8Array`"]
   ],
   "return" : ["JsVar","A Uint8Array"],
   "return_object" : "Uint8Array",
   "typescript" : "toUint8Array(...args: Uint8ArrayResolvable[]): Uint8Array;"
 }
-This creates a Uint8Array from the given arguments. These are handled as
+This creates a `Uint8Array` from the given arguments. These are handled as
 follows:
 
  * `Number` -> read as an integer, using the lowest 8 bits
@@ -1281,6 +1396,35 @@ int jswrap_espruino_setClock(JsVar *options) {
   "type" : "staticmethod",
   "ifndef" : "SAVE_ON_FLASH",
   "class" : "E",
+  "name" : "getClock",
+  "generate" : "jswrap_espruino_getClock",
+  "return" : ["JsVar","An object containing information about the current clock"]
+}
+On boards other than STM32 this currently just returns `undefined`
+
+### STM32
+
+See `E.setClock` for more information.
+
+Returns:
+
+```
+{
+  sysclk, hclk, pclk1, pclk2,  // various clocks in Hz
+  M, N, P, Q, PCLK1, PCLK2     // STM32F4: currently set divisors
+  RTCCLKSource : "LSI/LSE/HSE_Div#" // STM32F4 source for RTC clock
+}
+```
+*/
+JsVar *jswrap_espruino_getClock() {
+  return jshGetSystemClock();
+}
+
+
+/*JSON{
+  "type" : "staticmethod",
+  "ifndef" : "SAVE_ON_FLASH",
+  "class" : "E",
   "name" : "setConsole",
   "generate" : "jswrap_espruino_setConsole",
   "params" : [
@@ -1440,7 +1584,8 @@ void jswrap_espruino_dumpFreeList() {
   "ifndef" : "SAVE_ON_FLASH",
   "generate" : "jswrap_e_dumpFragmentation"
 }
-Show fragmentation.
+Show fragmentation. As of 2v27 this stops at the last allocated variable
+so as to avoid outputting blank lines if memory isn't full.
 
 * ` ` is free space
 * `#` is a normal variable
@@ -1448,8 +1593,16 @@ Show fragmentation.
 * `=` represents data in a Flat String (must be contiguous)
  */
 void jswrap_e_dumpFragmentation() {
-  int l = 0;
+  // find last allocated
+  unsigned int lastAllocated = 0;
   for (unsigned int i=0;i<jsvGetMemoryTotal();i++) {
+    JsVar *v = _jsvGetAddressOf(i+1);
+    if ((v->flags&JSV_VARTYPEMASK)!=JSV_UNUSED)
+      lastAllocated = i;
+  }
+  // output data as lines
+  int l = 0;
+  for (unsigned int i=0;i<lastAllocated;i++) {
     JsVar *v = _jsvGetAddressOf(i+1);
     if ((v->flags&JSV_VARTYPEMASK)==JSV_UNUSED) {
       jsiConsolePrint(" ");
@@ -1539,7 +1692,16 @@ void jswrap_e_dumpVariables() {
   "name" : "defrag",
   "generate" : "jsvDefragment"
 }
-BETA: defragment memory!
+This defragment's Espruino's memory.
+
+While Espruino does a lot of work to avoid fragmentation (variables spread over memory)
+and can usually work around it (such as by allocating data in chunks) sometimes
+it is useful to be able to allocate a large contiguous chunk of memory, and
+if memory is low and has been fragmented it may need defragmenting in order to
+find that chunk.
+
+See `E.dumpFragmentation()` to show a map of the arrangement of variables
+within memory.
 */
 
 /*TYPESCRIPT
@@ -1970,6 +2132,7 @@ JsVar *jswrap_espruino_HSBtoRGB(JsVarFloat hue, JsVarFloat sat, JsVarFloat bri, 
   "type" : "staticmethod",
   "class" : "E",
   "name" : "setPassword",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate" : "jswrap_espruino_setPassword",
   "params" : [
     ["password","JsVar","The password - max 20 chars"]
@@ -1991,25 +2154,30 @@ from unknown sources) or read the device's firmware then they may be able to
 obtain it.
  */
 void jswrap_espruino_setPassword(JsVar *pwd) {
+#ifndef ESPR_NO_PASSWORD
   if (pwd)
     pwd = jsvAsString(pwd);
   jsvUnLock(jsvObjectSetChild(execInfo.hiddenRoot, PASSWORD_VARIABLE_NAME, pwd));
+#endif
 }
 
 /*JSON{
   "type" : "staticmethod",
   "class" : "E",
   "name" : "lockConsole",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate" : "jswrap_espruino_lockConsole"
 }
 If a password has been set with `E.setPassword()`, this will lock the console so
 the password needs to be entered to unlock it.
 */
 void jswrap_espruino_lockConsole() {
+#ifndef ESPR_NO_PASSWORD
   JsVar *pwd = jsvObjectGetChildIfExists(execInfo.hiddenRoot, PASSWORD_VARIABLE_NAME);
   if (pwd)
     jsiStatus |= JSIS_PASSWORD_PROTECTED;
   jsvUnLock(pwd);
+#endif
 }
 
 /*JSON{
@@ -2155,7 +2323,7 @@ JsVar *jswrap_espruino_memoryMap(JsVar *baseAddress, JsVar *registers) {
   /* Do this in JS - it's safer and more readable, and doesn't
    * have to be super fast. */
   JsVar *args[2] = {baseAddress, registers};
-  return jspExecuteJSFunction("(function(base,j) {"
+  return jspExecuteJSFunctionCode("base,j",
     "var o={},addr;"
     "for (var reg in j) {"
       "addr=base+j[reg];"
@@ -2165,7 +2333,7 @@ JsVar *jswrap_espruino_memoryMap(JsVar *baseAddress, JsVar *registers) {
       "});"
     "}"
     "return o;"
-  "})",0,2,args);
+  ,0,NULL,2,args);
 }
 
 /*JSON{
@@ -2234,6 +2402,11 @@ Espruino (resetting the interpreter and pin states, but not all the hardware)
 */
 void jswrap_espruino_reboot() {
 #ifndef EMULATED
+#ifndef ESPR_NO_LET_SCOPING
+  execInfo.baseScope=execInfo.root; // force this so asserts in jspSoftKill don't fail.
+  // We were executing so baseScope could be set, but we don't care because we're rebooting
+#endif
+
   // ensure `E.on('kill',...` gets called and everything is torn down correctly
   jsiKill();
   jsvKill();
@@ -2246,6 +2419,34 @@ void jswrap_espruino_reboot() {
 #endif
 }
 
+/*JSON{
+  "type" : "staticmethod",
+  "#if" : "defined(STM32F4) || defined(ESPR_HAS_BOOTLOADER_UF2)",
+  "class" : "E",
+  "name" : "rebootToDFU",
+  "generate" : "jswrap_espruino_rebootToDFU"
+}
+Forces a hard reboot of the microcontroller into DFU mode.
+
+If this is an ST device, this will be the ST DFU mode.
+
+If this device has an UF2 bootloader, it will reappear as a USB drive, onto which you can copy new firmware.
+
+**Note:** The device will stay in DFU mode until it is power-cycled or reset.
+*/
+void jswrap_espruino_rebootToDFU() {
+#if defined(STM32F4) || defined(ESPR_HAS_BOOTLOADER_UF2)
+  // ensure `E.on('kill',...` gets called and everything is torn down correctly
+  jsiKill();
+  jsvKill();
+  jshKill();
+
+  jshRebootToDFU();
+#else // EMULATED
+  // if emulated, just call reset() to avoid a crash
+  jswrap_interface_reset(false);
+#endif
+}
 
 // ----------------------------------------- USB Specific Stuff
 
@@ -2304,6 +2505,7 @@ void jswrap_espruino_setUSBHID(JsVar *arr) {
 }
  */
 bool jswrap_espruino_sendUSBHID(JsVar *arr) {
+  if (!USB_IsConnected()) return false;
   unsigned char data[HID_DATA_IN_PACKET_SIZE];
   unsigned int l = jsvIterateCallbackToBytes(arr, data, HID_DATA_IN_PACKET_SIZE);
   if (l>HID_DATA_IN_PACKET_SIZE) return 0;
@@ -2426,13 +2628,60 @@ int jswrap_espruino_getRTCPrescaler(bool calibrate) {
 #endif
 }
 
+/*TYPESCRIPT
+type PowerUsage = {
+    total: number,
+    device: {
+        CPU?: number,
+        UART?: number,
+        PWM?: number,
+        LED1?: number,
+        LED2?: number,
+        LED3?: number,
+
+        // bangle
+        LCD?: number,
+        LCD_backlight?: number,
+        LCD_touch?: number,
+        HRM?: number,
+        GPS?: number,
+        compass?: number,
+        baro?: number,
+
+        // nrf
+        BLE_periph?: number,
+        BLE_central?: number,
+        BLE_advertise?: number,
+        BLE_scan?: number,
+
+        // pixljs
+        //LCD?: number, // (see above)
+
+        // puck
+        mag?: number,
+        accel?: number,
+
+        // jolt
+        driver0?: number,
+        driver1?: number,
+        pin0_internal_resistance?: number,
+        pin2_internal_resistance?: number,
+        pin4_internal_resistance?: number,
+        pin6_internal_resistance?: number,
+    },
+};
+*/
+
 /*JSON{
   "type" : "staticmethod",
   "class" : "E",
   "name" : "getPowerUsage",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate" : "jswrap_espruino_getPowerUsage",
-  "return" : ["JsVar","An object detailing power usage in microamps"]
+  "return" : ["JsVar","An object detailing power usage in microamps"],
+  "typescript" : "getPowerUsage(): PowerUsage;"
 }
+
 This function returns an object detailing the current **estimated** power usage
 of the Espruino device in microamps (uA). It is not intended to be a replacement
 for measuring actual power consumption, but can be useful for finding obvious power

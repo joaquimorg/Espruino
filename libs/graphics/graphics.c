@@ -14,7 +14,9 @@
 
 #include "graphics.h"
 #include "bitmap_font_4x6.h"
-
+#ifdef USE_FONT_6X8
+#include "bitmap_font_6x8.h"
+#endif
 
 #include "jsutils.h"
 #include "jsvar.h"
@@ -364,6 +366,20 @@ JsGraphicsSetPixelFn graphicsGetSetPixelUnclippedFn(JsGraphics *gfx, int x1, int
     return gfx->setPixel; // fast
 }
 
+/// Merge one color into another based RGB565(amt is 0..256)
+uint16_t graphicsBlendColorRGB565(uint16_t f, uint16_t b, int amt) {
+  unsigned int br = (b>>11)&0x1F;
+  unsigned int bg = (b>>5)&0x3F;
+  unsigned int bb = b&0x1F;
+  unsigned int fr = (f>>11)&0x1F;
+  unsigned int fg = (f>>5)&0x3F;
+  unsigned int fb = f&0x1F;
+  unsigned int ri = (br*(256-amt) + fr*amt) >> 8;
+  unsigned int gi = (bg*(256-amt) + fg*amt) >> 8;
+  unsigned int bi = (bb*(256-amt) + fb*amt) >> 8;
+  return (bi | gi<<5 | ri<<11);
+}
+
 /// Merge one color into another based on current bit depth (amt is 0..256)
 uint32_t graphicsBlendColor(JsGraphics *gfx, unsigned int fg, unsigned int bg, int iamt) {
   unsigned int amt = (iamt>0) ? (unsigned)iamt : 0;
@@ -372,18 +388,7 @@ uint32_t graphicsBlendColor(JsGraphics *gfx, unsigned int fg, unsigned int bg, i
     // TODO: if our graphics instance is paletted this isn't correct!
     return (bg*(256-amt) + fg*amt + 127) >> 8;
   } else if (gfx->data.bpp==16) { // Blend from bg to fg
-    unsigned int b = bg;
-    unsigned int br = (b>>11)&0x1F;
-    unsigned int bg = (b>>5)&0x3F;
-    unsigned int bb = b&0x1F;
-    unsigned int f = fg;
-    unsigned int fr = (f>>11)&0x1F;
-    unsigned int fg = (f>>5)&0x3F;
-    unsigned int fb = f&0x1F;
-    unsigned int ri = (br*(256-amt) + fr*amt) >> 8;
-    unsigned int gi = (bg*(256-amt) + fg*amt) >> 8;
-    unsigned int bi = (bb*(256-amt) + fb*amt) >> 8;
-    return (bi | gi<<5 | ri<<11);
+    return graphicsBlendColorRGB565(fg,bg,iamt);
 #ifdef ESPR_GRAPHICS_12BIT
   } else if (gfx->data.bpp==12) { // Blend from bg to fg
     unsigned int b = bg;
@@ -738,14 +743,14 @@ void graphicsDrawLine(JsGraphics *gfx, int x1, int y1, int x2, int y2) {
 
   int xl = x2-x1;
   int yl = y2-y1;
-  if (xl<0) xl=-xl; else if (xl==0) xl=1;
-  if (yl<0) yl=-yl; else if (yl==0) yl=1;
+  if (xl<0) xl=-xl;
+  if (yl<0) yl=-yl;
   if (xl > yl) { // longer in X - scan in X
     if (x1>x2) {
       int t;
       t = x1; x1 = x2; x2 = t;
       t = y1; y1 = y2; y2 = t;
-    }
+    } else if (xl==0) xl=1;
     int pos = (y1<<8) + 128; // rounding!
     int step = ((y2-y1)<<8) / xl;
     int x;
@@ -758,7 +763,7 @@ void graphicsDrawLine(JsGraphics *gfx, int x1, int y1, int x2, int y2) {
       int t;
       t = x1; x1 = x2; x2 = t;
       t = y1; y1 = y2; y2 = t;
-    }
+    } else if (yl==0) yl=1;
     int pos = (x1<<8) + 128; // rounding!
     int step = ((x2-x1)<<8) / yl;
     int y;
@@ -770,6 +775,17 @@ void graphicsDrawLine(JsGraphics *gfx, int x1, int y1, int x2, int y2) {
 }
 
 #ifdef GRAPHICS_ANTIALIAS
+
+static void graphicsDrawLineAAPixel(JsGraphics *gfx, int x, int y, bool steep, int c1, int c2) {
+  if (steep) {
+    graphicsSetPixelDeviceBlended(gfx, y  , x, c1);
+    graphicsSetPixelDeviceBlended(gfx, y+1, x,  c2);
+  } else {
+    graphicsSetPixelDeviceBlended(gfx, x, y,  c1);
+    graphicsSetPixelDeviceBlended(gfx, x, y+1, c2);
+  }
+}
+
 // In 16x accuracy
 void graphicsDrawLineAA(JsGraphics *gfx, int ix1, int iy1, int ix2, int iy2) {
   // https://en.wikipedia.org/wiki/Xiaolin_Wu%27s_line_algorithm
@@ -800,13 +816,7 @@ void graphicsDrawLineAA(JsGraphics *gfx, int ix1, int iy1, int ix2, int iy2) {
   int xpxl1 = xend >> 8; // this will be used in the main loop
   int ypxl1 = yend >> 8;
   int c = yend & 255;
-  if (steep) {
-    graphicsSetPixelDeviceBlended(gfx, ypxl1,   xpxl1, ((256-c)*xgap)>>8);
-    graphicsSetPixelDeviceBlended(gfx, ypxl1+1, xpxl1, (c*xgap)>>8);
-  } else {
-    graphicsSetPixelDeviceBlended(gfx, xpxl1, ypxl1, ((256-c)*xgap)>>8);
-    graphicsSetPixelDeviceBlended(gfx, xpxl1, ypxl1+1, (c*xgap)>>8);
-  }
+  graphicsDrawLineAAPixel(gfx, xpxl1, ypxl1, steep, ((256-c)*xgap)>>8, (c*xgap)>>8);
 
   int intery = yend + gradient; // first y-intersection for the main loop
   // handle second endpoint
@@ -816,24 +826,12 @@ void graphicsDrawLineAA(JsGraphics *gfx, int ix1, int iy1, int ix2, int iy2) {
   int xpxl2 = xend>>8; //this will be used in the main loop
   int ypxl2 = yend>>8;
   c = yend & 255;
-  if (steep) {
-    graphicsSetPixelDeviceBlended(gfx, ypxl2  , xpxl2, ((256-c)*xgap)>>8);
-    graphicsSetPixelDeviceBlended(gfx, ypxl2+1, xpxl2, (c*xgap)>>8);
-  } else {
-    graphicsSetPixelDeviceBlended(gfx, xpxl2, ypxl2,  ((256-c)*xgap)>>8);
-    graphicsSetPixelDeviceBlended(gfx, xpxl2, ypxl2+1, (c*xgap)>>8);
-  }
+  graphicsDrawLineAAPixel(gfx, xpxl2, ypxl2, steep, ((256-c)*xgap)>>8, (c*xgap)>>8);
   // main loop
   for (int x=xpxl1+1;x<xpxl2;x++) {
     int y = intery>>8;
     c = intery & 255;
-    if (steep) {
-      graphicsSetPixelDeviceBlended(gfx, y  , x, 256-c);
-      graphicsSetPixelDeviceBlended(gfx, y+1, x,  c);
-    } else {
-      graphicsSetPixelDeviceBlended(gfx, x, y,  256-c);
-      graphicsSetPixelDeviceBlended(gfx, x, y+1, c);
-    }
+    graphicsDrawLineAAPixel(gfx, x, y, steep, 256-c, c);
     intery += gradient;
   }
 }
@@ -960,19 +958,6 @@ void graphicsFillPoly(JsGraphics *gfx, int points, short *vertices) {
   }
 }
 
-/// Draw a simple 1bpp image in foreground colour
-void graphicsDrawImage1bpp(JsGraphics *gfx, int x1, int y1, int width, int height, const unsigned char *pixelData) {
-  int pixel = 256|*(pixelData++);
-  int x,y;
-  for (y=y1;y<y1+height;y++) {
-    for (x=x1;x<x1+width;x++) {
-      if (pixel&128) graphicsSetPixelDevice(gfx, x, y, gfx->data.fgColor);
-      pixel = pixel<<1;
-      if (pixel&65536) pixel = 256|*(pixelData++);
-    }
-  }
-}
-
 /// Scroll the graphics device (in user coords). X>0 = to right, Y >0 = down
 void graphicsScroll(JsGraphics *gfx, int xdir, int ydir) {
   // Ensure we flip coordinate system if needed
@@ -1015,17 +1000,22 @@ void graphicsScroll(JsGraphics *gfx, int xdir, int ydir) {
 static void graphicsDrawString(JsGraphics *gfx, int x1, int y1, const char *str) {
   // no need to modify coordinates as setPixel does that
   while (*str) {
+#ifdef USE_FONT_6X8
+    graphicsDrawChar6x8(gfx,x1,y1,*(str++),1,1,false);
+    x1 = (int)(x1 + 6);
+#else
     graphicsDrawChar4x6(gfx,x1,y1,*(str++),1,1,false);
     x1 = (int)(x1 + 4);
+#endif
   }
 }
 
 // Splash screen
 void graphicsSplash(JsGraphics *gfx) {
   graphicsClear(gfx);
-  graphicsDrawString(gfx,0,0,"Espruino "JS_VERSION);
-  graphicsDrawString(gfx,0,6,"  Embedded JavaScript");
-  graphicsDrawString(gfx,0,12,"  www.espruino.com");
+  graphicsDrawString(gfx,60,20,"Espruino "JS_VERSION);
+  graphicsDrawString(gfx,60,30,"@2024 Gordon Williams");
+  graphicsDrawString(gfx,60,40,"www.espruino.com");
 }
 
 void graphicsIdle() {

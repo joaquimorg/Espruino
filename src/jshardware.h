@@ -104,67 +104,6 @@ void jshDelayMicroseconds(int microsec);  ///< delay a few microseconds. Should 
 void jshPinSetValue(Pin pin, bool value); ///< Set a digital output to 1 or 0. DOES NOT change pin state OR CHECK PIN VALIDITY
 bool jshPinGetValue(Pin pin); ///< Get the value of a digital input. DOES NOT change pin state OR CHECK PIN VALIDITY
 
-/// Control of the pin mux, i.e. assign functions to pins
-typedef enum {
-  JSHPINSTATE_UNDEFINED,            ///< Used when getting the pin state, if we have no idea what it is.
-  JSHPINSTATE_GPIO_OUT,             ///< GPIO pin as totem pole output
-  JSHPINSTATE_GPIO_OUT_OPENDRAIN,   ///< GPIO pin as open-collector/open-drain output WITHOUT PULLUP
-  JSHPINSTATE_GPIO_OUT_OPENDRAIN_PULLUP, ///< GPIO pin as open-collector/open-drain output WITH PULLUP
-  JSHPINSTATE_GPIO_IN,              ///< GPIO pin as input (also tri-stated output)
-  JSHPINSTATE_GPIO_IN_PULLUP,       ///< GPIO pin input with internal pull-up
-  JSHPINSTATE_GPIO_IN_PULLDOWN,     ///< GPIO pin input with internal pull-down
-  JSHPINSTATE_ADC_IN,               ///< Analog input
-  JSHPINSTATE_AF_OUT,               ///< Alternate function (pin is connected to a peripheral, not a simple GPIO register). May not make sense on some MCUs.
-  JSHPINSTATE_AF_OUT_OPENDRAIN,     ///< Alternate function open drain, with pullup (pin is connected to a peripheral, not a simple GPIO register). May not make sense on some MCUs.
-  JSHPINSTATE_USART_IN,             ///< Uart RX input (FIXME - JSHPINSTATE_AF_IN_PULLUP - but doesn't exist)
-  JSHPINSTATE_USART_OUT,            ///< Uart TX output (FIXME - probably JSHPINSTATE_AF_OUT)
-  JSHPINSTATE_DAC_OUT,              ///< Analog output (if available)
-  JSHPINSTATE_I2C,                  ///< I2C output (FIXME - probably JSHPINSTATE_AF_OUT_OPENDRAIN)
-  JSHPINSTATE_MASK = NEXT_POWER_2(JSHPINSTATE_I2C)-1,  ///< bitmask to cover the enum
-
-  /** Used by jshPinGetState to append information about whether the pin's output
-   * is set to 1 or not. */
-  JSHPINSTATE_PIN_IS_ON = JSHPINSTATE_MASK+1,
-} PACKED_FLAGS JshPinState;
-
-/// Should a pin of this state be an output (inc open drain)
-#define JSHPINSTATE_IS_OUTPUT(state) ( \
-             (state)==JSHPINSTATE_GPIO_OUT ||               \
-             (state)==JSHPINSTATE_GPIO_OUT_OPENDRAIN ||     \
-             (state)==JSHPINSTATE_GPIO_OUT_OPENDRAIN_PULLUP || \
-             (state)==JSHPINSTATE_AF_OUT ||                 \
-             (state)==JSHPINSTATE_AF_OUT_OPENDRAIN ||       \
-             (state)==JSHPINSTATE_USART_OUT ||              \
-             (state)==JSHPINSTATE_DAC_OUT ||                \
-             (state)==JSHPINSTATE_I2C ||                    \
-0)
-/// Should a pin of this state be Open Drain?
-#define JSHPINSTATE_IS_OPENDRAIN(state) ( \
-             (state)==JSHPINSTATE_GPIO_OUT_OPENDRAIN ||     \
-             (state)==JSHPINSTATE_GPIO_OUT_OPENDRAIN_PULLUP || \
-             (state)==JSHPINSTATE_AF_OUT_OPENDRAIN ||       \
-             (state)==JSHPINSTATE_I2C              ||       \
-0)
-/// Should a pin of this state be connected to an internal peripheral?
-#define JSHPINSTATE_IS_AF(state) ( \
-            (state)==JSHPINSTATE_AF_OUT ||                  \
-            (state)==JSHPINSTATE_AF_OUT_OPENDRAIN ||        \
-            (state)==JSHPINSTATE_USART_IN ||                \
-            (state)==JSHPINSTATE_USART_OUT ||               \
-            (state)==JSHPINSTATE_I2C ||                     \
-0)
-/// Should a pin of this state have an internal pullup?
-#define JSHPINSTATE_IS_PULLUP(state) ( \
-            (state)==JSHPINSTATE_GPIO_OUT_OPENDRAIN_PULLUP || \
-            (state)==JSHPINSTATE_GPIO_IN_PULLUP ||          \
-            (state)==JSHPINSTATE_USART_IN ||                \
-            (state)==JSHPINSTATE_I2C ||                     \
-0)
-/// Should a pin of this state have an internal pulldown?
-#define JSHPINSTATE_IS_PULLDOWN(state) ( \
-            (state)==JSHPINSTATE_GPIO_IN_PULLDOWN ||        \
-0)
-
 
 /// Set the pin state (Output, Input, etc)
 void jshPinSetState(Pin pin, JshPinState state);
@@ -232,7 +171,7 @@ void jshKickSoftWatchDog();
 bool jshGetWatchedPinState(IOEventFlags device);
 
 /// Given an event, check the EXTI flags and see if it was for the given pin
-bool jshIsEventForPin(IOEvent *event, Pin pin);
+bool jshIsEventForPin(IOEventFlags eventFlags, Pin pin);
 
 /** Is the given device initialised?
  * eg. has jshUSARTSetup/jshI2CSetup/jshSPISetup been called previously? */
@@ -350,6 +289,9 @@ void jshI2CInitInfo(JshI2CInfo *inf); // jshardware_common.c
 /** Set up I2C, if pins are -1 they will be guessed */
 void jshI2CSetup(IOEventFlags device, JshI2CInfo *inf);
 
+/** Tear down a I2C device - there's a weak version of this so it doesn't have to be implemented */
+void jshI2CUnSetup(IOEventFlags device);
+
 /** Write a number of btes to the I2C device. Addresses are 7 bit - that is, between 0 and 0x7F.
  *  sendStop is whether to send a stop bit or not */
 void jshI2CWrite(IOEventFlags device, unsigned char address, int nBytes, const unsigned char *data, bool sendStop);
@@ -396,7 +338,9 @@ size_t jshFlashGetMemMapAddress(size_t ptr);
 
 /// Start the timer and get it to interrupt once after 'period' (i.e. it should not auto-reload)
 void jshUtilTimerStart(JsSysTime period);
-/// Reschedule the timer (it should already be running) to interrupt after 'period'
+/** Reschedule the timer (it should already be running) to interrupt after 'period'.
+With the timer running this should ideally set the time period from the last time the
+timer triggered (so as to factor out any execution delay in jstUtilTimerInterruptHandler).  */
 void jshUtilTimerReschedule(JsSysTime period);
 /// Stop the timer
 void jshUtilTimerDisable();
@@ -429,11 +373,14 @@ void jshResetRTCTimer();
 void jshClearUSBIdleTimeout();
 #endif
 
-#if defined(NRF51_SERIES) || defined(NRF52_SERIES)
 /// Called when we have had an event that means we should execute JS
 extern void jshHadEvent();
-#else
-#define jshHadEvent() /* We should ensure we exit idle mode */
+/// set if we've had an event we need to deal with
+extern volatile bool jshHadEventDuringSleep;
+
+#if defined(NRF51_SERIES) || defined(NRF52_SERIES)
+/// Enable/disable(if level==NAN) the LPCOMP comparator
+bool jshSetComparator(Pin pin, JsVarFloat level);
 #endif
 
 /// the temperature from the internal temperature sensor, in degrees C
@@ -441,6 +388,8 @@ JsVarFloat jshReadTemperature();
 
 /// The voltage that a reading of 1 from `analogRead` actually represents, in volts
 JsVarFloat jshReadVRef();
+/// On nRF52833/40 this is the VDDH value (before the internal voltage regulator)
+JsVarFloat jshReadVDDH();
 
 /** Get a random number - either using special purpose hardware or by
  * reading noise from an analog input. If unimplemented, this should
@@ -452,12 +401,22 @@ unsigned int jshGetRandomNumber();
  * to match what gets implemented here. The return value is the clock
  * speed in Hz though. */
 unsigned int jshSetSystemClock(JsVar *options);
+/** Get processor clock info. What's returned is platform
+ * specific - you should update the docs for jswrap_espruino_getClock
+ * to match what gets implemented here */
+JsVar *jshGetSystemClock();
 
 /* Adds the estimated power usage of the microcontroller in uA to the 'devices' object. The CPU should be called 'CPU' */
 void jsvGetProcessorPowerUsage(JsVar *devices);
 
 /// Perform a proper hard-reboot of the device
 void jshReboot();
+
+#if defined(STM32F4) || defined(ESPR_HAS_BOOTLOADER_UF2)
+/// Reboot into DFU mode
+/// If the device has an UF2 bootloader, the device will reappear as a USB drive.
+void jshRebootToDFU();
+#endif
 
 #if JSH_PORTV_COUNT>0
 /// handler for virtual ports (eg. pins on an IO Expander). This should be defined for each type of board used
@@ -479,7 +438,7 @@ JshPinState jshVirtualPinGetState(Pin pin);
 #if defined(STM32F401xx) || defined(STM32F411xx)
 #define WAIT_UNTIL_N_CYCLES 2000000
 #elif defined(STM32F4)
-#define WAIT_UNTIL_N_CYCLES 5000000
+#define WAIT_UNTIL_N_CYCLES 2000000 // Was 5000000
 #else
 #define WAIT_UNTIL_N_CYCLES 2000000
 #endif

@@ -52,26 +52,28 @@ void jspSetInterrupted(bool interrupt);
 /// Has there been an error during parsing
 bool jspHasError();
 /// Set the error flag - set lineReported if we've already output the line number
-void jspSetError(bool lineReported);
+void jspSetError();
 /// We had an exception (argument is the exception's value)
 void jspSetException(JsVar *value);
 /** Return the reported exception if there was one (and clear it). May return undefined even if there was an exception - eg `throw undefined` */
 JsVar *jspGetException();
 /** Return a stack trace string if there was one (and clear it) */
 JsVar *jspGetStackTrace();
+/** Append a line marker for the current lex instanec to the given string */
+void jspAppendStackTrace(JsVar *stackTrace, JsLex *lex);
 
 /** Evaluate the given variable as an expression (in current scope) */
 JsVar *jspEvaluateExpressionVar(JsVar *str);
-/** Execute code form a variable and return the result. If lineNumberOffset
- * is nonzero it's added to the line numbers that get reported for errors/debug */
-JsVar *jspEvaluateVar(JsVar *str, JsVar *scope, uint16_t lineNumberOffset);
+/** Execute code form a variable and return the result */
+JsVar *jspEvaluateVar(JsVar *str, JsVar *scope, const char *stackTraceName);
 /** Execute code form a string and return the result.
  * You should only set stringIsStatic if the string will hang around for
  * the life of the interpreter, as then the interpreter will use a pointer
  * to this data, which could hang around inside the code. */
 JsVar *jspEvaluate(const char *str, bool stringIsStatic);
-/// Execute a JS function with the given arguments. usage: jspExecuteJSFunction("(function() { print('hi'); })",0,0,0)
-JsVar *jspExecuteJSFunction(const char *jsCode, JsVar *thisArg, int argCount, JsVar **argPtr);
+/**  Execute JS function code with the given arguments. usage: jspExecuteJSFunctionCode("a,b","print('hi',a,b);",0, NULL, 2,&arrayOfJsVar)
+jsCodeLen is supplied so we can reference code that contains 0  */
+JsVar *jspExecuteJSFunctionCode(const char *argNames, const char *jsCode, size_t jsCodeLen, JsVar *thisArg, int argCount, JsVar **argPtr);
 /// Execute a function with the given arguments
 JsVar *jspExecuteFunction(JsVar *func, JsVar *thisArg, int argCount, JsVar **argPtr);
 
@@ -96,7 +98,7 @@ typedef enum  {
   EXEC_INTERRUPTED = 16, ///< true if execution has been interrupted
   EXEC_EXCEPTION = 32, ///< we had an exception, so don't execute until we hit a try/catch block
   EXEC_ERROR = 64,
-  EXEC_ERROR_LINE_REPORTED = 128, ///< if an error has been reported, set this so we don't do it too much (EXEC_ERROR will STILL be set)
+  // 128 is free now
 
   EXEC_FOR_INIT = 256, ///< when in for initialiser parsing - hack to avoid getting confused about multiple use for IN
   EXEC_IN_LOOP = 512, ///< when in a loop, set this - we can then block break/continue outside it
@@ -118,6 +120,8 @@ typedef enum  {
   /** Break when a function finishes execution */
   EXEC_DEBUGGER_FINISH_FUNCTION = 32768,
   EXEC_DEBUGGER_MASK = EXEC_DEBUGGER_NEXT_LINE | EXEC_DEBUGGER_STEP_INTO | EXEC_DEBUGGER_FINISH_FUNCTION,
+#else
+  EXEC_DEBUGGER_MASK = 0,
 #endif
 
   EXEC_RUN_MASK = EXEC_YES|EXEC_BREAK|EXEC_CONTINUE|EXEC_RETURN|EXEC_INTERRUPTED|EXEC_EXCEPTION,

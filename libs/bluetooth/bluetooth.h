@@ -24,8 +24,12 @@
 #if NRF_SD_BLE_API_VERSION>5
 #include "nrf_sdh_ble.h"
 #define BLE_GAP_ADV_MAX_SIZE BLE_GAP_ADV_SET_DATA_SIZE_MAX
-#else
+#ifndef ESPR_MAX_ADVERTISEMENT_DATA // on new softdevice extended advertising allows us to advertise more data
+#define ESPR_MAX_ADVERTISEMENT_DATA  (63) // must be >=BLE_GAP_ADV_SET_DATA_SIZE_MAX (31)
+#endif // ESPR_MAX_ADVERTISEMENT_DATA
+#else // NRF_SD_BLE_API_VERSION<=5
 #include "ble.h"
+#define ESPR_MAX_ADVERTISEMENT_DATA  BLE_GAP_ADV_MAX_SIZE // on older SDKs we don't get extended advertising
 #endif
 #include "ble_advdata.h"
 
@@ -51,6 +55,7 @@ typedef struct {
 #define BLE_GAP_ADDR_TYPE_RANDOM_PRIVATE_RESOLVABLE (2)
 #define BLE_GAP_ADDR_TYPE_RANDOM_PRIVATE_NON_RESOLVABLE (3)
 #define BLE_GAP_ADV_MAX_SIZE (31)
+#define ESPR_MAX_ADVERTISEMENT_DATA  BLE_GAP_ADV_MAX_SIZE
 #define BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_MORE_AVAILABLE   0x02
 #define BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_COMPLETE         0x03
 #define BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_MORE_AVAILABLE  0x06
@@ -102,6 +107,8 @@ typedef struct {
 #ifndef BLUETOOTH_ADVERTISING_INTERVAL
 #define BLUETOOTH_ADVERTISING_INTERVAL 375
 #endif
+
+#define ADVERTISE_MAX_UUIDS             4 ///< maximum custom UUIDs to advertise
 
 typedef enum  {
   BLE_NONE = 0,
@@ -159,6 +166,13 @@ typedef enum {
   BLEP_RESTART_SOFTDEVICE,          //< Perform a softdevice restart (again, we don't want to do this in an IRQ!)
   BLEP_RSSI_PERIPH,                 //< RSSI data from peripheral connection (rssi as data)
   BLEP_ADV_REPORT,                  //< Advertising received (as buffer)
+#if (NRF_SD_BLE_API_VERSION >= 5)
+  BLEP_PHY_UPDATE_REQUEST,          //< PHY update request (connection handle as data, [tx_phy,rx_phy] as buffer)
+  BLEP_PHY_UPDATE,                  //< PHY update finished (connection handle as data, [tx_phy,rx_phy,status] as buffer)
+#endif
+#ifndef SAVE_ON_FLASH
+  BLEP_MTU_UPDATE,                  //< MTU update finished (connection handle as data, [mtu_16bit] as buffer)
+#endif
 #if CENTRAL_LINK_COUNT>0
   BLEP_RSSI_CENTRAL,                //< RSSI data from central connection (rssi as data low byte, index in m_central_conn_handles as high byte )
   BLEP_TASK_FAIL,                   //< Task failed because unknown
@@ -207,6 +221,10 @@ typedef enum {
 #endif
 } BLEPending;
 
+/// amount to shift the connection index for the 16 bit 'data' field in jsble_queue_pending_buf(BLEP_CENTRAL_NOTIFICATION, ...
+#define BLEP_CENTRAL_NOTIFICATION_CONN_SHIFT (15)
+/// we need to mask off the handle (as we're using the top bits for the connection)
+#define BLEP_CENTRAL_NOTIFICATION_HANDLE_MASK (0x7FFF)
 
 extern volatile BLEStatus bleStatus;
 /// Filter to use when discovering BLE Services/Characteristics
@@ -239,8 +257,8 @@ bool jsble_kill();
 /// Checks for error and reports an exception string if there was one, else 0 if no error
 JsVar *jsble_get_error_string(uint32_t err_code);
 
-/** Execute a task that was added by jsble_queue_pending - this is done outside of IRQ land. Returns number of events handled */
-int jsble_exec_pending(IOEvent *event);
+/** Execute a task that was added by jsble_queue_pending - this is done outside of IRQ land. Returns number of event bytes handled */
+int jsble_exec_pending(uint8_t *data, int dataLen);
 
 /** Stop and restart the softdevice so that we can update the services in it -
  * both user-defined as well as UART/HID. If jsFunction is a function it is
@@ -398,6 +416,10 @@ void jsble_central_setWhitelist(bool whitelist);
 void jsble_central_eraseBonds();
 /// Try to resolve a bonded peer's address from a random private resolvable address
 JsVar *jsble_resolveAddress(JsVar *address);
+#ifdef ESPR_BLE_PRIVATE_ADDRESS_SUPPORT
+JsVar *jsble_getPrivacy();
+void jsble_setPrivacy(JsVar *options);
+#endif // ESPR_BLE_PRIVATE_ADDRESS_SUPPORT
 #endif
 
 #endif // BLUETOOTH_H

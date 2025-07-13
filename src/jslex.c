@@ -41,6 +41,10 @@ void jslCharPosClone(JslCharPos *dstpos, JslCharPos *pos) {
   dstpos->currCh = pos->currCh;
 }
 
+void jslCharPosClear(JslCharPos *pos) {
+  pos->it.var = 0;
+}
+
 void jslCharPosFromLex(JslCharPos *dstpos) {
   jsvStringIteratorClone(&dstpos->it, &lex->it);
   dstpos->currCh = lex->currCh;
@@ -334,6 +338,7 @@ static void jslLexString() {
   jslGetNextCh();
   char lastCh = delim;
   int nesting = 0;
+  bool tempatedStringHasTemplate = false; // sometimes we get templated strings without a template - we can treat these as normal strings
 #ifdef ESPR_UNICODE_SUPPORT
   bool hadCharsInUTF8Range = false;
   int high_surrogate = 0;
@@ -342,8 +347,10 @@ static void jslLexString() {
   while (lex->currCh && (lex->currCh!=delim || nesting)) {
     // in template literals, cope with a literal inside another: `${`Hello`}`
     if (delim=='`') {
-      if ((lastCh=='$' || nesting) && lex->currCh=='{') nesting++;
-      if (nesting && lex->currCh=='}') nesting--;
+      if ((lastCh=='$' || nesting) && lex->currCh=='{') {
+        nesting++;
+        tempatedStringHasTemplate = true;
+      } else if (nesting && lex->currCh=='}') nesting--;
     }
     if (lex->currCh == '\\') {
       jslGetNextCh();
@@ -493,12 +500,12 @@ static void jslLexString() {
 #endif  // ESPR_UNICODE_SUPPORT
   }
   jsvStringIteratorFree(&it);
-  if (delim=='`')
+  if (delim=='`' && tempatedStringHasTemplate)
     lex->tk = LEX_TEMPLATE_LITERAL;
   else lex->tk = LEX_STR;
   // unfinished strings
   if (lex->currCh!=delim)
-    lex->tk++; // +1 gets you to 'unfinished X'
+    lex->tk = (delim=='`') ? LEX_UNFINISHED_TEMPLATE_LITERAL : LEX_UNFINISHED_STR;
   jslGetNextCh();
 }
 
@@ -640,7 +647,24 @@ void jslGetNextToken() {
     case JSLJT_SINGLE_CHAR:
       jslSingleChar();
       if (lex->tk == LEX_R_THIS) lex->hadThisKeyword=true;
-      else if (lex->tk == LEX_RAW_STRING8 || lex->tk == LEX_RAW_STRING16) jslGetRawString();
+      else if (lex->tk>=LEX_RAW_STRING8) {
+        if (lex->tk == LEX_RAW_STRING8 || lex->tk == LEX_RAW_STRING16) jslGetRawString();
+        else if (lex->tk == LEX_RAW_INT0) {
+          lex->tk = LEX_INT;
+          lex->tokenValue = jsvNewFromInteger(0);
+        } else if (lex->tk == LEX_RAW_INT8) {
+          lex->tk = LEX_INT;
+          lex->tokenValue = jsvNewFromInteger((int8_t)lex->currCh);
+          jslGetNextCh();
+        } else if (lex->tk == LEX_RAW_INT16) {
+          lex->tk = LEX_INT;
+          int16_t value = (unsigned char)lex->currCh;
+          jslGetNextCh();
+          value |= ((char)lex->currCh)<<8;
+          jslGetNextCh();
+          lex->tokenValue = jsvNewFromInteger(value);
+        }
+      }
       break;
     case JSLJT_ID: {
       while (isAlphaInline(lex->currCh) || isNumericInline(lex->currCh) || lex->currCh=='$') {
@@ -921,9 +945,8 @@ void jslInit(JsVar *var) {
   lex->tokenLastStart = 0;
   lex->tokenl = 0;
   lex->tokenValue = 0;
-#ifndef ESPR_NO_LINE_NUMBERS
-  lex->lineNumberOffset = 0;
-#endif
+  lex->functionName = NULL;
+  lex->lastLex = NULL;
   // set up iterator
   jsvStringIteratorNew(&lex->it, lex->sourceVar, 0);
   jsvUnLock(lex->it.var); // see jslGetNextCh
@@ -1109,6 +1132,8 @@ void jslGetTokenString(char *str, size_t len) {
 }
 
 char *jslGetTokenValueAsString() {
+  if (lex->tokenl==0 && lex->tokenValue) // in case we didn't store the string
+    lex->tokenl = (unsigned char)jsvGetString(lex->tokenValue, lex->token, JSLEX_MAX_TOKEN_LENGTH);
   assert(lex->tokenl < JSLEX_MAX_TOKEN_LENGTH);
   lex->token[lex->tokenl]  = 0; // add final null
   if (lex->tokenl==0 && LEX_IS_RESERVED_WORD(lex->tk)) {
@@ -1130,6 +1155,8 @@ size_t jslGetTokenLength() {
 JsVar *jslGetTokenValueAsVar() {
   if (lex->tokenValue) {
     return jsvLockAgain(lex->tokenValue);
+  } else if (lex->tk == LEX_INT) {
+    return jsvNewFromLongInteger(stringToInt(jslGetTokenValueAsString()));
   } else if (LEX_IS_RESERVED_WORD(lex->tk)) {
     // in pretokenised code, we must make this up
     return jsvNewFromString(jslReservedWordAsString(lex->tk));
@@ -1185,6 +1212,16 @@ static bool jslPreserveSpaceBetweenTokens(int lastTk, int newTk) {
   return false;
 }
 
+static void _jslNewTokenisedStringFromLexerCopyString(size_t *length, JsvStringIterator *dstit, JsvStringIterator *it, char itch) {
+  *length += jsvStringIteratorGetIndex(&lex->it)-(lex->tokenStart+1);
+  if (dstit) {
+    jsvStringIteratorSetCharAndNext(dstit, itch);
+    while (jsvStringIteratorGetIndex(it)+1 < jsvStringIteratorGetIndex(&lex->it)) {
+      jsvStringIteratorSetCharAndNext(dstit, jsvStringIteratorGetCharAndNext(it));
+    }
+  }
+}
+
 /// Tokenise a String - if dstit==0, just return the length (so we can preallocate a flat string)
 static size_t _jslNewTokenisedStringFromLexer(JsvStringIterator *dstit, JsVar *dstVar, JslCharPos *charFrom, size_t charTo) {
   jslSeekToP(charFrom);
@@ -1236,6 +1273,27 @@ static size_t _jslNewTokenisedStringFromLexer(JsvStringIterator *dstit, JsVar *d
       }
       jsvUnLock(v);
       length += ((l<256)?2:3) + l;
+    } else if (lex->tk==LEX_INT) { // --------------------------------  token = maybe we can store as LEX_RAW_INTX
+      //OPT: if last token was '-' and the one before that was (,=:,etc) we could automatically negate this number?
+      long long v = jsvGetLongIntegerAndUnLock(jslGetTokenValueAsVar());
+      if (v==0) {
+        length++;
+        if (dstit) jsvStringIteratorSetCharAndNext(dstit, (char)LEX_RAW_INT0);
+      } else if (v>=-128 && v<128) {
+        length += 2;
+        if (dstit) {
+          jsvStringIteratorSetCharAndNext(dstit, (char)LEX_RAW_INT8);
+          jsvStringIteratorSetCharAndNext(dstit, (char)v);
+        }
+      } else if (v>=-32768 && v<32768) {
+        length += 3;
+        if (dstit) {
+          jsvStringIteratorSetCharAndNext(dstit, (char)LEX_RAW_INT16);
+          jsvStringIteratorSetCharAndNext(dstit, (char)(v&255));
+          jsvStringIteratorSetCharAndNext(dstit, (char)(v>>8));
+        }
+      } else
+        _jslNewTokenisedStringFromLexerCopyString(&length, dstit, &it, itch); // if too long, just copy verbatim
     } else if (lex->tk==LEX_ID || // ---------------------------------  token = string of chars
         lex->tk==LEX_INT ||
         lex->tk==LEX_FLOAT ||
@@ -1248,13 +1306,7 @@ static size_t _jslNewTokenisedStringFromLexer(JsvStringIterator *dstit, JsVar *d
       else
         atobChecker = 0;
       // copy in string verbatim
-      length += jsvStringIteratorGetIndex(&lex->it)-(lex->tokenStart+1);
-      if (dstit) {
-        jsvStringIteratorSetCharAndNext(dstit, itch);
-        while (jsvStringIteratorGetIndex(&it)+1 < jsvStringIteratorGetIndex(&lex->it)) {
-          jsvStringIteratorSetCharAndNext(dstit, jsvStringIteratorGetCharAndNext(&it));
-        }
-      }
+      _jslNewTokenisedStringFromLexerCopyString(&length, dstit, &it, itch);
     } else { // ---------------------------------  token = single char
       // check for `atob("...")` pattern
       if (atobChecker==1 && lex->tk=='(')
@@ -1370,17 +1422,9 @@ JsVar *jslNewStringFromLexer(JslCharPos *charFrom, size_t charTo) {
   return var;
 }
 
-/// Return the line number at the current character position (this isn't fast as it searches the string)
-unsigned int jslGetLineNumber() {
-  size_t line;
-  size_t col;
-  jsvGetLineAndCol(lex->sourceVar, lex->tokenStart, &line, &col);
-  return (unsigned int)line;
-}
-
 /// Do we need a space between these two characters when printing a function's text?
 bool jslNeedSpaceBetween(unsigned char lastch, unsigned char ch) {
-  return (lastch>=_LEX_R_LIST_START || ch>=_LEX_R_LIST_START) &&
+  return ((lastch>=_LEX_R_LIST_START && lastch<=_LEX_R_LIST_END) || (ch>=_LEX_R_LIST_START && ch<=_LEX_R_LIST_END)) &&
          (lastch>=_LEX_R_LIST_START || isAlpha((char)lastch) || isNumeric((char)lastch)) &&
          (ch>=_LEX_R_LIST_START || isAlpha((char)ch) || isNumeric((char)ch));
 }
@@ -1390,6 +1434,7 @@ outputs it via user_callback(user_data), but it converts pretokenised characters
 as it does so. */
 static void jslPrintTokenisedChar(JsvStringIterator *it, unsigned char *lastch, size_t *col, size_t *chars, vcbprintf_callback user_callback, void *user_data) {
   unsigned char ch = (unsigned char)jsvStringIteratorGetCharAndNext(it);
+  char buf[JSLEX_MAX_TOKEN_LENGTH];
   // Decoding raw strings
   if (ch==LEX_RAW_STRING8 || ch==LEX_RAW_STRING16) {
     size_t length = (unsigned char)jsvStringIteratorGetCharAndNext(it);
@@ -1407,12 +1452,25 @@ static void jslPrintTokenisedChar(JsvStringIterator *it, unsigned char *lastch, 
     }
     user_callback("\"", user_data);
     return;
+  } else if (ch==LEX_RAW_INT0) {
+    (*chars)++; // just one char for zero
+    user_callback("0", user_data);
+    return;
+  } else if (ch==LEX_RAW_INT8 || ch==LEX_RAW_INT16) {
+    int16_t value = (unsigned char)jsvStringIteratorGetCharAndNext(it);
+    if (ch==LEX_RAW_INT16) {
+      value |= ((char)jsvStringIteratorGetCharAndNext(it))<<8;
+    }
+    itostr(value, buf, 10);
+    (*chars)+=strlen(buf); // token plus data
+    user_callback(buf, user_data);
+    return;
   }
   if (jslNeedSpaceBetween(*lastch, ch)) {
     (*col)++;
     user_callback(" ", user_data);
   }
-  char buf[32];
+
   jslFunctionCharAsString(ch, buf, sizeof(buf));
   size_t len = strlen(buf);
   if (len) (*col) += len-1;
@@ -1424,6 +1482,7 @@ static void jslPrintTokenisedChar(JsvStringIterator *it, unsigned char *lastch, 
 /// Output a tokenised string, replacing tokens with their text equivalents
 void jslPrintTokenisedString(JsVar *code, vcbprintf_callback user_callback, void *user_data) {
   // reconstruct the tokenised output into something more readable
+  // FIXME: We should really be lexing and printing rather than outputting one char at a time
   unsigned char lastch = 0;
   size_t col=0, chars=0;
   JsvStringIterator it;
@@ -1434,8 +1493,8 @@ void jslPrintTokenisedString(JsVar *code, vcbprintf_callback user_callback, void
   jsvStringIteratorFree(&it);
 }
 
-void jslPrintPosition(vcbprintf_callback user_callback, void *user_data, size_t tokenPos) {
-  size_t line,col;
+void jslPrintPosition(vcbprintf_callback user_callback, void *user_data, JsLex *lex, size_t tokenPos) {
+  size_t line,col,ignoredLines;
 #if !defined(SAVE_ON_FLASH) && !defined(ESPR_EMBED)
   if (jsvIsNativeString(lex->sourceVar) || jsvIsFlashString(lex->sourceVar)) {
     uint32_t stringAddr = (uint32_t)(size_t)lex->sourceVar->varData.nativeStr.ptr;
@@ -1443,33 +1502,23 @@ void jslPrintPosition(vcbprintf_callback user_callback, void *user_data, size_t 
     uint32_t fileAddr = jsfFindFileFromAddr(stringAddr, &header);
     if (fileAddr) {
       JsVar *fileStr = jsvAddressToVar(fileAddr, jsfGetFileSize(&header));
-      jsvGetLineAndCol(fileStr, tokenPos + stringAddr - fileAddr, &line, &col);
+      jsvGetLineAndCol(fileStr, tokenPos + stringAddr - fileAddr, &line, &col, &ignoredLines);
       JsVar *name = jsfVarFromName(header.name);
-      cbprintf(user_callback, user_data,"line %d col %d in %v\n", line, col, name);
+      cbprintf(user_callback, user_data,"%v:%d:%d", name, line-ignoredLines, col);
       jsvUnLock2(fileStr,name);
       return;
     }
   }
 #endif
-  jsvGetLineAndCol(lex->sourceVar, tokenPos, &line, &col);
-#ifndef ESPR_NO_LINE_NUMBERS
-  if (lex->lineNumberOffset)
-    line += (size_t)lex->lineNumberOffset - 1;
-#endif
-  cbprintf(user_callback, user_data, "line %d col %d\n", line, col);
+  jsvGetLineAndCol(lex->sourceVar, tokenPos, &line, &col, &ignoredLines);
+  cbprintf(user_callback, user_data, ":%d:%d", line-ignoredLines, col);
 }
 
-void jslPrintTokenLineMarker(vcbprintf_callback user_callback, void *user_data, size_t tokenPos, char *prefix) {
+void jslPrintTokenLineMarker(vcbprintf_callback user_callback, void *user_data, JsLex *lex, size_t tokenPos, size_t prefixLength) {
   size_t line = 1,col = 1;
-  jsvGetLineAndCol(lex->sourceVar, tokenPos, &line, &col);
+  jsvGetLineAndCol(lex->sourceVar, tokenPos, &line, &col, NULL); // we don't care about extra lines - all we care is outputting correctly
   size_t startOfLine = jsvGetIndexFromLineAndCol(lex->sourceVar, line, 1);
   size_t lineLength = jsvGetCharsOnLine(lex->sourceVar, line);
-  size_t prefixLength = 0;
-
-  if (prefix) {
-    user_callback(prefix, user_data);
-    prefixLength = strlen(prefix);
-  }
 
   if (lineLength>60 && tokenPos-startOfLine>30) {
     cbprintf(user_callback, user_data, "...");
@@ -1500,3 +1549,21 @@ void jslPrintTokenLineMarker(vcbprintf_callback user_callback, void *user_data, 
   user_callback("^\n", user_data);
 }
 
+void jslPrintStackTrace(vcbprintf_callback user_callback, void *user_data,  JsLex *lex) {
+  while (lex) {
+    user_callback("    at ", user_data);
+    if (lex->functionName) {
+      // can't use cbprintf here as it may try and allocate a var
+      // and we want to be able to use this when we're out of memory
+      char functionName[JSLEX_MAX_TOKEN_LENGTH];
+      jsvGetString(lex->functionName, functionName, sizeof(functionName));
+      user_callback(functionName, user_data);
+      user_callback(" (", user_data);
+    }
+    jslPrintPosition(user_callback, user_data, lex, lex->tokenLastStart);
+    user_callback(lex->functionName ? ")\n":"\n", user_data);
+    jslPrintTokenLineMarker(user_callback, user_data, lex, lex->tokenLastStart, 0);
+
+    lex = lex->lastLex; // go down to next lexer in list
+  }
+}

@@ -27,9 +27,9 @@
 #endif
 
 #ifndef BUILDNUMBER
-#define JS_VERSION "2v21"
+#define JS_VERSION "2v27"
 #else
-#define JS_VERSION "2v21." BUILDNUMBER
+#define JS_VERSION "2v27." BUILDNUMBER
 #endif
 /*
   In code:
@@ -43,7 +43,6 @@
 #define ESPR_NO_OBJECT_METHODS 1
 #define ESPR_NO_PROPERTY_SHORTHAND 1
 #define ESPR_NO_GET_SET 1
-#define ESPR_NO_LINE_NUMBERS 1
 #define ESPR_NO_LET_SCOPING 1
 #ifndef ESPR_NO_PROMISES
   #define ESPR_NO_PROMISES 1
@@ -57,10 +56,12 @@
 #ifndef ESPR_NO_SOFTWARE_I2C
   #define ESPR_NO_SOFTWARE_I2C 1
 #endif
-#endif
+#define ESPR_NO_REGEX_OPTIMISE 1
+#define ESPR_NO_PASSWORD 1
+#endif // SAVE_ON_FLASH
 #ifdef SAVE_ON_FLASH_EXTREME
 #define ESPR_NO_BLUETOOTH_MESSAGES 1
-#endif
+#endif // SAVE_ON_FLASH_EXTREME
 
 #ifndef alloca
 #define alloca(x) __builtin_alloca(x)
@@ -337,7 +338,6 @@ typedef int64_t JsSysTime;
 #define JSPARSE_FUNCTION_SCOPE_NAME JS_HIDDEN_CHAR_STR"sco" // the scope of the function's definition
 #define JSPARSE_FUNCTION_THIS_NAME JS_HIDDEN_CHAR_STR"ths" // the 'this' variable - for bound functions
 #define JSPARSE_FUNCTION_NAME_NAME JS_HIDDEN_CHAR_STR"nam" // for named functions (a = function foo() { foo(); })
-#define JSPARSE_FUNCTION_LINENUMBER_NAME JS_HIDDEN_CHAR_STR"lin" // The line number offset of the function
 #define JS_EVENT_PREFIX "#on"
 #define JS_TIMEZONE_VAR "tz"
 #ifndef ESPR_NO_DAYLIGHT_SAVING

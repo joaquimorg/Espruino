@@ -30,6 +30,8 @@ void jswrap_espruino_FFT(JsVar *arrReal, JsVar *arrImag, bool inverse);
 
 void jswrap_espruino_enableWatchdog(JsVarFloat time, JsVar *isAuto);
 void jswrap_espruino_kickWatchdog();
+void jswrap_espruino_setComparator_eventHandler(IOEventFlags eventFlags, uint8_t *data, int length);
+void jswrap_espruino_setComparator(Pin pin, JsVarFloat level);
 /// Return an array of errors based on the current flags
 JsVar *jswrap_espruino_getErrorFlagArray(JsErrorFlags flags);
 JsVar *jswrap_espruino_getErrorFlags();
@@ -44,6 +46,7 @@ JsVar *jswrap_espruino_toJS(JsVar *v);
 JsVar *jswrap_espruino_memoryArea(int addr, int len);
 void jswrap_espruino_setBootCode(JsVar *code, bool alwaysExec);
 int jswrap_espruino_setClock(JsVar *options);
+JsVar *jswrap_espruino_getClock();
 void jswrap_espruino_setConsole(JsVar *device, JsVar *options);
 JsVar *jswrap_espruino_getConsole();
 
@@ -70,6 +73,7 @@ JsVar *jswrap_espruino_memoryMap(JsVar *baseAddress, JsVar *registers);
 void jswrap_espruino_asm(JsVar *callspec, JsVar *args);
 void jswrap_espruino_compiledC(JsVar *code);
 void jswrap_espruino_reboot();
+void jswrap_espruino_rebootToDFU();
 
 void jswrap_espruino_setUSBHID(JsVar *arr);
 bool jswrap_espruino_sendUSBHID(JsVar *arr);

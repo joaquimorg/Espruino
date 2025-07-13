@@ -270,7 +270,7 @@ returns a floating point value, accurate to fractions of a millisecond.
  */
 JsVarFloat jswrap_date_now() {
   // Not quite sure why we need this, but (JsVarFloat)jshGetSystemTime() / (JsVarFloat)jshGetTimeFromMilliseconds(1) in inaccurate on STM32
-  return ((JsVarFloat)jshGetSystemTime() / (JsVarFloat)jshGetTimeFromMilliseconds(1000)) * 1000;
+  return ((JsVarFloat)jshGetSystemTime() * (1000.0 / (JsVarFloat)jshGetTimeFromMilliseconds(1000)));
 }
 
 
@@ -736,6 +736,7 @@ JsVar *jswrap_date_toString(JsVar *parent) {
   "type" : "method",
   "class" : "Date",
   "name" : "toUTCString",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate" : "jswrap_date_toUTCString",
   "return" : ["JsVar","A String"],
   "typescript" : "toUTCString(): string;"

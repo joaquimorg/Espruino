@@ -252,7 +252,7 @@ int getch()
 pthread_t inputThread;
 bool isInitialised;
 
-void jshInputThread() {
+void *jshInputThread() {
   while (isInitialised) {
     bool shortSleep = false;
     /* Handle the delayed Ctrl-C -> interrupt behaviour (see description by EXEC_CTRL_C's definition)  */
@@ -628,8 +628,8 @@ bool jshGetWatchedPinState(IOEventFlags device) {
   return false;
 }
 
-bool jshIsEventForPin(IOEvent *event, Pin pin) {
-  return IOEVENTFLAGS_GETTYPE(event->flags) == pinToEVEXTI(pin);
+bool jshIsEventForPin(IOEventFlags eventFlags, Pin pin) {
+  return IOEVENTFLAGS_GETTYPE(eventFlags) == pinToEVEXTI(pin);
 }
 
 void jshUSARTSetup(IOEventFlags device, JshUSARTInfo *inf) {

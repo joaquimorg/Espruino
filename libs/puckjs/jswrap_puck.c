@@ -59,6 +59,7 @@ const Pin PUCK_IO_PINS[] = {1,2,4,6,7,8,23,24,28,29,30,31};
 
 bool mag_enabled = false; //< Has the magnetometer been turned on?
 uint16_t mag_power; // est mag power in uA
+int mag_milliHz; // last set magnetometer speed
 int16_t mag_reading[3];  //< magnetometer xyz reading
 //int mag_zero[3]; //< magnetometer 'zero' reading, only for Puck 2.1 right now
 volatile bool mag_data_ready = false;
@@ -278,6 +279,7 @@ void mag_pin_on() {
 
 // Turn magnetometer on and configure. If instant=true we take a reading right away
 bool mag_on(int milliHz, bool instant) {
+  mag_milliHz = milliHz;
   //jsiConsolePrintf("mag_on\n");
   mag_pin_on();
   mag_power = 0;
@@ -450,7 +452,7 @@ void mag_read() {
 
 // Get temperature, shifted left 8 bits
 int mag_read_temp() {
-  unsigned char buf[2];
+  unsigned char buf[6];
   if (puckVersion == PUCKJS_1V0) { // MAG3110
     mag_rd(0x0F, buf, 1); // DIE_TEMP
     return ((int8_t)buf[0])<<8;
@@ -460,6 +462,7 @@ int mag_read_temp() {
     // 20 degree offset based on tests here
     return (int)(t >> 3) + (20 << 8);
   } else if (puckVersion == PUCKJS_2V1) { // MMC5603NJ
+    mag_wr(0x1D, 0); // turn off continuous mode
     mag_wr(0x1B, 0x02); // Take temperature measurement
     // Wait for completion
     int timeout = 100;
@@ -467,8 +470,9 @@ int mag_read_temp() {
       mag_rd(0x18, buf, 1); // Status
     } while (!(buf[0]&0x80) && --timeout); // check for Meas_t_done
     // get measurement
-    mag_rd(0x07, buf, 1); // Status
-    return (buf[0] - 75) << 8;
+    mag_rd(0x09, buf, 1); // Temperature
+    mag_on(mag_milliHz, true); // re-enable magnetometer continuous mode
+    return (buf[0] * 205 /* 256*0.8 */) - (75 << 8);
   } else
     return -1;
 }
@@ -624,6 +628,8 @@ outputs.
   "return" : ["JsVar", "An Object `{x,y,z}` of magnetometer readings as integers" ]
 }
 Turn on the magnetometer, take a single reading, and then turn it off again.
+If the magnetometer is already on (with `Puck.magOn()`) then the last reading
+is returned.
 
 An object of the form `{x,y,z}` is returned containing magnetometer readings.
 Due to residual magnetism in the Puck and magnetometer itself, with no magnetic
@@ -652,14 +658,8 @@ JsVar *jswrap_puck_mag() {
   if (!mag_enabled) {
     mag_on(0, true /*instant*/); // takes a reading right away
     mag_off();
-  } else if (puckVersion == PUCKJS_2V1) { // MMC5603NJ
-    // magnetometer is on, but let's poll it quickly
-    // to see if we have any new data
-    unsigned char buf[1];
-    mag_rd(0x18, buf, 1); // Status
-    if (buf[0]&0x40) // check for Meas_m_done
-      mag_read();
-  }
+  } // else magnetometer is on, just return the last reading
+
   return to_xyz(mag_reading, 1);
 }
 
@@ -713,7 +713,7 @@ Check out [the Puck.js page on the
 magnetometer](http://www.espruino.com/Puck.js#on-board-peripherals) for more
 information.
 
-```JS
+```
 Puck.magOn(10); // 10 Hz
 Puck.on('mag', function(e) {
   print(e);
@@ -735,7 +735,7 @@ Called after `Puck.accelOn()` every time accelerometer data is sampled. There is
 one argument which is an object of the form `{acc:{x,y,z}, gyro:{x,y,z}}`
 containing the data.
 
-```JS
+```
 Puck.accelOn(12.5); // default 12.5Hz
 Puck.on('accel', function(e) {
   print(e);
@@ -1349,6 +1349,7 @@ JsVarFloat jswrap_puck_light() {
     "class" : "Puck",
     "ifdef" : "PUCKJS",
     "name" : "getBatteryPercentage",
+    "deprecated" : true,
     "generate" : "jswrap_espruino_getBattery",
     "return" : ["int", "A percentage between 0 and 100" ]
 }
@@ -1438,7 +1439,7 @@ If the self test fails, it'll set the Puck.js Bluetooth advertising name to
 JsVarFloat _jswrap_puck_selfTest_led(Pin pin) {
   jshPinSetState(pin, JSHPINSTATE_GPIO_IN_PULLUP);
   nrf_delay_ms(1);
-  JsVarFloat v = jshPinAnalog(LED1_PININDEX);
+  JsVarFloat v = jshPinAnalog(pin);
   jshPinSetState(pin, JSHPINSTATE_GPIO_IN);
   return v;
 }
@@ -1493,7 +1494,7 @@ bool _jswrap_puck_selfTest(bool advertisePassOrFail) {
     }
   }
 
-  if (PUCKJS_HAS_IR) {
+  if (PUCKJS_HAS_IR && !PUCKJS_HAS_IR_FET) {
     jshPinSetState(IR_ANODE_PIN, JSHPINSTATE_GPIO_IN_PULLDOWN);
     jshPinSetState(IR_CATHODE_PIN, JSHPINSTATE_GPIO_OUT);
     jshPinSetValue(IR_CATHODE_PIN, 1);
@@ -1707,9 +1708,10 @@ void jswrap_puck_init() {
     } else {
       // Is it 2v1?
       puckVersion = PUCKJS_2V1; // set version so we use the correct I2C address
+      buf[0]=255;
       mag_rd(0x39, buf, 1); // MMC5603NJ WHO_AM_I
       //jsiConsolePrintf("MMC5603NJ %d\n", buf[0]);
-      if (buf[0] == 16) {
+      if (buf[0] == 16 || buf[0] == 0) {
         puckVersion = PUCKJS_2V1;
       } else {
         //jsiConsolePrintf("No magnetometer\n");
@@ -1734,7 +1736,13 @@ void jswrap_puck_init() {
   /* If the button is pressed during reset, perform a self test.
    * With bootloader this means apply power while holding button for >3 secs */
   bool firstStart = jsiStatus & JSIS_FIRST_BOOT; // is this the first time jswrap_puck_init was called?
+  /** If we're NOT doing a DFU update build (eg we're making a full a hex file)
+  then ensure that the firmware keeps doing a self test until it passes (eg it'll
+  output 5 red flashes for fail or 5 green for pass). If we're a firmware update
+  package don't do that as the device might be connected to something which will
+  make the test keep failing.  */
   bool firstRunAfterFlash = false;
+#ifdef ESPR_TEST_ON_FIRST_RUN
   uint32_t firstStartFlagAddr = FLASH_SAVED_CODE_START-4;
   if (firstStart) {
     // check the 4 bytes *right before* our saved code. If these are 0xFFFFFFFF
@@ -1745,12 +1753,13 @@ void jswrap_puck_init() {
       firstRunAfterFlash = true;
     }
   }
-
+#endif
   if (firstStart && (jshPinGetValue(BTN1_PININDEX) == BTN1_ONSTATE || firstRunAfterFlash)) {
     // don't do it during a software reset - only first hardware reset
     // if we're doing our first run after being flashed with new firmware, we set the advertising name
     // up to say PASS or FAIL, to work with the factory test process.
     bool result = _jswrap_puck_selfTest(firstRunAfterFlash);
+#ifdef ESPR_TEST_ON_FIRST_RUN
     // if we passed, set the flag in flash so we don't self-test again
     if (firstRunAfterFlash && result) {
       uint32_t buf = 0;
@@ -1759,6 +1768,7 @@ void jswrap_puck_init() {
       jshFlashWrite(&buf, firstStartFlagAddr, 4);
       jsfSetFlag(JSF_UNSAFE_FLASH, oldFlashStatus);
     }
+#endif
     // green if good, red if bad
     Pin indicator = result ? LED2_PININDEX : LED1_PININDEX;
     int i;

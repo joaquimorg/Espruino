@@ -394,18 +394,11 @@ libs/filesystem/fat_sd/option/unicode.c # for LFN support (see _USE_LFN in ff.h)
 
 ifeq ($(USE_FILESYSTEM_SDIO),1)
 DEFINES += -DUSE_FILESYSTEM_SDIO
-SOURCES += \
-libs/filesystem/fat_sd/sdio_diskio.c \
-libs/filesystem/fat_sd/sdio_sdcard.c
+SOURCES += libs/filesystem/fat_sd/sdio_diskio.c
+# sdio_sdcard_X.c is added in make/family/X.make
 else #USE_FILESYSTEM_SDIO
-ifdef USE_FLASHFS
-DEFINES += -DUSE_FLASHFS
-SOURCES += \
-libs/filesystem/fat_sd/flash_diskio.c
-else
 SOURCES += \
 libs/filesystem/fat_sd/spi_diskio.c
-endif #USE_FLASHFS
 endif #USE_FILESYSTEM_SDIO
 endif #!LINUX
 endif #USE_FILESYSTEM
@@ -478,6 +471,12 @@ endif
 ifeq ($(USE_TERMINAL),1)
   DEFINES += -DUSE_TERMINAL
   WRAPPERSOURCES += libs/graphics/jswrap_terminal.c
+endif
+
+ifeq ($(USE_SWDCON),1)
+  DEFINES += -DUSE_SWDCON
+  WRAPPERSOURCES += libs/swdcon/jswrap_swdcon.c
+# directly included so not needed SOURCES += libs/swdcon/SEGGER_RTT_custom.c
 endif
 
 endif
@@ -582,7 +581,6 @@ endif
   targets/esp32/jshardwareAnalog.c \
   targets/esp32/jshardwarePWM.c \
   targets/esp32/rtosutil.c \
-  targets/esp32/jshardwareTimer.c \
   targets/esp32/jshardwarePulse.c
   ifdef RTOS
    DEFINES += -DRTOS
@@ -911,10 +909,12 @@ clean:
 	$(Q)rm -f $(PROJ_NAME).bin
 	$(Q)rm -f $(PROJ_NAME).srec
 	$(Q)rm -f $(PROJ_NAME).lst
+	$(Q)rm -f $(PROJ_NAME).app_hex
+	$(Q)rm -f $(PROJ_NAME).uf2
 	$(Q)rm -f $(BINDIR)/espruino_embedded.h
 	$(Q)rm -f $(BINDIR)/espruino_embedded.c
 	$(Q)rm -f $(BINDIR)/jstypes.h
-	$(Q)rm -f $(ROOT)/targetlibs/nrf5x_*/components/toolchain/gcc/gcc_startup_nrf5*.o $(ROOT)/targetlibs/stm32f4/lib/startup_stm32f4*.o $(ROOT)/targetlibs/stm32f1/lib/startup_stm32f10x_*.o
+	$(Q)rm -f $(ROOT)/targetlibs/nrf5x_*/components/toolchain/gcc/gcc_startup_nrf5*.o $(ROOT)/targetlibs/nrf5x_*/modules/nrfx/mdk/gcc_startup_nrf5*.o $(ROOT)/targetlibs/stm32f4/lib/startup_stm32f4*.o $(ROOT)/targetlibs/stm32f1/lib/startup_stm32f10x_*.o
 
 wrappersources:
 	$(info WRAPPERSOURCES=$(WRAPPERSOURCES))

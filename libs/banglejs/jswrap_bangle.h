@@ -53,6 +53,8 @@ JsVar *jswrap_banglejs_getPressure();
 JsVar *jswrap_banglejs_getHealthStatus();
 
 JsVar *jswrap_banglejs_dbg();
+void jswrap_banglejs_touchWr(JsVarInt reg, JsVarInt data);
+JsVar *jswrap_banglejs_touchRd(JsVarInt reg, JsVarInt cnt);
 void jswrap_banglejs_accelWr(JsVarInt reg, JsVarInt data);
 JsVar *jswrap_banglejs_accelRd(JsVarInt reg, JsVarInt cnt);
 void jswrap_banglejs_barometerWr(JsVarInt reg, JsVarInt data);
@@ -99,7 +101,7 @@ typedef enum {
 } JsBangleEvent;
 
 /// Called from jsinteractive when an event is parsed from the event queue for Bangle.js (executed outside IRQ)
-void jsbangle_exec_pending(IOEvent *event);
+void jsbangle_exec_pending(uint8_t *data, int dataLen);
 /// queue an event for Bangle.js (usually called from inside an IRQ)
 void jsbangle_push_event(JsBangleEvent type, uint16_t value);
 

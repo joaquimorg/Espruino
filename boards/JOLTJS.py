@@ -24,6 +24,7 @@ info = {
 # 'default_console_rx' : "D8",
 # 'default_console_baudrate' : "9600",
  'variables' : 12000, # How many variables are allocated for Espruino to use. RAM will be overflowed if this number is too high and code won't compile.
+ 'io_buffer_size' : 2048, # How big is the input buffer (in bytes). Default on nRF52 is 1024
  'bootloader' : 1,
  'binary_name' : 'espruino_%v_joltjs.hex',
  'build' : {
@@ -37,13 +38,15 @@ info = {
      'JIT' # JIT compiler enabled
    ],
    'makefile' : [
+     'DEFINES+=-DESPR_OFFICIAL_BOARD', # Don't display the donations nag screen
 #     'DEFINES += -DCONFIG_GPIO_AS_PINRESET', # Allow the reset pin to work
      'DEFINES += -DNRF_USB=1 -DUSB',
      'DEFINES += -DNEOPIXEL_SCK_PIN=1 -DNEOPIXEL_LRCK_PIN=26', # nRF52840 needs LRCK pin defined for neopixel
      'DEFINES += -DESPR_USE_STEPPER_TIMER=1', # Build in the code for stepping using the timer
      'DEFINES += -DNRF_SDH_BLE_GATT_MAX_MTU_SIZE=131', # 23+x*27 rule as per https://devzone.nordicsemi.com/f/nordic-q-a/44825/ios-mtu-size-why-only-185-bytes
+     'DEFINES += -DNRF_SDH_BLE_GAP_EVENT_LENGTH=6', # Needed to allow coded phy connections 
      'DEFINES += -DCENTRAL_LINK_COUNT=2 -DNRF_SDH_BLE_CENTRAL_LINK_COUNT=2', # allow two outgoing connections at once
-     'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3660', # set RAM base to match MTU=131 + CENTRAL_LINK_COUNT=2
+     'LDFLAGS += -Xlinker --defsym=LD_APP_RAM_BASE=0x3b70', # set RAM base to match MTU=131 + CENTRAL_LINK_COUNT=2 + GAP_EVENT_LENGTH=6
      'DEFINES += -DAPP_TIMER_OP_QUEUE_SIZE=6',
      'DEFINES+= -DBLUETOOTH_NAME_PREFIX=\'"Jolt.js"\'',
 #    see targets/nrf5x/app_config.h for USB descriptors
@@ -51,9 +54,10 @@ info = {
      'DFU_PRIVATE_KEY=targets/nrf5x_dfu/dfu_private_key.pem',
      'DEFINES += -DNRF_BOOTLOADER_NO_WRITE_PROTECT=1', # By default the bootloader protects flash. Avoid this (a patch for NRF_BOOTLOADER_NO_WRITE_PROTECT must be applied first)
      #'DEFINES += -DBUTTONPRESS_TO_REBOOT_BOOTLOADER', # not enabled so watchdog isn't started
+     'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DGRAPHICS_ANTIALIAS -DESPR_PBF_FONTS',
      'BOOTLOADER_SETTINGS_FAMILY=NRF52840',
      'INCLUDE += -I$(ROOT)/libs/jolt.js',
-     'WRAPPERSOURCES += libs/joltjs/jswrap_jolt.c libs/joltjs/jswrap_qwiic.c',
+     'WRAPPERSOURCES += libs/joltjs/jswrap_jolt.c libs/misc/jswrap_qwiic.c',
      'NRF_SDK15=1',
    ]
  }
@@ -73,10 +77,10 @@ chip = {
   'adc' : 1,
   'dac' : 0,
   'saved_code' : {
-    'address' : ((246 - 10) * 4096), # Bootloader takes pages 248-255, FS takes 246-247
+    'address' : ((246 - 100) * 4096), # Bootloader takes pages 248-255, FS takes 246-247
     'page_size' : 4096,
-    'pages' : 10,
-    'flash_available' : 1024 - ((31 + 8 + 2 + 10)*4) # Softdevice uses 31 pages of flash, bootloader 8, FS 2, code 10. Each page is 4 kb.
+    'pages' : 100,
+    'flash_available' : 1024 - ((31 + 8 + 2 + 100)*4) # Softdevice uses 31 pages of flash, bootloader 8, FS 2, code 100. Each page is 4 kb.
   },
 };
 
@@ -116,7 +120,9 @@ devices = {
     'pin_d0' : 'D17',
     'pin_d1' : 'D15',
     'pin_d2' : 'D13',
-    'pin_d3' : 'D14'
+    'pin_d3' : 'D14',
+    'pin_d0_analog' : 'D4',
+    'pin_d2_analog' : 'D5'
   },
   'DRIVER1' : {
     'pin_nsleep' : 'D23',
@@ -126,7 +132,9 @@ devices = {
     'pin_d0' : 'D22',
     'pin_d1' : 'D32',
     'pin_d2' : 'D25',
-    'pin_d3' : 'D34'
+    'pin_d3' : 'D34',
+    'pin_d0_analog' : 'D30',
+    'pin_d2_analog' : 'D28'
   }
 };
 
@@ -138,6 +146,7 @@ board = {
             'Q2.scl', 'Q2.sda', 'Q2.vcc', 'Q2.gnd', '','',#'D45', 'D44', 'D43', 'D36', # Q2
             'Q3.scl', 'Q3.sda', 'Q3.vcc', 'Q3.gnd',#'D38', 'D39', 'D42', 'D37', # Q3
    ],
+  'top2' : [ 'VCC', 'D1', 'D26', 'D47', 'D46', 'GND' ],
   'right' : ['NFC','NFC'],
   '_hide_not_on_connectors' : True,
   '_notes' : {
@@ -154,18 +163,18 @@ board = {
     'Q1.fet' : "INVERTED. Connected to 500mA FET. When 1, GND on Q1 is pulled low. When 0, GND on Q1 is open circuit",
   },
   '_pinfunctions' : {
-    'Q0.scl' : ["ADC1_IN5","3.3"], 
+    'Q0.scl' : ["ADC1_IN5","3.3"],
     'Q0.sda' : ["ADC1_IN1","3.3"],
     'Q1.scl' : ["ADC1_IN7","3.3"],
     'Q1.sda' : ["ADC1_IN0","3.3"],
-    'Q2.scl' : ["3.3"], 
+    'Q2.scl' : ["3.3"],
     'Q2.sda' : ["3.3"],
     'Q2.vcc' : ["3.3"],
     'Q2.gnd' : ["3.3"],
-    'Q3.scl' : ["3.3"], 
+    'Q3.scl' : ["3.3"],
     'Q3.sda' : ["3.3"],
     'Q3.vcc' : ["3.3"],
-    'Q3.gnd' : ["3.3"],    
+    'Q3.gnd' : ["3.3"],
     'VCC' : ["3.3"]
   }
 };
@@ -189,12 +198,17 @@ board["_css"] = """
     top: 599px;
     left: 125px;
 }
+#top2 {
+    top: 186px;
+    left: 476px;
+}
 #right {
     top: 536px;
     left: 714px;
 }
 
 .toppin { width: 13px; }
+.top2pin { width: 13px; }
 .leftpin { height: 17px; }
 .bottompin { width: 52px; }
 """;

@@ -19,6 +19,7 @@
 #include "jswrapper.h"
 #include "jswrap_stream.h"
 #include "jswrap_functions.h"
+#include "jswrap_array.h" // for splice
 #ifdef __MINGW32__
 #include "malloc.h" // needed for alloca
 #endif//__MINGW32__
@@ -140,7 +141,15 @@ JsVar *jswrap_object_toString(JsVar *parent, JsVar *arg0) {
   "generate" : "jswrap_object_clone",
   "return" : ["JsVar","A copy of this Object"]
 }
-Copy this object completely
+Copy this object to a new object, but as a shallow copy. This has a similar effect to calling `Object.assign({}, obj)`.
+
+```
+orig = { a : 1, b : [ 2, 3 ] }
+copy = orig.clone();
+// copy = { a : 1, b : [ 2, 3 ] }
+```
+
+**Note:** This is not a standard JavaScript function, but is unique to Espruino
  */
 JsVar *jswrap_object_clone(JsVar *parent) {
   if (!parent) return 0;
@@ -599,8 +608,8 @@ will be ignored.
 
  */
 JsVar *jswrap_object_defineProperty(JsVar *parent, JsVar *propName, JsVar *desc) {
-  if (!jsvIsObject(parent)) {
-    jsExceptionHere(JSET_ERROR, "First argument must be Object, got %t", parent);
+  if (!jsvIsObject(parent) && !jsvIsFunction(parent) && !jsvIsArray(parent)) {
+    jsExceptionHere(JSET_ERROR, "First argument must be Object, Function or Array, got %t", parent);
     return 0;
   }
   if (!jsvIsObject(desc)) {
@@ -881,23 +890,22 @@ void jswrap_object_on_X(JsVar *parent, JsVar *event, JsVar *listener, bool addFi
   JsVar *eventList = jsvFindChildFromVar(parent, eventName, true);
   jsvUnLock(eventName);
   JsVar *eventListeners = jsvSkipName(eventList);
-  if (jsvIsUndefined(eventListeners)) {
-    // just add the one handler on its own
-    jsvSetValueOfName(eventList, listener);
-  } else {
-    // we already have an array and we just add to it
-    // OR it's not an array but we need to make it an array
-    JsVar *arr = jsvNewEmptyArray();
-    if (addFirst) jsvArrayPush(arr, listener);
-    if (jsvIsArray(eventListeners))
-      jsvArrayPushAll(arr, eventListeners, false);
-    else
-      jsvArrayPush(arr, eventListeners);
-    if (!addFirst) jsvArrayPush(arr, listener);
-    jsvSetValueOfName(eventList, arr);
-    jsvUnLock(arr);
+  /* create a *new* array with the items in the right order. We do this
+  so that if we're adding a handler to an while we're in a handler that's
+  executing that event, the handler we just added doesn't get called. */
+  JsVar *newEventListeners = 0;
+  if (addFirst) { // add it first?
+    newEventListeners = jsvNewArray(&listener, 1);
+    if (eventListeners) jsvArrayPushAll(newEventListeners, eventListeners, false);
+  } else { // or add it at the end
+    newEventListeners = jsvNewEmptyArray();
+    if (eventListeners) jsvArrayPushAll(newEventListeners, eventListeners, false);
+    jsvArrayPush(newEventListeners, listener);
   }
-  jsvUnLock2(eventListeners, eventList);
+  jsvUnLock(eventListeners);
+  eventListeners = newEventListeners;
+  jsvSetValueOfName(eventList, eventListeners);
+  jsvUnLock2(eventList, eventListeners);
   /* Special case if we're a data listener and data has already arrived then
    * we queue an event immediately. */
   if (jsvIsStringEqual(event, "data")) {
@@ -1025,16 +1033,12 @@ void jswrap_object_removeListener(JsVar *parent, JsVar *event, JsVar *callback) 
     jsvUnLock(eventName);
     JsVar *eventList = jsvSkipName(eventListName);
     if (eventList) {
-      if (eventList == callback) {
-        // there's no array, it was a single item
-        jsvRemoveChild(parent, eventListName);
-      } else if (jsvIsArray(eventList)) {
+      if (jsvIsArray(eventList)) {
         // it's an array, search for the index
         JsVar *idx = jsvGetIndexOf(eventList, callback, true);
-        if (idx) {
+        if (idx)
           jsvRemoveChildAndUnLock(eventList, idx);
-        }
-      }
+      } // otherwise something is wrong, but lets just ignore it
       jsvUnLock(eventList);
     }
     jsvUnLock(eventListName);

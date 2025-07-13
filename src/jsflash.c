@@ -192,11 +192,10 @@ JsfFileFlags jsfGetFileFlags(JsfFileHeader *header) {
 type of file like FILENAME_TABLE that shouldn't be listed
 or kept when compacting */
 static bool jsfIsRealFile(JsfFileHeader *header) {
+  JsfFileFlags flags = jsfGetFileFlags(header);
   return (header->name.firstChars != 0) // if not replaced
-#ifdef ESPR_STORAGE_FILENAME_TABLE
-         && !(jsfGetFileFlags(header) & JSFF_FILENAME_TABLE)
-#endif
-         ;
+         && (flags==JSFF_NONE || flags==JSFF_STORAGEFILE || flags==JSFF_COMPRESSED); // other combinations are not allowed -> ignore this file
+        // JSFF_FILENAME_TABLE is intentionally ignored so we don't copy it
 }
 
 
@@ -648,24 +647,36 @@ bool jsfCompact(bool showMessage) {
   return compacted;
 }
 
+static bool jsvIsDriveNameExplicit(JsfFileName *name) {
+  return name->c[1]==':';
+}
+
+static bool jsvIsDriveC(char drive) {
+#ifdef JSF_BANK2_START_ADDRESS
+  return (drive&(~0x20)) == 'C'; // make drive case insensitive
+#else
+  return false;
+#endif
+}
+
 /* If we have a filename like "C:foo", take the 'C:' bit
  * off it and return the drive. If explicitOnly==false,
  * we also return the drive name if we think a file should
  * go somewhere (eg it's *.js or .boot0 it should go in internal flash)
  */
-char jsfStripDriveFromName(JsfFileName *name, bool explicitOnly){
+static char jsfStripDriveFromName(JsfFileName *name, bool explicitOnly){
 #ifndef SAVE_ON_FLASH
-  if (name->c[1]==':') { // if a 'drive' is specified like "C:foobar.js"
+  if (jsvIsDriveNameExplicit(name)) { // if a 'drive' is specified like "C:foobar.js"
     char drive = name->c[0];
     memmove(name->c, name->c+2, sizeof(JsfFileName)-2); // shift back and clear the rest
     name->c[sizeof(JsfFileName)-2]=0;name->c[sizeof(JsfFileName)-1]=0;
     return drive;
   }
 #ifdef JSF_BANK2_START_ADDRESS
-  if (explicitOnly) return 0; // if explicitOnly==false, ensure *.js and .boot0 files go in C:
+  if (explicitOnly) return 0; // if explicitOnly==false, ensure *.js .boot0 .bootcde and library files (with no dots) go in C:
   int l = 0;
   while (name->c[l] && l<sizeof(JsfFileName)) l++;
-  if (strcmp(name,".boot0")==0 ||
+  if (strcmp(name,".boot0")==0 || strcmp(name,".bootcde")==0 || strchr(name,'.')==0 ||
       (name->c[l-3]=='.' && name->c[l-2]=='j' && name->c[l-1]=='s')) {
     return 'C';
   }
@@ -676,7 +687,7 @@ char jsfStripDriveFromName(JsfFileName *name, bool explicitOnly){
 void jsfGetDriveBankAddress(char drive, uint32_t *bankStartAddr, uint32_t *bankEndAddr){
 #ifdef JSF_BANK2_START_ADDRESS
   if (drive){
-    if ((drive&(~0x20)) == 'C'){ // make drive case insensitive
+    if (jsvIsDriveC(drive)){
       *bankStartAddr=JSF_START_ADDRESS;
       *bankEndAddr=JSF_END_ADDRESS;
     } else {
@@ -689,10 +700,11 @@ void jsfGetDriveBankAddress(char drive, uint32_t *bankStartAddr, uint32_t *bankE
   *bankStartAddr=JSF_DEFAULT_START_ADDRESS;
   *bankEndAddr=JSF_DEFAULT_END_ADDRESS;
 }
-/// Create a new 'file' in the memory store - DOES NOT remove existing files with same name. Return the address of data start, or 0 on error
-static uint32_t jsfCreateFile(JsfFileName name, uint32_t size, JsfFileFlags flags, JsfFileHeader *returnedHeader) {
+static uint32_t _jsfCreateFile(JsfFileName name, uint32_t size, JsfFileFlags flags, JsfFileHeader *returnedHeader, bool explicitOnly) {
+  // explicitOnly -> only put in the non-default storage while filename explicitly starts with 'C:' (default=false)
   jsDebug(DBG_INFO,"CreateFile (%d bytes)\n", size);
-  char drive = jsfStripDriveFromName(&name, false/* ensure .js/etc go in C */);
+  bool explicitDriveName = jsvIsDriveNameExplicit(&name);
+  char drive = jsfStripDriveFromName(&name, explicitOnly/* ensure .js/etc go in C */);
   jsfCacheClearFile(name);
   uint32_t bankStartAddress,bankEndAddress;
   jsfGetDriveBankAddress(drive,&bankStartAddress,&bankEndAddress);
@@ -706,13 +718,18 @@ static uint32_t jsfCreateFile(JsfFileName name, uint32_t size, JsfFileFlags flag
   uint32_t freeAddr = 0;
   while (!freeAddr) {
     addr = bankStartAddress;
+    uint32_t freeSpace = 0, trashSpace = 0;
     freeAddr = 0;
     // Find a hole that's big enough for our file
     do {
       if (jsfGetFileHeader(addr, &header, false)) do {
+        if (header.name.firstChars==0) // is deleted?
+          trashSpace += jsfGetFileSize(&header); // count how much space is in compacted files
       } while (jsfGetNextFileHeader(&addr, &header, GNFH_GET_EMPTY));
       // If not enough space, skip to next page
-      if (jsfGetSpaceLeftInPage(addr)<requiredSize) {
+      uint32_t spaceInPage = jsfGetSpaceLeftInPage(addr);
+      freeSpace += spaceInPage;
+      if (spaceInPage<requiredSize) {
         addr = jsfGetAddressOfNextPage(addr);
       } else { // if enough space, we can write a file!
         freeAddr = addr;
@@ -720,8 +737,17 @@ static uint32_t jsfCreateFile(JsfFileName name, uint32_t size, JsfFileFlags flag
     } while (addr && !freeAddr);
     // If we don't have space, compact
     if (!freeAddr) {
-      // check this for sanity - in future we might compact forward into other pages, and don't compact if so
-      if (!compacted) {
+#ifdef JSF_BANK2_START_ADDRESS
+      if (!explicitOnly && !explicitDriveName && bankStartAddress!=JSF_DEFAULT_START_ADDRESS) {
+        /* Drive name wasn't explicit but we're not in the default area (eg maybe file ends in .js)
+        so let's try again with explicitOnly=true to force file into the default area where maybe
+        there's space */
+        return _jsfCreateFile(name, size, flags, returnedHeader, true);
+      }
+#endif
+      //jsiConsolePrintf("%d Free, %d Trash -> need %d\n", freeSpace, trashSpace, requiredSize);
+      if (!compacted && (requiredSize < (freeSpace+trashSpace))) {
+        // only try and compact if we're sure there would be enough space - it's better to fail fast!
         compacted = true;
         if (!jsfCompact(true)) {
           jsDebug(DBG_INFO,"CreateFile - Compact failed\n");
@@ -750,6 +776,10 @@ static uint32_t jsfCreateFile(JsfFileName name, uint32_t size, JsfFileFlags flag
   addr += (uint32_t)sizeof(JsfFileHeader); // address of actual file data
   jsfCachePut(&header, addr);
   return addr;
+}
+/** Create a new 'file' in the memory store - DOES NOT remove existing files with same name. Return the address of data start, or 0 on error */
+static uint32_t jsfCreateFile(JsfFileName name, uint32_t size, JsfFileFlags flags, JsfFileHeader *returnedHeader) {
+  return _jsfCreateFile(name, size, flags, returnedHeader, false);
 }
 
 static uint32_t jsfBankFindFile(uint32_t bankAddress, uint32_t bankEndAddress, JsfFileName name, JsfFileHeader *returnedHeader) {
@@ -1061,7 +1091,7 @@ bool jsfWriteFile(JsfFileName name, JsVar *data, JsfFileFlags flags, JsVarInt of
   JsfFileHeader header;
   uint32_t addr = jsfFindFile(name, &header);
 #ifdef JSF_BANK2_START_ADDRESS
-  if (!addr && name.c[1]==':'){
+  if (!addr && jsvIsDriveNameExplicit(&name)){
     // if not found where it should be, try another bank to not end with two files
     JsfFileName shortname = name;
     jsfStripDriveFromName(&shortname, true/* we're not using the return value - we just want the ':' bit stripped off */);
@@ -1384,8 +1414,10 @@ bool jsfLoadBootCodeFromFlash(bool isReset) {
 #endif
   if (jsiStatus & JSIS_FIRST_BOOT) {
     JsVar *code = jsfReadFile(jsfNameFromString(".bootPowerOn"),0,0);
-    if (code)
-      jsvUnLock2(jspEvaluateVar(code,0,0), code);
+    if (code) {
+      jsvUnLock2(jspEvaluateVar(code,0,".bootPowerOn"), code);
+      jsiCheckErrors(false);
+    }
   }
 #endif
   // Load code in .boot0/1/2/3 UNLESS BTN1 IS HELD DOWN FOR BANGLE.JS ON FIRST BOOT (BTN3 for Dickens)
@@ -1404,14 +1436,17 @@ bool jsfLoadBootCodeFromFlash(bool isReset) {
     for (int i=0;i<4;i++) {
       filename[5] = (char)('0'+i);
       JsVar *code = jsfReadFile(jsfNameFromString(filename),0,0);
-      if (code)
-        jsvUnLock2(jspEvaluateVar(code,0,0), code);
+      if (code) {
+        jsvUnLock2(jspEvaluateVar(code,0,filename), code);
+        jsiCheckErrors(false);
+      }
     }
   }
   // Load normal boot code
   JsVar *code = jsfGetBootCodeFromFlash(isReset);
   if (!code) return false;
-  jsvUnLock2(jspEvaluateVar(code,0,0), code);
+  jsvUnLock2(jspEvaluateVar(code,0,"boot code"), code);
+  jsiCheckErrors(false);
   return true;
 }
 

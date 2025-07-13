@@ -696,7 +696,7 @@ bool socketClientConnectionsIdle(JsNetwork *net) {
             jsvObjectSetChildAndUnLock(connection, HTTP_NAME_CONNECTED, jsvNewFromBool(true));
             alreadyConnected = true;
             // if we do not have any data to send, issue a drain event
-            if (!sendData || (int)jsvGetStringLength(sendData) == 0)
+            if (!sendData || jsvIsEmptyString(sendData))
               jsiQueueObjectCallbacks(connection, HTTP_NAME_ON_DRAIN, &connection, 1);
           }
           // got data add it to our receive buffer
@@ -721,7 +721,7 @@ bool socketClientConnectionsIdle(JsNetwork *net) {
       if (!receiveData || jsvIsEmptyString(receiveData)) {
         // If we had data to send but the socket closed, this is an error
         JsVar *sendData = jsvObjectGetChildIfExists(connection,HTTP_NAME_SEND_DATA);
-        if (sendData && jsvGetStringLength(sendData) > 0 && error == SOCKET_ERR_CLOSED)
+        if (sendData && !jsvIsEmptyString(sendData) && error == SOCKET_ERR_CLOSED)
           error = SOCKET_ERR_UNSENT_DATA;
         jsvUnLock(sendData);
 
@@ -1048,11 +1048,9 @@ void clientRequestConnect(JsNetwork *net, JsVar *httpClientReqVar) {
     return;
   }
 
-#ifdef USE_TLS
   if (socketType & ST_TLS) {
     if (port==0) port = 443;
   }
-#endif
   if ((socketType&ST_TYPE_MASK) == ST_HTTP) {
     if (port==0) port = 80;
   }

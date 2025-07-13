@@ -110,9 +110,6 @@ These contain:
 
 This is a partial list of definitions that can be added in a `BOARD.py` file's `info.build.makefile` array, eg: `'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Puck.js"\''`
 
-* `SAVE_ON_FLASH` - Remove some features (like any ES6 support) to target devices with ~128kB Flash
-* `SAVE_ON_FLASH_EXTREME` - Pull out as many features as possible to target devices with ~128kB Flash that also want things like Filesystem support
-* `ESPR_PACKED_SYMPTR` - Packs string offsets of builtin symbols into their function pointers in JswSymPtr, saves 2 bytes per symbol
 * `BLUETOOTH_NAME_PREFIX="..."` - NRF52 only: Make the Bluetooth LE device's name `BLUETOOTH_NAME_PREFIX` followed by the last 2 bytes of the MAC address.
 * `BLUETOOTH_ADVERTISING_INTERVAL=375` - set the default Bluetooth advertising interval (default 375)
 * `NFC_DEFAULT_URL="http://foo"` - If defined, set the advertised NFC URL to the one given, plus `?a=ble_address`. Only do it for a fresh boot - not when code has been saved.
@@ -120,21 +117,15 @@ This is a partial list of definitions that can be added in a `BOARD.py` file's `
 * `DUMP_IGNORE_VARIABLES="...\0"` - string containing zero-terminated list of global variable names to ignore when `dump()` is called. Must be explicityly zero-terminated so there are 2 trailing 0s
 * `FSMC_BITBANG` - if using a built-in FSMC Graphics LCD, don't use the hardware but instead do it in software
 * `FLASH_64BITS_ALIGNMENT=1` -  For testing 64 bit flash writes on linux
-* `JSMODULESOURCES+=libs/.../foo.min.js` - include the given JS file as a module that can be used via `require("foo")`
+* `JSMODULESOURCES+=libs/js/.../foo.min.js` - include the given JS file as a module that can be used via `require("foo")`
+  * `JSMODULESOURCES+=ModuleName:libs/js/.../module.min.js` - include as a module used with `require("ModuleName")`
+  * `JSMODULESOURCES+=_:libs/js/.../boot.min.js` - include as a file that's run at boot time
 * `JSVAR_MALLOC` - Allocate space for variables at jsvInit time, rather than statically
 * `JSVAR_FORCE_16_BYTE` - Force 16 byte JsVars (rather than packing bits to get JsVar size down to the minimum possible)
-* `JSVAR_FORCE_NO_INLINE` - Opposite of `JSVAR_FORCE_INLINE`. Force getter/setter functions not to be inlined. Saves ~2% code size. Ideally just leave it up to the compiler
-* `JSVAR_FORCE_INLINE` - Opposite of `JSVAR_FORCE_NO_INLINE`. Force getter/setter functions to be inlined. 2% faster but ~10% extra code size.
-* `NO_VECTOR_FONT=1` - don't compile in the vector font (this is usually only done for SAVE_ON_FLASH)
-* `NO_DUMP_HARDWARE_INITIALISATION=1` - don't create lines like `digitalWrite(D1,1)` for `dump()/save()` to recreate hardware state
 * `USE_FONT_6X8=1` - Also include in a 6x8 fixed width bitmap font
-* `USE_TAB_COMPLETE=0` - Don't include tab completion (default is yes unless SAVE_ON_FLASH is defined)
-* `USE_DEBUGGER=0` - Don't include the debugger (default is yes unless SAVE_ON_FLASH is defined)
-* `USE_NETWORK_JS=0` - Don't include JS networking lib used for handling AT commands (default is yes if networking is enabled)
 * `ESPR_DCDC_ENABLE=1` - On NRF52 use the built-in DCDC converter (requires external hardware)
 * `ESPR_DCDC_HV_ENABLE=1` - On NRF52840 use the built-in high-voltage (REG0) DCDC converter (requires external hardware)
 * `ESPR_REGOUT0_1_8V=1` - On NRF52830/40 set the REG0 VCC voltage to 1.8v (the default is 3.3v)
-* `ESPR_VREF_VDDH=1` - when measuring system voltage (eg for E.getAnalogVRef()) use VDDH, not VDD (only useful if DCDC_HV enabled)
 * `ESPR_LSE_ENABLE` - On NRF52 use an external 32kHz Low Speed External crystal on D0/D1
 * `ESPR_NO_LOADING_SCREEN` - Bangle.js, don't show a 'loading' screen when loading a new app
 * `ESPR_BOOTLOADER_SPIFLASH` - Allow bootloader to flash direct from a file in SPI flash storage
@@ -143,24 +134,56 @@ This is a partial list of definitions that can be added in a `BOARD.py` file's `
 * `SPIFLASH_SLEEP_CMD` - Set if SPI flash needs to be explicitly slept and woken up
 * `SPIFLASH_READ2X` - Enable 2x speed reads of external flash (using MOSI+MOSI as inputs)
 * `ESPR_JSVAR_FLASH_BUFFER_SIZE=32` - The buffer size in bytes we use when executing/iterating over data in external flash memory (default 16). Should be set based on benchmarks.
+* `ESPR_FS_LARGE_WRITE_BUFFER` - When using FS library, should we allocate a 1kb buffer on the stack for writes? It can be ~3x faster but then allocating 1k can be dangerous without checking
 * `ESPR_PBF_FONTS` - Enable support for loading and displaying Pebble-style PBF font files with `g.setFontPBF`
 * `ESPR_BLUETOOTH_ANCS` - Enable Apple ANCS(notification), AMS and CTS support
+* `ESPR_USE_STEPPER_TIMER` - add builtin `Stepper` class to handle higher speed stepper handling
+* `USB_CDC` - without this on ESP32C3, USB CDC will not be used for outputting the console
+* `ESPR_RTC_INITIALISE_TICKS` - STM32: how many systicks do we wait for the LSE to initialise. Usually 2s, so the default of 10 is fine for 84Mhz. Higher clocks need higher values here
+* `ESPR_RTC_ALWAYS_TRY_LSE` - STM32: If we boot and RTC is initialised but using LSI, try again at starting LSE
+* `ESPR_DELAY_MULTIPLIER` - STM32: At boot Espruino works out how many iterations are needed to produce a set time period of delay. You can hard-code this for a faster boot
+* `ESPR_MIN_WFI_TIME_MS` - STM32: default 0.1ms, but if set, Espruino won't enter __WFI sleep unless the next setInterval is more than this number of milliseconds away
+* `ESPR_GRAPHICS_SELF_INIT` - Should the Graphics library instantiate itself with its own `g` instance?
+* `ESPR_LCD_MANUAL_BACKLIGHT` - STM32/FSMC: Don't turn the backlight on and leave code to do this manually
+* `ESPR_DISABLE_KICKWATCHDOG_PIN=BTN1_PININDEX` - If this pin is 1, skip kickWatchdog calls (which would eventually force a reboot if WDT enabled)
+* `ESPR_TERMNINAL_NO_SCROLL` - disable scrolling in the onscreen terminal (once we get to the end, we just clear the screen and start at the top)
+* `ESPR_HAS_BOOTLOADER_UF2` - nRF5x: Allow entering UF2 bootloader mode by calling E.rebootToDFU()
+* `ESPR_BLE_PRIVATE_ADDRESS_SUPPORT` - NRF52: Enable support for using a random private BLE address, that automatically changes at a set interval. See the `privacy` option that can be passed to `NRF.setSecurity()`.
+* `ESPR_FS_MKFS` - Add support for require("fs").mkfs for formatting disks
+* `ESPR_FS_GETFREE` - Add support for require("fs").getFree in the filesystem library
+* `ESPR_TEST_ON_FIRST_RUN` - on Jolt.js/Puck.js, run the self-test the very first time the board boots up (this is not the default since 2v27)
+
+
+There are some specifically that are useful for cutting a few bytes out of the build:
+
+* `SAVE_ON_FLASH` - Remove some features (like any ES6 support) to target devices with ~128kB Flash (see next list)
+* `SAVE_ON_FLASH_EXTREME` - Pull out as many features as possible to target devices with ~128kB Flash that also want things like Filesystem support
+* `ESPR_PACKED_SYMPTR` - Packs string offsets of builtin symbols into their function pointers in JswSymPtr, saves 2 bytes per symbol
+* `JSVAR_FORCE_NO_INLINE` - Opposite of `JSVAR_FORCE_INLINE`. Force getter/setter functions not to be inlined. Saves ~2% code size. Ideally just leave it up to the compiler
+* `JSVAR_FORCE_INLINE` - Opposite of `JSVAR_FORCE_NO_INLINE`. Force getter/setter functions to be inlined. 2% faster but ~10% extra code size.
+* `NO_VECTOR_FONT=1` - don't compile in the vector font (this is usually only done for SAVE_ON_FLASH)
+* `NO_DUMP_HARDWARE_INITIALISATION=1` - don't create lines like `digitalWrite(D1,1)` for `dump()/save()` to recreate hardware state
+* `USE_TAB_COMPLETE=0` - Don't include tab completion (default is yes unless SAVE_ON_FLASH is defined)
+* `USE_DEBUGGER=0` - Don't include the debugger (default is yes unless SAVE_ON_FLASH is defined)
+* `USE_NETWORK_JS=0` - Don't include JS networking lib used for handling AT commands (default is yes if networking is enabled)
 * `ESPR_NO_SOFTWARE_SERIAL` - don't build in software serial support
 * `ESPR_NO_SOFTWARE_I2C` - don't build in software I2C support
 * `ESPR_NO_BLUETOOTH_MESSAGES` - don't include text versions of Bluetooth error messages (just the error number)
-* `ESPR_USE_STEPPER_TIMER` - add builtin `Stepper` class to handle higher speed stepper handling
 * `ESPR_LIMIT_DATE_RANGE` - limits the acceptable range for Date years (saves a few hundred bytes)
+* `ESPR_NO_REGEX_OPTIMISE` - strips out some speed optimisations from the regex library
+* On nRF52, `'LDFLAGS += -nostartfiles', 'ASFLAGS += -D__STARTUP_CLEAR_BSS -D__START=main',` can save ~300b by not including CRT startup code
+
 
 These are set automatically when `SAVE_ON_FLASH` is set (see `jsutils.h`)
 
-* `SAVE_ON_FLASH_MATH` - Remove some less-used Maths functions that use a bunch of Flash memory
+* `SAVE_ON_FLASH_MATH` - Replace some Maths functions that use a bunch of Flash memory (sin/atan/atan2/fft) with slower, smaller versions
 * `ESPR_NO_GET_SET` - No Getter/setter functionality
 * `ESPR_NO_OBJECT_METHODS` - No methods in objects like `{method() { ... }}`
 * `ESPR_NO_PROPERTY_SHORTHAND` - No property shorthand in objects like `{a}`
-* `ESPR_NO_LINE_NUMBERS` - disable storing and reporting of Line Numbers. Usually these take 1 var per function, but if we're executing a function from flash we can just work it out from the file when needed
 * `ESPR_NO_LET_SCOPING` - don't create scopes for `let` (treat it like `var`, which was the 2v13 and earlier behaviour)
 * `ESPR_NO_PROMISES` - Don't include promise-handling functions
 * `ESPR_NO_PRETOKENISE` - Don't include code to pretokenise functions marked with `"ram"` - code pretokenised in the IDE can still be executed
+* `ESPR_NO_PASSWORD` - Disable password protection on the console (E.setPassword/E.lockConsole)
 
 
 ### chip

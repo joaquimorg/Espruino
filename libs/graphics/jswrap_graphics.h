@@ -60,6 +60,7 @@ JsVar *jswrap_graphics_setClipRect(JsVar *parent, int x1, int y1, int x2, int y2
 JsVar *jswrap_graphics_setFontSizeX(JsVar *parent, int size, bool isVectorFont);
 JsVar *jswrap_graphics_setFontCustom(JsVar *parent, JsVar *bitmap, int firstChar, JsVar *width, int height);
 JsVar *jswrap_graphics_setFontPBF(JsVar *parent, JsVar *file, int scale);
+JsVar *jswrap_graphics_findFont(JsVar *parent, JsVar *text, JsVar *options);
 JsVar *jswrap_graphics_setFontAlign(JsVar *parent, int x, int y, int r);
 JsVar *jswrap_graphics_setFont(JsVar *parent, JsVar *name, int size);
 JsVar *jswrap_graphics_getFont(JsVar *parent);
@@ -82,7 +83,7 @@ JsVar *jswrap_graphics_setRotation(JsVar *parent, int rotation, bool reflect);
 JsVar *jswrap_graphics_imageMetrics(JsVar *parent, JsVar *var);
 JsVar *jswrap_graphics_drawImage(JsVar *parent, JsVar *image, int xPos, int yPos, JsVar *options);
 JsVar *jswrap_graphics_drawImages(JsVar *parent, JsVar *layersVar, JsVar *options);
-JsVar *jswrap_graphics_asImage(JsVar *parent, JsVar *imgType);
+JsVar *jswrap_graphics_asImage(JsVar *parent, JsVar *options);
 JsVar *jswrap_graphics_getModified(JsVar *parent, bool reset);
 JsVar *jswrap_graphics_scroll(JsVar *parent, int x, int y);
 JsVar *jswrap_graphics_blit(JsVar *parent, JsVar *options);
@@ -93,9 +94,9 @@ void jswrap_graphics_saveScreenshot(JsVar *parent, JsVar *fileNameVar);
 JsVar *jswrap_graphics_quadraticBezier(JsVar *parent, JsVar * arr, JsVar *options);
 JsVar *jswrap_graphics_transformVertices(JsVar *parent, JsVar *verts, JsVar *transformation);
 JsVar *jswrap_graphics_floodFill(JsVar *parent, int x, int y, JsVar *col);
-JsVar *jswrap_graphics_theme();
+JsVar *jswrap_graphics_theme(JsVar *parent);
 JsVar *jswrap_graphics_setTheme(JsVar *parent, JsVar *theme);
-
+JsVar *jswrap_graphics_filter(JsVar *parent, JsVar *filter, JsVar *options);
 
 /// Info about an image to be used for rendering
 typedef struct {

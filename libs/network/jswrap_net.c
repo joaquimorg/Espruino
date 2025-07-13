@@ -143,11 +143,11 @@ JsVar *jswrap_url_parse(JsVar *url, bool parseQuery) {
   JsVar *v;
 
   v = jsvNewWritableStringFromStringVar(url, (size_t)pathStart, JSVAPPENDSTRINGVAR_MAXLENGTH);
-  if (jsvGetStringLength(v)==0) jsvAppendString(v, "/");
+  if (jsvIsEmptyString(v)) jsvAppendString(v, "/");
   jsvObjectSetChildAndUnLock(obj, "path", v);
 
   v = jsvNewWritableStringFromStringVar(url, (size_t)pathStart, (size_t)((searchStart>=0)?(searchStart-pathStart):JSVAPPENDSTRINGVAR_MAXLENGTH));
-  if (jsvGetStringLength(v)==0) jsvAppendString(v, "/");
+  if (jsvIsEmptyString(v)) jsvAppendString(v, "/");
   jsvObjectSetChildAndUnLock(obj, "pathname", v);
 
   jsvObjectSetChildAndUnLock(obj, "search", (searchStart>=0)?jsvNewFromStringVar(url, (size_t)searchStart, JSVAPPENDSTRINGVAR_MAXLENGTH):jsvNewNull());
@@ -167,7 +167,7 @@ JsVar *jswrap_url_parse(JsVar *url, bool parseQuery) {
     while (jsvStringIteratorHasChar(&it)) {
       char ch = jsvStringIteratorGetCharAndNext(&it);
       if (ch=='&') {
-        if (jsvGetStringLength(key)>0 || jsvGetStringLength(val)>0) {
+        if (!jsvIsEmptyString(key) || !jsvIsEmptyString(val)) {
           key = jsvAsArrayIndexAndUnLock(key); // make sure "0" gets made into 0
           key = jsvMakeIntoVariableName(key, val);
           jsvAddName(query, key);
@@ -194,7 +194,7 @@ JsVar *jswrap_url_parse(JsVar *url, bool parseQuery) {
     jsvStringIteratorFree(&it);
     jsvUnLock(queryStr);
 
-    if (jsvGetStringLength(key)>0 || jsvGetStringLength(val)>0) {
+    if (!jsvIsEmptyString(key) || !jsvIsEmptyString(val)) {
       key = jsvAsArrayIndexAndUnLock(key); // make sure "0" gets made into 0
       key = jsvMakeIntoVariableName(key, val);
       jsvAddName(query, key);
@@ -397,7 +397,6 @@ JsVar *jswrap_net_connect(JsVar *options, JsVar *callback, SocketType socketType
     jsError("Expecting Options to be an Object but it was %t", options);
     return 0;
   }
-#ifdef USE_TLS
   if ((socketType&ST_TYPE_MASK) == ST_HTTP) {
     JsVar *protocol = jsvObjectGetChildIfExists(options, "protocol");
     if (protocol && jsvIsStringEqual(protocol, "https:")) {
@@ -405,7 +404,6 @@ JsVar *jswrap_net_connect(JsVar *options, JsVar *callback, SocketType socketType
     }
     jsvUnLock(protocol);
   }
-#endif
 
   // Make sure we have a function as callback, or nothing (which is OK too)
   if (!jsvIsUndefined(callback) && !jsvIsFunction(callback)) {
@@ -540,7 +538,7 @@ void jswrap_dgram_socket_send(JsVar *parent, JsVar *buffer, JsVar *offset, JsVar
   ]
 }
 The 'message' event is called when a datagram message is received. If a handler
-is defined with `X.on('message', function(msg) { ... })` then it will be called`
+is defined with `X.on('message', function(msg) { ... })` then it will be called
 */
 
 /*JSON{
@@ -664,7 +662,7 @@ You can also:
 * Just specify the filename (<=100 characters) and it will be loaded and parsed
   if you have an SD card connected. For instance `options.key = "key.pem";`
 * Specify a function, which will be called to retrieve the data. For instance
-  `options.key = function() { eeprom.load_my_info(); };
+  `options.key = function() { eeprom.load_my_info(); };`
 
 For more information about generating and using certificates, see:
 

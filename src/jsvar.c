@@ -21,6 +21,7 @@
 #include "jswrap_object.h" // for jswrap_object_toString
 #include "jswrap_arraybuffer.h" // for jsvNewTypedArray
 #include "jswrap_dataview.h" // for jsvNewDataViewWithData
+#include "jswrap_functions.h" // jswrap_console_trace
 #if defined(ESPR_JIT) && defined(LINUX)
 #include <sys/mman.h>
 #endif
@@ -525,7 +526,6 @@ size_t jsvGetCharactersInVar(const JsVar *v) {
       )
     return (size_t)v->varData.nativeStr.len;
 
-  if (f < JSV_NAME_STRING_INT_0) jsiConsolePrintf("F %d\n", f);
   assert(f >= JSV_NAME_STRING_INT_0);
   assert((JSV_NAME_STRING_INT_0 < JSV_NAME_STRING_0) &&
          (JSV_NAME_STRING_0 < JSV_STRING_0) &&
@@ -646,6 +646,13 @@ JsVar *jsvNewWithFlags(JsVarFlags flags) {
   return jsvNewWithFlags(flags);
 #else
   // On a micro, we're screwed.
+#ifndef SAVE_ON_FLASH
+  if (!(jsErrorFlags & JSERR_MEMORY)) { // try and print a stack trace (if not already out of memory) - we should be able to do this without allocation
+    jsErrorFlags |= JSERR_MEMORY;
+    jsiConsolePrint("OUT OF MEMORY");
+    jswrap_console_trace(NULL);
+  }
+#endif
   jsErrorFlags |= JSERR_MEMORY;
   jspSetInterrupted(true);
   return 0;
@@ -657,6 +664,7 @@ static void jsvFreePtrInternal(JsVar *var) {
   var->flags = JSV_UNUSED;
   // add this to our free list
   jshInterruptOff(); // to allow this to be used from an IRQ
+  // OPT: would a small amount of sorting here when inserting (curRef>jsVarFirstEmpty) help to reduce fragmentation?
   jsvSetNextSibling(var, jsVarFirstEmpty);
   jsVarFirstEmpty = jsvGetRef(var);
   touchedFreeList = true;
@@ -664,6 +672,7 @@ static void jsvFreePtrInternal(JsVar *var) {
 }
 
 void jsvFreePtrStringExt(JsVar* var) {
+  // Inserts an entire string into the free list (in the correct order)
   JsVarRef ref = jsvGetLastChild(var);
   if (!ref) return;
   JsVar* ext = jsvGetAddressOf(ref);
@@ -813,8 +822,8 @@ JsVarRef jsvGetRef(JsVar *var) {
 JsVar *jsvLock(JsVarRef ref) {
   JsVar *var = jsvGetAddressOf(ref);
   //var->locks++;
-  assert(jsvGetLocks(var) < JSV_LOCK_MAX);
-  var->flags += JSV_LOCK_ONE;
+  if ((var->flags & JSV_LOCK_MASK)!=JSV_LOCK_MASK) // if we hit the max amount of locks, don't exceed it (see https://github.com/espruino/Espruino/issues/2616)
+    var->flags += JSV_LOCK_ONE;
 #ifdef DEBUG
   if (jsvGetLocks(var)==0) {
     jsError("Too many locks to Variable!");
@@ -833,8 +842,8 @@ JsVar *jsvLockSafe(JsVarRef ref) {
 /// Lock this pointer and return a pointer - UNSAFE for null pointer
 JsVar *jsvLockAgain(JsVar *var) {
   assert(var);
-  assert(jsvGetLocks(var) < JSV_LOCK_MAX);
-  var->flags += JSV_LOCK_ONE;
+  if ((var->flags & JSV_LOCK_MASK)!=JSV_LOCK_MASK) // if we hit the max amount of locks, don't exceed it (see https://github.com/espruino/Espruino/issues/2616)
+    var->flags += JSV_LOCK_ONE;
   return var;
 }
 
@@ -866,6 +875,7 @@ static ALWAYS_INLINE void jsvUnLockInline(JsVar *var) {
   /* Reduce lock count. Since ->flags is volatile
    * it helps to explicitly save it to a var to avoid a
    * load-store-load */
+  if ((var->flags & JSV_LOCK_MASK)==JSV_LOCK_MASK) return; // if we had the max number of locks, don't unlock as we probably didn't lock enough (see https://github.com/espruino/Espruino/issues/2616)
   JsVarFlags f = var->flags -= JSV_LOCK_ONE;
   // Now see if we can properly free the data
   // Note: we check locks first as they are already in a register
@@ -1483,8 +1493,8 @@ JsVar *jsvGetValueOf(JsVar *v) {
   return v;
 }
 
-/** Save this var as a string to the given buffer, and return how long it was (return val doesn't include terminating 0)
-If the buffer length is exceeded, the returned value will == len */
+/** Save this var as a string to the given buffer with a null terminator, and return how long it was (excluding terminating 0)
+If the buffer length is exceeded, string it cropped and terminating 0 is still added */
 size_t jsvGetString(const JsVar *v, char *str, size_t len) {
   assert(len>0);
   const char *s = jsvGetConstString(v);
@@ -1528,6 +1538,8 @@ size_t jsvGetString(const JsVar *v, char *str, size_t len) {
     if (stringVar) {
       size_t l = jsvGetStringChars(stringVar, 0, str, len); // call again - but this time with converted var
       jsvUnLock(stringVar);
+      if (l>=len) l=len-1;
+      str[l] = 0;
       return l;
     } else {
       str[0] = 0;
@@ -1631,21 +1643,9 @@ JsVar *jsvAsStringAndUnLock(JsVar *var) {
 JsVar *jsvAsFlatString(JsVar *var) {
   if (jsvIsFlatString(var)) return jsvLockAgain(var);
   JsVar *str = jsvAsString(var);
-  size_t len = jsvGetStringLength(str);
-  JsVar *flat = jsvNewFlatStringOfLength((unsigned int)len);
-  if (flat) {
-    JsvStringIterator src;
-    JsvStringIterator dst;
-    jsvStringIteratorNew(&src, str, 0);
-    jsvStringIteratorNew(&dst, flat, 0);
-    while (len--) {
-      jsvStringIteratorSetCharAndNext(&dst, jsvStringIteratorGetCharAndNext(&src));
-    }
-    jsvStringIteratorFree(&src);
-    jsvStringIteratorFree(&dst);
-  }
+  JsVar *fs = jsvNewFlatStringFromStringVar(str, 0, JSVAPPENDSTRINGVAR_MAXLENGTH);
   jsvUnLock(str);
-  return flat;
+  return fs;
 }
 
 /** Given a JsVar meant to be an index to an array, convert it to
@@ -1806,17 +1806,34 @@ size_t jsvGetCharsOnLine(JsVar *v, size_t line) {
   return chars;
 }
 
-//  IN A STRING, get the 1-based line and column of the given character. Both values must be non-null
-void jsvGetLineAndCol(JsVar *v, size_t charIdx, size_t *line, size_t *col) {
+/** IN A STRING, get the 1-based line and column of the given character. Both line+col must be non-null.
+If ignoredLines is set, this is the number of lines at the beginning we should ignore because the
+IDE might have added them automatically. */
+void jsvGetLineAndCol(JsVar *v, size_t charIdx, size_t *line, size_t *col, size_t *ignoredLines) {
   size_t x = 1;
   size_t y = 1;
   size_t n = 0;
   assert(line && col);
+  const char *ignoreLine = "Modules.addCached";
+  int ignoreLineIdx = 0;
+  if (ignoredLines) *ignoredLines=0;
 
   JsvStringIterator it;
   jsvStringIteratorNew(&it, v, 0);
   while (jsvStringIteratorHasChar(&it)) {
     char ch = jsvStringIteratorGetCharAndNext(&it);
+#ifndef SAVE_ON_FLASH
+    /* Check for lines beginning with Modules.addCached right at the start
+    and ignore them, so that we get the correct line number in files where
+    the IDE had attempted to insert modules */
+    if (ignoredLines && y==1+*ignoredLines && ignoreLineIdx>=0 && ch==ignoreLine[ignoreLineIdx]) {
+      ignoreLineIdx++;
+      if (ignoreLine[ignoreLineIdx]==0) { // end of string
+        ignoreLineIdx=-1;
+        (*ignoredLines)++; // ensure we ignore this line
+      }
+    }
+#endif // SAVE_ON_FLASH
     if (n==charIdx) {
       jsvStringIteratorFree(&it);
       *line = y;
@@ -1826,6 +1843,7 @@ void jsvGetLineAndCol(JsVar *v, size_t charIdx, size_t *line, size_t *col) {
     x++;
     if (ch=='\n') {
       x=1; y++;
+      ignoreLineIdx = 0; // new line, we can start checking again now
     }
     n++;
   }
@@ -1942,7 +1960,29 @@ void jsvAppendStringVar(JsVar *var, const JsVar *str, size_t stridx, size_t maxL
   jsvStringIteratorFree(&dst);
 }
 
-/** Create a new String from a substring in RAM. It is always writable. jsvNewFromStringVar can reference a non-writable string.
+/** Create a new flat string from the given var with the given index and length */
+JsVar *jsvNewFlatStringFromStringVar(JsVar *var, size_t stridx, size_t maxLength) {
+  assert(jsvIsString(var));
+  size_t len = jsvGetStringLength(var);
+  if (stridx>len) len=0;
+  else len -= stridx;
+  if (len > maxLength) len = maxLength;
+  JsVar *flat = jsvNewFlatStringOfLength((unsigned int)len);
+  if (flat) {
+    JsvStringIterator src;
+    JsvStringIterator dst;
+    jsvStringIteratorNew(&src, var, stridx);
+    jsvStringIteratorNew(&dst, flat, 0);
+    while (len--) {
+      jsvStringIteratorSetCharAndNext(&dst, jsvStringIteratorGetCharAndNext(&src));
+    }
+    jsvStringIteratorFree(&src);
+    jsvStringIteratorFree(&dst);
+  }
+  return flat;
+}
+
+/** Create a new (non-flat) String from a substring in RAM. It is always writable and appendable. jsvNewFromStringVar can reference a non-writable string.
 The Argument must be a string. stridx = start char or str, maxLength = max number of characters (can be JSVAPPENDSTRINGVAR_MAXLENGTH) */
 JsVar *jsvNewWritableStringFromStringVar(const JsVar *str, size_t stridx, size_t maxLength) {
   JsVar *var = jsvNewFromEmptyString();
@@ -1957,6 +1997,7 @@ JsVar *jsvNewWritableStringFromStringVar(const JsVar *str, size_t stridx, size_t
 /** Create a new variable from a substring. If a Native or Flash String, the memory area will be referenced (so the new string may not be writable)
 The Argument must be a string. stridx = start char or str, maxLength = max number of characters (can be JSVAPPENDSTRINGVAR_MAXLENGTH) */
 JsVar *jsvNewFromStringVar(const JsVar *str, size_t stridx, size_t maxLength) {
+  assert(jsvIsString(str));
   if (jsvIsNativeString(str) || jsvIsFlashString(str)) {
     // if it's a flash string, just change the pointer (but we must check length)
     size_t l = jsvGetStringLength(str);
@@ -1966,6 +2007,18 @@ JsVar *jsvNewFromStringVar(const JsVar *str, size_t stridx, size_t maxLength) {
     res->varData.nativeStr.ptr = str->varData.nativeStr.ptr + stridx;
     res->varData.nativeStr.len = (JsVarDataNativeStrLength)maxLength;
     return res;
+  }
+  if (jsvIsFlatString(str)) {
+    // work out how long we really want it...
+    size_t length = jsvGetCharactersInVar(str);
+    if (stridx >= length) length = 0;
+    else length -= stridx;
+    if (length > maxLength) length = maxLength;
+    // if it's long enough to make sense, create a flat string instead
+    if (length > JSV_FLAT_STRING_BREAK_EVEN) {
+      JsVar *var = jsvNewFlatStringFromStringVar(str, stridx, length);
+      if (var) return var;
+    }
   }
   return jsvNewWritableStringFromStringVar(str, stridx, maxLength);
 }
@@ -2212,7 +2265,7 @@ void jsvSetInteger(JsVar *v, JsVarInt value) {
  */
 bool jsvGetBool(const JsVar *v) {
   if (jsvIsString(v))
-    return jsvGetStringLength((JsVar*)v)!=0;
+    return !jsvIsEmptyString((JsVar*)v);
 #ifndef ESPR_EMBED
   if (jsvIsPin(v))
     return jshIsPinValid(jshGetPinFromVar((JsVar*)v));
@@ -2247,7 +2300,9 @@ JsVarFloat jsvGetFloat(const JsVar *v) {
       if (buf[0]==0) return 0; // empty string -> 0
       if (!strcmp(buf,"Infinity")) return INFINITY;
       if (!strcmp(buf,"-Infinity")) return -INFINITY;
-      return stringToFloat(buf);
+      const char *endOfNumber = 0;
+      JsVarFloat v = stringToFloatWithRadix(buf,0,&endOfNumber);
+      if (*endOfNumber==0) return v; // only return the value if there wasn't something after it in the string
     }
   }
   return NAN;
@@ -2270,7 +2325,7 @@ JsVar *jsvAsNumber(JsVar *var) {
     if (jsvGetString(var, buf, sizeof(buf))==sizeof(buf)) {
       jsExceptionHere(JSET_ERROR, "String too big to convert to number");
       return jsvNewFromFloat(NAN);
-    } else
+    } else // jsvIsStringNumericInt=true so we're sure this'll be successful
       return jsvNewFromLongInteger(stringToInt(buf));
   }
   // Else just try and get a float
@@ -3287,8 +3342,8 @@ JsVar *jsvObjectSetOrRemoveChild(JsVar *obj, const char *name, JsVar *child) {
 
 /** Append all keys from the source object to the target object. Will ignore hidden/internal fields */
 void jsvObjectAppendAll(JsVar *target, JsVar *source) {
-  assert(jsvIsObject(target));
-  assert(jsvIsObject(source));
+  assert(jsvHasChildren(target));
+  assert(jsvHasChildren(source));
   JsvObjectIterator it;
   jsvObjectIteratorNew(&it, source);
   while (jsvObjectIteratorHasValue(&it)) {
@@ -4311,82 +4366,125 @@ int jsvGarbageCollect() {
 }
 
 #ifndef SAVE_ON_FLASH
-void jsvDefragment() {
-  /* FIXME: we should surely be able to go through without `defragVars`,
-  and just work from the beginning to the end. We really need to be able
-  to move flat strings: https://github.com/espruino/Espruino/issues/1740 */
-  // garbage collect - removes cruft
-  // also puts free list in order
-  jsvGarbageCollect();
-  // Fill defragVars with defraggable variables
-  jshInterruptOff();
-  const int DEFRAGVARS = 256; // POWER OF 2
-  JsVarRef defragVars[DEFRAGVARS];
-  memset(defragVars, 0, sizeof(defragVars));
-  int defragVarIdx = 0;
-  for (unsigned int i=0;i<jsvGetMemoryTotal();i++) {
-    JsVarRef vr = (JsVarRef)(i+1);
+static void _jsvDefragment_moveReferences(JsVarRef defragFromRef, JsVarRef defragToRef, unsigned int lastAllocated) {
+  // find references!
+  for (JsVarRef vr=1;vr<=lastAllocated;vr++) {
     JsVar *v = _jsvGetAddressOf(vr);
     if ((v->flags&JSV_VARTYPEMASK)!=JSV_UNUSED) {
       if (jsvIsFlatString(v)) {
-        i += (unsigned int)jsvGetFlatStringBlocks(v); // skip forward
-      } else if (jsvGetLocks(v)==0) {
-        defragVars[defragVarIdx] = vr;
-        defragVarIdx = (defragVarIdx+1) & (DEFRAGVARS-1);
-        // why do we roll over and not stop?
-      }
-    }
-  }
-  // Now go through defragVars defragging them
-  defragVarIdx--;
-  if (defragVarIdx<0) defragVarIdx+=DEFRAGVARS;
-  while (defragVars[defragVarIdx]) {
-    JsVarRef defragFromRef = defragVars[defragVarIdx];
-    JsVarRef defragToRef = jsVarFirstEmpty;
-    if (!defragToRef || defragFromRef<defragToRef) {
-      // we're done!
-      break;
-    }
-    // relocate!
-    JsVar *defragFrom = _jsvGetAddressOf(defragFromRef);
-    JsVar *defragTo = _jsvGetAddressOf(defragToRef);
-    jsVarFirstEmpty = jsvGetNextSibling(defragTo); // move our reference to the next in the free list
-    // copy data
-    *defragTo = *defragFrom;
-    defragFrom->flags = JSV_UNUSED;
-    // find references!
-    for (unsigned int i=0;i<jsvGetMemoryTotal();i++) {
-      JsVarRef vr = (JsVarRef)(i+1);
-      JsVar *v = _jsvGetAddressOf(vr);
-      if ((v->flags&JSV_VARTYPEMASK)!=JSV_UNUSED) {
-        if (jsvIsFlatString(v)) {
-          i += (unsigned int)jsvGetFlatStringBlocks(v); // skip forward
-        } else {
-          if (jsvHasSingleChild(v))
-            if (jsvGetFirstChild(v)==defragFromRef)
-              jsvSetFirstChild(v,defragToRef);
-          if (jsvHasStringExt(v))
-            if (jsvGetLastChild(v)==defragFromRef)
-              jsvSetLastChild(v,defragToRef);
-          if (jsvHasChildren(v)) {
-            if (jsvGetFirstChild(v)==defragFromRef)
-              jsvSetFirstChild(v,defragToRef);
-            if (jsvGetLastChild(v)==defragFromRef)
-              jsvSetLastChild(v,defragToRef);
-          }
-          if (jsvIsName(v)) {
-            if (jsvGetNextSibling(v)==defragFromRef)
-              jsvSetNextSibling(v,defragToRef);
-            if (jsvGetPrevSibling(v)==defragFromRef)
-              jsvSetPrevSibling(v,defragToRef);
-          }
+        // finding a hole of the right size is a pain - so let's just shift back
+        // find the last available item by searching forward (we can't just search back as we might hit a flat string)
+        vr += (unsigned int)jsvGetFlatStringBlocks(v); // skip forward
+      } else {
+        if (jsvHasSingleChild(v) || jsvHasChildren(v))
+          if (jsvGetFirstChild(v)==defragFromRef)
+            jsvSetFirstChild(v,defragToRef);
+        if (jsvHasStringExt(v) || jsvHasChildren(v))
+          if (jsvGetLastChild(v)==defragFromRef)
+            jsvSetLastChild(v,defragToRef);
+        if (jsvIsName(v)) {
+          if (jsvGetNextSibling(v)==defragFromRef)
+            jsvSetNextSibling(v,defragToRef);
+          if (jsvGetPrevSibling(v)==defragFromRef)
+            jsvSetPrevSibling(v,defragToRef);
         }
       }
     }
-    // zero element and move to next...
-    defragVars[defragVarIdx] = 0;
-    defragVarIdx--;
-    if (defragVarIdx<0) defragVarIdx+=DEFRAGVARS;
+  }
+}
+
+void jsvDefragment() {
+  // https://github.com/espruino/Espruino/issues/1740
+  // garbage collect - removes cruft, also puts free list in order
+  jsvGarbageCollect();
+  jshInterruptOff();
+  const unsigned int minMove = 20; // don't move vars back less than this or we're just wasting CPU time
+  // find last allocated block of memory - speeds up searches!
+  unsigned int lastAllocated = 0;
+  for (JsVarRef i=1;i<=jsVarsSize;i++) {
+    JsVar *v = _jsvGetAddressOf(i);
+    if ((v->flags&JSV_VARTYPEMASK)!=JSV_UNUSED) {
+      if (jsvIsFlatString(v)) {
+        i += 1+(unsigned int)jsvGetFlatStringBlocks(v); // skip forward
+      }
+      lastAllocated = i;
+    }
+  }
+  // the var we're planning on writing to
+  JsVarRef defragToRef = 1;
+  // now for all blocks in memory...
+  for (JsVarRef defragFromRef=1;defragFromRef<=lastAllocated;defragFromRef++) {
+    // First move our destination block on until we find an UNUSED one...
+    JsVar *defragTo = _jsvGetAddressOf(defragToRef);
+    while ((defragTo->flags&JSV_VARTYPEMASK)!=JSV_UNUSED) {
+      if (jsvIsFlatString(defragTo)) {
+        defragToRef += 1+(unsigned int)jsvGetFlatStringBlocks(defragTo); // skip forward
+      } else defragToRef++;
+      if (defragToRef > lastAllocated) { // no more free blocks? quit
+        jsvCreateEmptyVarList();
+        jshInterruptOn();
+        return;
+      }
+      defragTo = _jsvGetAddressOf(defragToRef);
+    }
+    // Now look at our current block - if it's USED
+    JsVar *defragFrom = _jsvGetAddressOf(defragFromRef);
+    if ((defragFrom->flags&JSV_VARTYPEMASK)!=JSV_UNUSED) {
+      bool canMove = jsvGetLocks(defragFrom)==0;
+      if (jsvIsFlatString(defragFrom)) {
+        unsigned int blocksNeeded = 1+(unsigned int)jsvGetFlatStringBlocks(defragFrom);
+        if (canMove) { // moving a flat string
+          /* since a FlatString is >1 vars we need to find a hole big enough. Work forward
+          from defragToRef trying to see how many blocks we can move */
+          JsVarRef fsToRef = defragToRef;
+          bool isClear = false;
+          while (!isClear && (defragFromRef > fsToRef+minMove)) {
+            isClear = true;
+            // check area in fsToRef to see if it's clear
+            for (unsigned int i=0;i<blocksNeeded;i++) {
+              // TODO: what if we want to overlap with ourself?? would have to ensure we don't clear overlapping area
+              if ((_jsvGetAddressOf(fsToRef+i)->flags&JSV_VARTYPEMASK)!=JSV_UNUSED) {
+                isClear = false; // it's not clear!
+                fsToRef += i; // jump to this used block
+                break;
+              }
+            }
+            // if it wasn't clear, try and jump to the next item
+            if (!isClear) {
+              JsVar *v = _jsvGetAddressOf(fsToRef);
+              while ((v->flags&JSV_VARTYPEMASK)!=JSV_UNUSED) {
+                if (jsvIsFlatString(v)) {
+                  fsToRef += 1+(unsigned int)jsvGetFlatStringBlocks(v); // skip forward
+                } else fsToRef++;
+                if (fsToRef <= lastAllocated)
+                  v = _jsvGetAddressOf(fsToRef);
+                else
+                  break; // end of memory
+              }
+            }
+          }
+          if (isClear && (defragFromRef > fsToRef+minMove)) { // can we move it earlier in memory?
+            //jsiConsolePrintf("Move FlatString %d -> %d\n", defragFromRef, fsToRef);
+            defragTo = _jsvGetAddressOf(fsToRef);
+            // copy data and clear old var
+            memmove(defragTo, defragFrom, sizeof(JsVar)*blocksNeeded);
+            memset(defragFrom, 0, sizeof(JsVar)*blocksNeeded);
+            // copy references
+            _jsvDefragment_moveReferences(defragFromRef, fsToRef, lastAllocated);
+          }
+        }
+        defragFromRef += blocksNeeded-1; // skip forward (for loop adds 1)
+      } else if (canMove) { // moving a single var
+        if (defragFromRef > defragToRef+minMove) { // can we move it earlier in memory?
+          //jsiConsolePrintf("Move JsVar %d -> %d\n", defragFromRef, defragToRef);
+          // copy data and clear old var
+          *defragTo = *defragFrom;
+          memset(defragFrom, 0, sizeof(JsVar)); // set flags to 0=unused
+          // copy references
+          _jsvDefragment_moveReferences(defragFromRef, defragToRef, lastAllocated);
+        }
+      }
+    }
     // bump watchdog just in case it took too long
     jshKickWatchDog();
     jshKickSoftWatchDog();

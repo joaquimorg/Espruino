@@ -41,7 +41,7 @@ if len(sys.argv)<3 :
 boardname = sys.argv[1]
 headerFilename = sys.argv[2]
 defines = sys.argv[3:]
-  
+
 print("HEADER_FILENAME "+headerFilename)
 print("BOARD "+boardname)
 # import the board def
@@ -108,7 +108,7 @@ else: # NOT LINUX
 
 flash_saved_code2_pages = 0
 if "saved_code" in board.chip:
-  flash_saved_code_start = board.chip["saved_code"]["address"]
+  flash_saved_code_start = hex(board.chip["saved_code"]["address"])
   flash_page_size = board.chip["saved_code"]["page_size"]
   flash_saved_code_pages = board.chip["saved_code"]["pages"]
   flash_available_for_code = board.chip["saved_code"]["flash_available"]*1024
@@ -309,12 +309,12 @@ else:
   codeOut("")
 
 
-codeOut("#define FLASH_SAVED_CODE_START            "+str(flash_saved_code_start))
-codeOut("#define FLASH_SAVED_CODE_LENGTH           "+str(int(flash_page_size*flash_saved_code_pages)))
+codeOut("#define FLASH_SAVED_CODE_START            "+flash_saved_code_start)
+codeOut("#define FLASH_SAVED_CODE_LENGTH           "+hex(int(flash_page_size*flash_saved_code_pages)))
 if flash_saved_code2_pages:
   codeOut("// Extra flash pages in external flash")
-  codeOut("#define FLASH_SAVED_CODE2_START            "+str(flash_saved_code2_start))
-  codeOut("#define FLASH_SAVED_CODE2_LENGTH           "+str(int(flash_page_size*flash_saved_code2_pages)))
+  codeOut("#define FLASH_SAVED_CODE2_START            "+hex(flash_saved_code2_start))
+  codeOut("#define FLASH_SAVED_CODE2_LENGTH           "+hex(int(flash_page_size*flash_saved_code2_pages)))
 codeOut("");
 
 codeOut("#define CLOCK_SPEED_MHZ                      "+str(board.chip["speed"]))
@@ -341,21 +341,21 @@ xoff_thresh = 6 # how full (out of 8) is buffer when we sent the XOFF flow contr
 xon_thresh = 3 # how full (out of 8) is buffer when we sent the XON flow control char to say 'go'
 
 if LINUX:
-  bufferSizeIO = 256
+  bufferSizeIO = 1024
   bufferSizeTX = 256
   bufferSizeTimer = 16
 elif EMSCRIPTEN:
-  bufferSizeIO = 256
+  bufferSizeIO = 1024
   bufferSizeTX = 256
   bufferSizeTimer = 16
 else:
   # IO buffer - for received chars, setWatch, etc
-  bufferSizeIO = 64
-  if board.chip["ram"]>=20: bufferSizeIO = 128
-  if board.chip["ram"]>=96: bufferSizeIO = 256
+  bufferSizeIO = 256
+  if board.chip["ram"]>=20: bufferSizeIO = 512
+  if board.chip["ram"]>=96: bufferSizeIO = 1024
   # NRF52 needs this as Bluetooth traffic is funnelled through the buffer
   if board.chip["family"]=="NRF52":
-    bufferSizeIO = 256
+    bufferSizeIO = 1024
     # we often use increased MTUs and even with a big buffer these mean we need to leave
     # a lot of space when we send XOFF (due to delay in response from sender)
     xoff_thresh = 3
@@ -371,17 +371,21 @@ if 'util_timer_tasks' in board.info:
 
 if 'io_buffer_size' in board.info:
   bufferSizeIO = board.info['io_buffer_size']
+if 'xoff_thresh' in board.info:
+  xoff_thresh = board.info['xoff_thresh']
+if 'xon_thresh' in board.info:
+  xon_thresh = board.info['xon_thresh']
 
-codeOut("#define IOBUFFERMASK "+str(bufferSizeIO-1)+" // (max 65535) amount of items in event buffer - events take 5 bytes each")
-codeOut("#define TXBUFFERMASK "+str(bufferSizeTX-1)+" // (max 255) amount of items in the transmit buffer - 2 bytes each")
+codeOut("#define IOBUFFERMASK "+str(bufferSizeIO-1)+" // (max 65535, 2^n-1) amount of items in event buffer - each event uses 2+dataLen bytes")
+codeOut("#define TXBUFFERMASK "+str(bufferSizeTX-1)+" // (max 255, 2^n-1) amount of items in the transmit buffer - 2 bytes each")
 codeOut("#define UTILTIMERTASK_TASKS ("+str(bufferSizeTimer)+") // Must be power of 2 - and max 256")
 
 codeOut("");
 
 codeOut("// When to send the message that the IO buffer is getting full")
-codeOut("#define IOBUFFER_XOFF ((TXBUFFERMASK)*"+str(xoff_thresh)+"/8)")
+codeOut("#define IOBUFFER_XOFF ((IOBUFFERMASK)*"+str(xoff_thresh)+"/8)")
 codeOut("// When to send the message that we can start receiving again")
-codeOut("#define IOBUFFER_XON ((TXBUFFERMASK)*"+str(xon_thresh)+"/8)")
+codeOut("#define IOBUFFER_XON ((IOBUFFERMASK)*"+str(xon_thresh)+"/8)")
 
 codeOut("");
 
@@ -426,19 +430,22 @@ if "LCD" in board.devices:
     if "pin_reset" in board.devices["LCD"]:
       codeOutDevicePin("LCD", "pin_reset", "LCD_RESET")
   if board.devices["LCD"]["controller"]=="ssd1306" or board.devices["LCD"]["controller"]=="st7567" or board.devices["LCD"]["controller"]=="st7789v" or board.devices["LCD"]["controller"]=="st7735" or board.devices["LCD"]["controller"]=="gc9a01":
-    codeOutDevicePin("LCD", "pin_mosi", "LCD_SPI_MOSI")
-    codeOutDevicePin("LCD", "pin_sck", "LCD_SPI_SCK")
-    codeOutDevicePin("LCD", "pin_cs", "LCD_SPI_CS")
-    codeOutDevicePin("LCD", "pin_dc", "LCD_SPI_DC")
     codeOutDevicePin("LCD", "pin_rst", "LCD_SPI_RST")
   if board.devices["LCD"]["controller"]=="LPM013M126":
-    codeOutDevicePin("LCD", "pin_mosi", "LCD_SPI_MOSI")
-    codeOutDevicePin("LCD", "pin_sck", "LCD_SPI_SCK")
-    codeOutDevicePin("LCD", "pin_cs", "LCD_SPI_CS")
     codeOutDevicePin("LCD", "pin_disp", "LCD_DISP")
     codeOutDevicePin("LCD", "pin_extcomin", "LCD_EXTCOMIN")
+  if "pin_cs" in board.devices["LCD"]:
+    codeOutDevicePin("LCD", "pin_cs", "LCD_SPI_CS")
+  if "pin_mosi" in board.devices["LCD"]:
+    codeOutDevicePin("LCD", "pin_mosi", "LCD_SPI_MOSI")
   if "pin_miso" in board.devices["LCD"]:
     codeOutDevicePin("LCD", "pin_miso", "LCD_SPI_MISO")
+  if "pin_sck" in board.devices["LCD"]:
+    codeOutDevicePin("LCD", "pin_sck", "LCD_SPI_SCK")
+  if "pin_dc" in board.devices["LCD"]:
+    codeOutDevicePin("LCD", "pin_dc", "LCD_SPI_DC")
+  if "spi_device" in board.devices["LCD"]:
+    codeOut("#define LCD_SPI_DEVICE "+board.devices["LCD"]["spi_device"])
   if "pin_tearing" in board.devices["LCD"]:
     codeOutDevicePin("LCD", "pin_tearing", "LCD_TEARING")
 
@@ -446,18 +453,26 @@ if "LCD" in board.devices:
     codeOutDevicePins("LCD","LCD");
 
 if "SD" in board.devices:
-  if not "pin_d3" in board.devices["SD"]: # NOT SDIO - normal SD
-    if "pin_cs" in board.devices["SD"]: codeOutDevicePin("SD", "pin_cs", "SD_CS_PIN")
-    if "pin_di" in board.devices["SD"]: codeOutDevicePin("SD", "pin_di", "SD_DI_PIN")
-    if "pin_do" in board.devices["SD"]: codeOutDevicePin("SD", "pin_do", "SD_DO_PIN")
-    if "pin_clk" in board.devices["SD"]:
-      codeOutDevicePin("SD", "pin_clk", "SD_CLK_PIN")
+  if "pin_cd" in board.devices["SD"]: codeOutDevicePin("SD", "pin_cd", "SD_DETECT_PIN")
+  if "pin_pwr" in board.devices["SD"]: codeOutDevicePin("SD", "pin_pwr", "SD_POWER_PIN")
+  if "pin_cs" in board.devices["SD"]: codeOutDevicePin("SD", "pin_cs", "SD_CS_PIN")
+  if "pin_di" in board.devices["SD"]: codeOutDevicePin("SD", "pin_di", "SD_DI_PIN") # MOSI
+  if "pin_do" in board.devices["SD"]: codeOutDevicePin("SD", "pin_do", "SD_DO_PIN") # MISO
+  if "pin_clk" in board.devices["SD"]:
+    codeOutDevicePin("SD", "pin_clk", "SD_CLK_PIN")
+    if not "pin_d3" in board.devices["SD"]: # NOT SDIO - normal SD
       sdClkPin = pinutils.findpin(pins, "P"+board.devices["SD"]["pin_clk"], False)
       spiNum = 0
       for func in sdClkPin["functions"]:
         if func[:3]=="SPI": spiNum = int(func[3])
       if spiNum==0: die("No SPI peripheral found for SD card's CLK pin")
       codeOut("#define SD_SPI EV_SPI"+str(spiNum))
+  # SDIO
+  if "pin_d0" in board.devices["SD"]: codeOutDevicePin("SD", "pin_d0", "SD_D0_PIN")
+  if "pin_d1" in board.devices["SD"]: codeOutDevicePin("SD", "pin_d1", "SD_D1_PIN")
+  if "pin_d2" in board.devices["SD"]: codeOutDevicePin("SD", "pin_d2", "SD_D2_PIN")
+  if "pin_d3" in board.devices["SD"]: codeOutDevicePin("SD", "pin_d3", "SD_D3_PIN")
+  if "pin_cmd" in board.devices["SD"]: codeOutDevicePin("SD", "pin_cmd", "SD_CMD_PIN")
 
 if "IR" in board.devices:
   codeOutDevicePin("IR", "pin_anode", "IR_ANODE_PIN")
@@ -512,7 +527,8 @@ if "PRESSURE" in board.devices:
 
 if "TOUCH" in board.devices:
   codeOut("#define TOUCH_DEVICE \""+board.devices["TOUCH"]["device"].upper()+"\"")
-  codeOut("#define TOUCH_ADDR "+str(board.devices["TOUCH"]["addr"]))
+  if "addr" in board.devices["TOUCH"]:
+    codeOut("#define TOUCH_ADDR "+str(board.devices["TOUCH"]["addr"]))
   codeOutDevicePins("TOUCH", "TOUCH")
 
 if "QWIIC0" in board.devices:
@@ -526,12 +542,13 @@ if "QWIIC3" in board.devices:
 if "DRIVER0" in board.devices:
   codeOutDevicePins("DRIVER0", "DRIVER0")
 if "DRIVER1" in board.devices:
-  codeOutDevicePins("DRIVER1", "DRIVER1")  
+  codeOutDevicePins("DRIVER1", "DRIVER1")
 
 if "SPIFLASH" in board.devices:
   codeOut("#define SPIFLASH_PAGESIZE 4096")
   codeOut("#define SPIFLASH_LENGTH "+str(board.devices["SPIFLASH"]["size"]))
-  codeOut("#define SPIFLASH_BASE "+str(board.devices["SPIFLASH"]["memmap_base"])+"UL")
+  if "memmap_base" in board.devices["SPIFLASH"]:
+    codeOut("#define SPIFLASH_BASE "+str(board.devices["SPIFLASH"]["memmap_base"])+"UL")
   codeOutDevicePins("SPIFLASH", "SPIFLASH")
 
 for device in pinutils.OTHER_DEVICES:
@@ -568,7 +585,7 @@ if len(defines) > 0:
   codeOut("// is ignored and all these defines go on the command line and apply to every file")
   codeOut("// whether or not platform_config was included. However if you're viewing a file in")
   codeOut("// a code editor like VS Code it'll parse this and should then highlight the correct")
-  codeOut("// code based on your build")              
+  codeOut("// code based on your build")
   for define in defines:
     if not define.startswith("-D"):
       continue

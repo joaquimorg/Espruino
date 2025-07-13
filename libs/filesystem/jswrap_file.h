@@ -62,8 +62,12 @@ typedef struct JsFile {
   JsFileData *data;
 } PACKED_FLAGS JsFile;
 
+/// Uninit all software-related SD card stuff - but don't de-init hardware
+void jswrap_file_kill_sw();
 // Called when stopping, to make sure all files are closed
 void jswrap_file_kill();
+bool jsfsInit();
+bool jsfsGetPathString(char *pathStr, JsVar *path);
 
 void jswrap_E_connectSDCard(JsVar *spi, Pin csPin);
 JsVar* jswrap_E_openFile(JsVar* path, JsVar* mode);
@@ -73,9 +77,3 @@ size_t jswrap_file_write(JsVar* parent, JsVar* buffer);
 JsVar *jswrap_file_read(JsVar* parent, int length);
 void jswrap_file_skip_or_seek(JsVar* parent, int length, bool is_skip);
 void jswrap_file_close(JsVar* parent);
-#ifdef USE_FLASHFS
-void jsfsReportError(const char *msg, FRESULT res);
-bool jsfsInit();
-int jswrap_E_flashFatFS(JsVar* options);
-
-#endif

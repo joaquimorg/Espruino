@@ -221,13 +221,13 @@ typedef union {
 
 
 
-typedef struct JsVarStruct {
+struct JsVarStruct {
   /** The actual variable data, as well as references (see below). Put first so word aligned */
   JsVarData varData;
 
   /** the flags determine the type of the variable - int/double/string/etc. */
   volatile JsVarFlags flags;
-} PACKED_FLAGS JsVar;
+} PACKED_FLAGS;
 
 /* We have a few different types:
  *
@@ -318,7 +318,9 @@ JsVar *jsvNewUTF8String(JsVar* dataString); ///< Create a new unicode string usi
 JsVar *jsvNewUTF8StringAndUnLock(JsVar* dataString); ///< Create a new unicode string using the given data string for backing
 #endif
 static ALWAYS_INLINE JsVar *jsvNewNull() { return jsvNewWithFlags(JSV_NULL); } ;///< Create a new null variable
-/** Create a new String from a substring in RAM. It is always writable. jsvNewFromStringVar can reference a non-writable string.
+/** Create a new flat string from the given var with the given index and length */
+JsVar *jsvNewFlatStringFromStringVar(JsVar *var, size_t stridx, size_t maxLength);
+/** Create a new (non-flat) String from a substring in RAM. It is always writable and appendable. jsvNewFromStringVar can reference a non-writable string.
 The Argument must be a string. stridx = start char or str, maxLength = max number of characters (can be JSVAPPENDSTRINGVAR_MAXLENGTH) */
 JsVar *jsvNewWritableStringFromStringVar(const JsVar *str, size_t stridx, size_t maxLength);
 /** Create a new variable from a substring. If a Native or Flash String, the memory area will be referenced (so the new string may not be writable)
@@ -491,8 +493,8 @@ const char *jsvGetConstString(const JsVar *v); ///< Get a const string represent
 const char *jsvGetTypeOf(const JsVar *v); ///< Return the 'type' of the JS variable (eg. JS's typeof operator)
 JsVar *jsvGetValueOf(JsVar *v); ///< Return the JsVar, or if it's an object and has a valueOf function, call that
 
-/** Save this var as a string to the given buffer, and return how long it was (return val doesn't include terminating 0)
-If the buffer length is exceeded, the returned value will == len */
+/** Save this var as a string to the given buffer with a null terminator, and return how long it was (excluding terminating 0)
+If the buffer length is exceeded, string it cropped and terminating 0 is still added */
 size_t jsvGetString(const JsVar *v, char *str, size_t len);
 size_t jsvGetStringChars(const JsVar *v, size_t startChar, char *str, size_t len); ///< Get len bytes of string data from this string. Does not error if string len is not equal to len, no terminating 0
 void jsvSetString(JsVar *v, const char *str, size_t len); ///< Set the Data in this string. This must JUST overwrite - not extend or shrink
@@ -507,7 +509,11 @@ JsVar *jsvGetFlatStringFromPointer(char *v); ///< Given a pointer to the first e
 char *jsvGetDataPointer(JsVar *v, size_t *len); ///< If the variable points to a *flat* area of memory, return a pointer (and set length). Otherwise return 0.
 size_t jsvGetLinesInString(JsVar *v); ///<  IN A STRING get the number of lines in the string (min=1)
 size_t jsvGetCharsOnLine(JsVar *v, size_t line); ///<  IN A STRING Get the number of characters on a line - lines start at 1
-void jsvGetLineAndCol(JsVar *v, size_t charIdx, size_t *line, size_t *col); ///< IN A STRING, get the 1-based line and column of the given character. Both values must be non-null
+
+/** IN A STRING, get the 1-based line and column of the given character. Both line+col must be non-null.
+If ignoredLines is set, this is the number of lines at the beginning we should ignore because the
+IDE might have added them automatically. */
+void jsvGetLineAndCol(JsVar *v, size_t charIdx, size_t *line, size_t *col, size_t *ignoredLines);
 size_t jsvGetIndexFromLineAndCol(JsVar *v, size_t line, size_t col); ///<  IN A STRING, get a character index from a line and column
 
 
@@ -674,7 +680,7 @@ JsVar *jsvNegateAndUnLock(JsVar *v);
  * ignoreParent is a, don't! */
 JsVar *jsvGetPathTo(JsVar *root, JsVar *element, int maxDepth, JsVar *ignoreParent);
 
-/// Copy this variable and return the locked copy
+/// Copy this variable and return the locked copy (if copyChildren=true, children are copied, but *not* deeply)
 JsVar *jsvCopy(JsVar *src, bool copyChildren);
 /** Copy only a name, not what it points to. ALTHOUGH the link to what it points to is maintained unless linkChildren=false.
     If keepAsName==false, this will be converted into a normal variable */

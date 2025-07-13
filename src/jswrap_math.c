@@ -49,6 +49,7 @@ double jswrap_math_sin(double x) {
    * So about 3k, just for sin.
    * */
   // exploit symmetry - we're only accurate when x is small
+  if (x<0) x=PI-x;
   int xi = (int)(x/PI);
   x -= xi*PI;
   if (x>PI/2) x=PI-x;
@@ -101,6 +102,7 @@ This is a standard JavaScript class that contains useful Maths routines
   "type" : "staticproperty",
   "class" : "Math",
   "name" : "LN2",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate_full" : "0.6931471805599453",
   "return" : ["float","The natural logarithm of 2 - 0.6931471805599453"]
 }*/
@@ -108,6 +110,7 @@ This is a standard JavaScript class that contains useful Maths routines
   "type" : "staticproperty",
   "class" : "Math",
   "name" : "LN10",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate_full" : "2.302585092994046",
   "return" : ["float","The natural logarithm of 10 - 2.302585092994046"]
 }*/
@@ -115,6 +118,7 @@ This is a standard JavaScript class that contains useful Maths routines
   "type" : "staticproperty",
   "class" : "Math",
   "name" : "LOG2E",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate_full" : "1.4426950408889634",
   "return" : ["float","The base 2 logarithm of e - 1.4426950408889634"]
 }*/
@@ -122,6 +126,7 @@ This is a standard JavaScript class that contains useful Maths routines
   "type" : "staticproperty",
   "class" : "Math",
   "name" : "LOG10E",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate_full" : "0.4342944819032518",
   "return" : ["float","The base 10 logarithm of e - 0.4342944819032518"]
 }*/
@@ -129,6 +134,7 @@ This is a standard JavaScript class that contains useful Maths routines
   "type" : "staticproperty",
   "class" : "Math",
   "name" : "SQRT2",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate_full" : "1.4142135623730951",
   "return" : ["float","The square root of 2 - 1.4142135623730951"]
 }*/
@@ -136,6 +142,7 @@ This is a standard JavaScript class that contains useful Maths routines
   "type" : "staticproperty",
   "class" : "Math",
   "name" : "SQRT1_2",
+  "ifndef" : "SAVE_ON_FLASH",
   "generate_full" : "0.7071067811865476",
   "return" : ["float","The square root of 1/2 - 0.7071067811865476"]
 }*/
@@ -265,8 +272,9 @@ double jswrap_math_mod(double x, double y) {
   double a, b;
   const double c = x;
 
-  if (!isfinite(x) || isnan(y))
+  if (!isfinite(x) || isnan(y) || y==0)
     return NAN;
+  if (y==INFINITY)  return x;
 
   if (0 > c) {
     x = -x;
@@ -342,9 +350,28 @@ double jswrap_math_pow(double x, double y) {
   "type" : "staticmethod",
   "class" : "Math",
   "name" : "random",
-  "generate_full" : "(JsVarFloat)rand() / (JsVarFloat)RAND_MAX",
-  "return" : ["float","A random number between 0 and 1"]
+  "generate_full" : "(JsVarFloat)rand() / (JsVarFloat)((unsigned)RAND_MAX+1)",
+  "return" : ["float","A random number X, where `0 <= X < 1`"]
 }*/
+/*JSON{
+  "type" : "staticmethod",
+  "class" : "Math",
+  "name" : "randInt",
+  "params" : [
+    ["range","int","How big a random number do we want"]
+  ],
+  "generate_full" : "(range>0) ? (rand() % range) : (rand()^(rand()<<1))",
+  "return" : ["int","A random integer"]
+}
+(Added in 2v25) Returns a random integer `X`, where `0 <= X < range`, or `-2147483648 <= X <= 2147483647` if `range <= 0` or `undefined`
+
+If `range` is supplied, this value is created using `modulo` of a 31 bit integer, so as `val` gets larger (24+ bits)
+the values produced will be less randomly distributed, and no values above `0x7FFFFFFF` will ever be returned.
+
+If `val==undefined` or `val<=0` a **32 bit** random number will be returned as an int (`-2147483648` .. `2147483647`).
+
+**Note:** this is not part of the JS spec, but is included in Espruino as it makes a lot of sense on embedded targets
+*/
 /*JSON{
   "type" : "staticmethod",
   "class" : "Math",

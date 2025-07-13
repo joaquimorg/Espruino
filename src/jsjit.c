@@ -240,8 +240,7 @@ void jsjFactorIDAndUnLock(JsVar *name, LEX_TYPES creationOp) {
     if (creationOp==LEX_ID) { // Just a normal ID
       // See if it's a builtin function, if builtinFunction!=0
       char tokenName[JSLEX_MAX_TOKEN_LENGTH];
-      size_t tokenL = jsvGetString(name, tokenName, sizeof(tokenName));
-      tokenName[tokenL] = 0; // null termination
+      jsvGetString(name, tokenName, sizeof(tokenName));
       JsVar *builtin = jswFindBuiltInFunction(0, tokenName);
       if (jsvIsNativeFunction(builtin)) { // it's a built-in function - just create it in place rather than searching
         jsjcDebugPrintf("; Native Function %j\n", name);
@@ -376,7 +375,7 @@ void jsjFactor() {
     JSP_ASSERT_MATCH(LEX_ID);
     jsjFactorIDAndUnLock(name, LEX_ID);
   } else if (lex->tk==LEX_INT) {
-    int64_t v = stringToInt(jslGetTokenValueAsString());
+    int64_t v = jsvGetLongIntegerAndUnLock(jslGetTokenValueAsVar());
     JSP_ASSERT_MATCH(LEX_INT);
     if (jit.phase == JSJP_EMIT) {
       if (v>>32) {

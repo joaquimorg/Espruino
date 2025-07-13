@@ -22,12 +22,13 @@ info = {
  'build' : {
    'libraries' : [
 #     'NET',
-     'TENSORFLOW',
+#     'TENSORFLOW', # New emscripten won't compile it!
      'TERMINAL',
      'GRAPHICS',
      'LCD_MEMLCD',
 #     'FILESYSTEM',
      'CRYPTO','SHA256','SHA512',
+     'AES_CCM',
 #     'TLS',
 #     'TELNET',
    ],
@@ -40,7 +41,6 @@ info = {
      'DEFINES += -DSPIFLASH_BASE=0x8000000 -DSPIFLASH_LENGTH=8388608',
 #     'DEFINES+=-DCUSTOM_GETBATTERY=jswrap_banglejs_getBattery',
      'DEFINES+=-DDUMP_IGNORE_VARIABLES=\'"g\\0"\'',
-     'DEFINES += -DESPR_NO_LINE_NUMBERS=1', # we execute mainly from flash, so line numbers can be worked out
      'DEFINES+=-DESPR_GRAPHICS_INTERNAL=1',
      'DEFINES+=-DUSE_FONT_6X8 -DGRAPHICS_PALETTED_IMAGES -DGRAPHICS_ANTIALIAS',
      'INCLUDE += -I$(ROOT)/libs/banglejs -I$(ROOT)/libs/misc',
@@ -52,6 +52,7 @@ info = {
      'SOURCES += libs/misc/stepcount.c',
      'SOURCES += libs/misc/heartrate.c',
      'JSMODULESOURCES += libs/js/banglejs/locale.min.js',
+     'JSMODULESOURCES += libs/js/banglejs/Layout.min.js',
      'SOURCES += libs/banglejs/banglejs2_storage_default.c',
      'DEFINES += -DESPR_STORAGE_INITIAL_CONTENTS=1',
    ]
@@ -82,7 +83,7 @@ devices = {
   'BTN1' : { 'pin' : 'D17', 'pinstate' : 'IN_PULLDOWN' }, # Pin negated in software
   'LED1' : { 'pin' : 'D8', 'novariable':True }, # Backlight flash for low level debug - but in code we just use 'fake' LEDs
   'LCD' : {
-            'width' : 176, 'height' : 176, 
+            'width' : 176, 'height' : 176,
             'bpp' : 3,
             'controller' : 'LPM013M126', # LPM013M126C
             'pin_cs' : 'D5',

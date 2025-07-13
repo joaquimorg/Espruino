@@ -192,6 +192,7 @@ int jswrap_badge_capSense(int corner) {
     "type" : "staticmethod",
     "class" : "Badge",
     "name" : "getBatteryPercentage",
+    "deprecated" : true,
     "generate" : "jswrap_badge_getBatteryPercentage",
     "return" : ["int", "A percentage between 0 and 100" ]
 }
@@ -280,7 +281,7 @@ void jswrap_badge_init() {
   gfx.data.type = JSGRAPHICSTYPE_ARRAYBUFFER;
   gfx.data.flags = JSGRAPHICSFLAGS_ARRAYBUFFER_VERTICAL_BYTE | JSGRAPHICSFLAGS_INVERT_X;
   gfx.graphicsVar = graphics;
-  lcdInit_ArrayBuffer(&gfx);
+  lcdInit_ArrayBuffer(&gfx, NULL);
   graphicsSetVarInitial(&gfx);
   jsvObjectSetChild(execInfo.root,"g",graphics);
   // Set initial image

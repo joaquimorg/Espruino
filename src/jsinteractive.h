@@ -45,7 +45,8 @@ bool jsiFreeMoreMemory();
 bool jsiHasTimers(); // are there timers still left to run?
 bool jsiIsWatchingPin(Pin pin); // are there any watches for the given pin?
 
-void jsiCtrlC(); // Ctrl-C - force interrupt of execution
+/// Ctrl-C - force interrupt of execution
+void jsiCtrlC();
 
 /// Queue a function, string, or array (of funcs/strings) to be executed next time around the idle loop
 void jsiQueueEvents(JsVar *object, JsVar *callback, JsVar **args, int argCount);
@@ -62,8 +63,13 @@ bool jsiExecuteEventCallbackName(JsVar *obj, const char *cbName, unsigned int ar
 /// Utility version of jsiExecuteEventCallback for calling events on global variables
 bool jsiExecuteEventCallbackOn(const char *objectName, const char *cbName, unsigned int argCount, JsVar **argPtr);
 
+/// Check for and report/handle interpreter errors (can be called after executing JS code). If wasREPL we won't save errors to storage as we assume they've been seen
+void jsiCheckErrors(bool wasREPL);
+
 /// Create a timeout in JS to execute the given native function (outside of an IRQ). Returns the index
 JsVar *jsiSetTimeout(void (*functionPtr)(void), JsVarFloat milliseconds);
+/// Clear a timeout in JS given the index returned by jsiSetTimeout
+void jsiClearTimeout(JsVar *timeout);
 
 IOEventFlags jsiGetDeviceFromClass(JsVar *deviceClass);
 JsVar *jsiGetClassNameFromDevice(IOEventFlags device);
@@ -118,7 +124,7 @@ typedef enum {
   BUSY_INTERACTIVE = 1,
   BUSY_TRANSMIT    = 2,
   // ???           = 4
-} JsiBusyDevice;
+} PACKED_FLAGS JsiBusyDevice;
 /// Shows a busy indicator, if one is set up
 void jsiSetBusy(JsiBusyDevice device, bool isBusy);
 
@@ -127,7 +133,7 @@ typedef enum {
   JSI_SLEEP_AWAKE  = 0,
   JSI_SLEEP_ASLEEP = 1,
   JSI_SLEEP_DEEP   = 2,
-} JsiSleepType;
+} PACKED_FLAGS JsiSleepType;
 
 /// Shows a sleep indicator, if one is set up
 void jsiSetSleep(JsiSleepType isSleep);
@@ -139,7 +145,9 @@ void jsiSetSleep(JsiSleepType isSleep);
 #define DEVICE_OPTIONS_NAME "_options"
 #define INIT_CALLBACK_NAME JS_EVENT_PREFIX"init" ///< Callback for `E.on('init'`
 #define KILL_CALLBACK_NAME JS_EVENT_PREFIX"kill" ///< Callback for `E.on('kill'`
+#ifndef ESPR_NO_PASSWORD
 #define PASSWORD_VARIABLE_NAME "pwd"
+#endif
 
 typedef enum {
   JSIS_NONE,
@@ -156,7 +164,7 @@ typedef enum {
   JSIS_TODO_MASK = JSIS_TODO_FLASH_SAVE|JSIS_TODO_FLASH_LOAD|JSIS_TODO_RESET,
   JSIS_CONSOLE_FORCED     = 1<<8, ///< see jsiSetConsoleDevice
   JSIS_WATCHDOG_AUTO      = 1<<9, ///< Automatically kick the watchdog timer on idle
-  JSIS_PASSWORD_PROTECTED = 1<<10, ///< Password protected
+  JSIS_PASSWORD_PROTECTED = 1<<10, ///< Password protected (only ifndef ESPR_NO_PASSWORD)
   JSIS_COMPLETELY_RESET   = 1<<11, ///< Has the board powered on *having not loaded anything from flash*
   JSIS_FIRST_BOOT         = 1<<12, ///< Is this the first time we started, or has load/reset/etc been called?
 

@@ -139,7 +139,7 @@ void jswrap_pin_write(
   "generate" : "jswrap_pin_writeAtTime",
   "params" : [
     ["value", "bool", "Whether to set output high (true/1) or low (false/0)"],
-    ["time", "float", "Time at which to write"]
+    ["time", "float", "Time at which to write (in seconds)"]
   ]
 }
 Sets the output state of the pin to the parameter given at the specified time.
@@ -233,7 +233,7 @@ void jswrap_pin_pulse(JsVar *parent, bool value, JsVar *times) {
   "class"    : "Pin",
   "name" : "analog",
   "generate" : "jswrap_pin_analog",
-  "return" : ["float","The analog Value of the Pin between 0 and 1"]
+  "return" : ["float","The analog value of the `Pin` between 0(GND) and 1(VCC)"]
 }
 (Added in 2v20) Get the analogue value of the given pin. See `analogRead` for more information.
  */
@@ -280,12 +280,14 @@ Get information about this pin and its capabilities. Of the form:
 
 ```
 {
-  "port"      : "A", // the Pin's port on the chip
-  "num"       : 12, // the Pin's number
-  "in_addr"   : 0x..., // (if available) the address of the pin's input address in bit-banded memory (can be used with peek)
-  "out_addr"  : 0x..., // (if available) the address of the pin's output address in bit-banded memory (can be used with poke)
-  "analog"    : { ADCs : [1], channel : 12 }, // If analog input is available
-  "functions" : {
+  "port"        : "A",    // the Pin's port on the chip
+  "num"         : 12,     // the Pin's number
+  "mode"        : (2v25+) // string: the pin's mode (same as Pin.getMode())
+  "output"      : (2v25+) // 0/1: the state of the pin's output register
+  "in_addr"     : 0x..., // (if available) the address of the pin's input address in bit-banded memory (can be used with peek)
+  "out_addr"    : 0x..., // (if available) the address of the pin's output address in bit-banded memory (can be used with poke)
+  "analog"      : { ADCs : [1], channel : 12 }, // If analog input is available
+  "functions"   : {
     "TIM1":{type:"CH1, af:0},
     "I2C3":{type:"SCL", af:1}
   }
@@ -307,6 +309,9 @@ JsVar *jswrap_pin_getInfo(
   buf[1] = 0;
   jsvObjectSetChildAndUnLock(obj, "port", jsvNewFromString(buf));
   jsvObjectSetChildAndUnLock(obj, "num", jsvNewFromInteger(inf->pin-JSH_PIN0));
+  JshPinState state = jshPinGetState(pin);
+  jsvObjectSetChildAndUnLock(obj, "mode", jshGetPinStateString(state));
+  jsvObjectSetChildAndUnLock(obj, "output", jsvNewFromInteger((state&JSHPINSTATE_PIN_IS_ON)?1:0));
 #ifdef STM32
   volatile uint32_t *addr;
   addr = jshGetPinAddress(pin, JSGPAF_INPUT);
@@ -326,7 +331,9 @@ JsVar *jswrap_pin_getInfo(
             jsvArrayPushAndUnLock(arr, jsvNewFromInteger(1+i));
         jsvObjectSetChildAndUnLock(an, "ADCs", arr);
       }
-      jsvObjectSetChildAndUnLock(obj, "channel", jsvNewFromInteger(inf->analog & JSH_MASK_ANALOG_CH));
+      jsvObjectSetChildAndUnLock(an, "channel", jsvNewFromInteger(inf->analog & JSH_MASK_ANALOG_CH));
+      jsvObjectSetChildAndUnLock(obj, "channel", jsvNewFromInteger(inf->analog & JSH_MASK_ANALOG_CH)); // for backwards compatibility with 2v22 and earlier
+      jsvObjectSetChildAndUnLock(obj, "analog", an);
     }
   }
   JsVar *funcs = jsvNewObject();

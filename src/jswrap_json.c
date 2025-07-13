@@ -21,8 +21,8 @@
 
 const unsigned int JSON_LIMIT_AMOUNT = 15; // how big does an array get before we start to limit what we show
 const unsigned int JSON_LIMITED_AMOUNT = 5; // When limited, how many items do we show at the beginning and end
-const unsigned int JSON_LIMIT_STRING_AMOUNT = 40; // how big are strings before we limit them?
-const unsigned int JSON_LIMITED_STRING_AMOUNT = 17; // When limited, how many chars do we show at the beginning and end
+const unsigned int JSON_LIMIT_STRING_AMOUNT = 60; // how big are strings before we limit them?
+const unsigned int JSON_LIMITED_STRING_AMOUNT = 27; // When limited, how many chars do we show at the beginning and end
 const unsigned int JSON_ITEMS_ON_LINE_OBJECT = 4; // How many items are allowed end to end on a line.
 const char *JSON_LIMIT_TEXT = " ... ";
 
@@ -41,8 +41,8 @@ An Object that handles conversion to and from the JSON data interchange format
   "generate" : "jswrap_json_stringify",
   "params" : [
     ["data","JsVar","The data to be converted to a JSON string"],
-    ["replacer","JsVar","This value is ignored"],
-    ["space","JsVar","The number of spaces to use for padding, a string, or null/undefined for no whitespace "]
+    ["replacer","JsVar","[optional] This value is ignored"],
+    ["space","JsVar","[optional] The number of spaces to use for padding, a string, or null/undefined for no whitespace "]
   ],
   "return" : ["JsVar","A JSON string"]
 }
@@ -70,8 +70,7 @@ JsVar *jswrap_json_stringify(JsVar *v, JsVar *replacer, JsVar *space) {
       whitespace[s] = 0;
       while (s) whitespace[--s]=' ';
     } else {
-      size_t l = jsvGetString(space, whitespace, sizeof(whitespace)-1);
-      whitespace[l]=0; // add trailing 0
+      jsvGetString(space, whitespace, sizeof(whitespace)-1);
     }
     if (strlen(whitespace)) flags |= JSON_ALL_NEWLINES|JSON_PRETTY;
     jsfGetJSONWhitespace(v, result, flags, whitespace);
@@ -97,9 +96,9 @@ JsVar *jswrap_json_parse_internal(JSONFlags flags) {
     return r;
   }
   case LEX_INT: {
-    long long v = stringToInt(jslGetTokenValueAsString());
+    JsVar *v = jslGetTokenValueAsVar();
     jslGetNextToken();
-    return jsvNewFromLongInteger(v);
+    return v;
   }
   case LEX_FLOAT: {
     JsVarFloat v = stringToFloat(jslGetTokenValueAsString());
@@ -180,9 +179,6 @@ JsVar *jswrap_json_parse_internal(JSONFlags flags) {
   "return" : ["JsVar","The JavaScript object created by parsing the data string"]
 }
 Parse the given JSON string into a JavaScript object
-
-NOTE: This implementation uses eval() internally, and as such it is unsafe as it
-can allow arbitrary JS commands to be executed.
  */
 JsVar *jswrap_json_parse_ext(JsVar *v, JSONFlags flags) {
   JsLex lex;
@@ -197,6 +193,15 @@ JsVar *jswrap_json_parse_ext(JsVar *v, JSONFlags flags) {
 }
 JsVar *jswrap_json_parse(JsVar *v) {
   return jswrap_json_parse_ext(v, 0);
+}
+
+JsVar *jswrap_json_parse_liberal(JsVar *v, bool noExceptions) {
+  JsVar *res = jswrap_json_parse_ext(v, JSON_DROP_QUOTES);
+  if (noExceptions) {
+    jsvUnLock(jspGetException());
+    execInfo.execute &= (JsExecFlags)~EXEC_EXCEPTION;
+  }
+  return res;
 }
 
 /* This is like jsfGetJSONWithCallback, but handles ONLY functions (and does not print the initial 'function' text) */

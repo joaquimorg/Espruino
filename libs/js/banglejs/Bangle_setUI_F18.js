@@ -5,10 +5,10 @@
     mode = options.mode;
     if (!mode) throw new Error("Missing mode in setUI({...})");
   }
-  var redraw = true;
-  if (global.WIDGETS && WIDGETS.back) {
-    redraw = false;
-    WIDGETS.back.remove(mode && options.back);
+  var hadBackWidget = false;
+  if (global.WIDGETS && WIDGETS.back) { 
+    hadBackWidget = true; // if we had a back widget already, don't redraw at the end
+    WIDGETS.back.remove(options.back); // only redraw when removing if we don't have options.back
   }
   if (Bangle.btnWatches) {
     Bangle.btnWatches.forEach(clearWatch);
@@ -33,15 +33,15 @@
   if (!mode) return;
   if (mode=="updown") {
     Bangle.btnWatches = [
-      setWatch(function() { cb(-1); }, BTN1, {repeat:1,edge:"falling"}),
-      setWatch(function() { cb(1); }, BTN3, {repeat:1,edge:"falling"}),
-      setWatch(function() { cb(); }, BTN2, {repeat:1,edge:"falling"})
+      setWatch(function() { cb(-1); }, BTN1, {repeat:1,edge:"rising"}),
+      setWatch(function() { cb(1); }, BTN3, {repeat:1,edge:"rising"}),
+      setWatch(function() { cb(); }, BTN2, {repeat:1,edge:"rising"})
     ];
   } else if (mode=="leftright") {
     Bangle.btnWatches = [
-      setWatch(function() { cb(-1); }, BTN1, {repeat:1,edge:"falling"}),
-      setWatch(function() { cb(1); }, BTN3, {repeat:1,edge:"falling"}),
-      setWatch(function() { cb(); }, BTN2, {repeat:1,edge:"falling"})
+      setWatch(function() { cb(-1); }, BTN1, {repeat:1,edge:"rising"}),
+      setWatch(function() { cb(1); }, BTN3, {repeat:1,edge:"rising"}),
+      setWatch(function() { cb(); }, BTN2, {repeat:1,edge:"rising"})
     ];
     Bangle.swipeHandler = d => {cb(d);};
     Bangle.on("swipe", Bangle.swipeHandler);
@@ -50,64 +50,78 @@
   } else if (mode=="clock") {
     Bangle.CLOCK=1;
     Bangle.btnWatches = [
-      setWatch(Bangle.showLauncher, BTN2, {repeat:1,edge:"falling"})
+      setWatch(Bangle.showLauncher, BTN2, {repeat:1,edge:"rising"})
     ];
   } else if (mode=="clockupdown") {
     Bangle.CLOCK=1;
     Bangle.btnWatches = [
-      setWatch(function() { cb(-1); }, BTN1, {repeat:1,edge:"falling"}),
-      setWatch(function() { cb(1); }, BTN3, {repeat:1,edge:"falling"}),
-      setWatch(Bangle.showLauncher, BTN2, {repeat:1,edge:"falling"})
+      setWatch(function() { cb(-1); }, BTN1, {repeat:1,edge:"rising"}),
+      setWatch(function() { cb(1); }, BTN3, {repeat:1,edge:"rising"}),
+      setWatch(Bangle.showLauncher, BTN2, {repeat:1,edge:"rising"})
     ];
   } else if (mode=="custom") {
-    if (options.clock) Bangle.CLOCK=1;
-    if (options.touch) {
-      Bangle.touchHandler = options.touch;
-      Bangle.on("touch", Bangle.touchHandler);
-    }
-    if (options.swipe) {
-      Bangle.swipeHandler = options.swipe;
-      Bangle.on("swipe", Bangle.swipeHandler);
-    }
-    if (options.btn) {
+    if (options.clock) {
       Bangle.btnWatches = [
-        setWatch(function() { options.btn(1); }, BTN1, {repeat:1,edge:"falling"}),
-        setWatch(function() { options.btn(2); }, BTN2, {repeat:1,edge:"falling"}),
-        setWatch(function() { options.btn(3); }, BTN3, {repeat:1,edge:"falling"})
-      ];
-    } else if (options.clock) {
-      Bangle.btnWatches = [
-        setWatch(Bangle.showLauncher, BTN2, {repeat:1,edge:"falling"})
+        setWatch(Bangle.showLauncher, BTN2, {repeat:1,edge:"rising"})
       ];
     }
   } else
     throw new Error("Unknown UI mode "+E.toJS(mode));
+  if (options.clock) Bangle.CLOCK=1;
+  if (options.touch) {
+    Bangle.touchHandler = options.touch;
+    Bangle.on("touch", Bangle.touchHandler);
+  }
+  if (options.swipe) {
+    Bangle.swipeHandler = options.swipe;
+    Bangle.on("swipe", Bangle.swipeHandler);
+  }
+  if ((options.btn || options.btnRelease) && !Bangle.btnWatches) Bangle.btnWatches = [];
+  if (options.btn) Bangle.btnWatches.push(
+    setWatch(function() { options.btn(1); }, BTN1, {repeat:1,edge:"rising"}),
+    setWatch(function() { options.btn(2); }, BTN2, {repeat:1,edge:"rising"}),
+    setWatch(function() { options.btn(3); }, BTN3, {repeat:1,edge:"rising"})
+  );
+  if (options.btnRelease) Bangle.btnWatches.push(
+    setWatch(function() { options.btn(1); }, BTN1, {repeat:1,edge:"falling"}),
+    setWatch(function() { options.btn(2); }, BTN2, {repeat:1,edge:"falling"}),
+    setWatch(function() { options.btn(3); }, BTN3, {repeat:1,edge:"falling"})
+  );
   if (options.remove) // handler for removing the UI (intervals/etc)
     Bangle.uiRemove = options.remove;
   if (options.redraw) // handler for redrawing the UI
     Bangle.uiRedraw = options.redraw;
   if (options.back) {
-    var touchHandler = (z) => {
-      if (z==1) options.back();
-    };
-    Bangle.on("touch", touchHandler);
-    var btnWatch;
-    if (Bangle.btnWatches===undefined) // only add back button handler if there's no existing watch on BTN1
-      btnWatch = setWatch(function() {
-        btnWatch = undefined;
+    // only add back button handler if there's no existing watch on BTN1
+    if (Bangle.btnWatches===undefined) 
+      Bangle.btnWatches = [ setWatch(function() {
+        Bangle.btnWatches = undefined; // watch doesn't repeat
         options.back();
-      }, BTN3, {edge:"falling"});
-    WIDGETS = Object.assign({back:{
-      area:"tl", width:24,
-      draw:e=>g.reset().setColor("#f00").drawImage(atob("GBiBAAAYAAH/gAf/4A//8B//+D///D///H/P/n+H/n8P/n4f/vwAP/wAP34f/n8P/n+H/n/P/j///D///B//+A//8Af/4AH/gAAYAA=="),e.x,e.y),
-      remove:(noclear)=>{
-        if (btnWatch) clearWatch(btnWatch);
-        Bangle.removeListener("touch", touchHandler);
-        if (!noclear) g.reset().clearRect({x:WIDGETS.back.x, y:WIDGETS.back.y, w:24,h:24});
-        delete WIDGETS.back;
-        if (!noclear) Bangle.drawWidgets();
-      }
-    }},global.WIDGETS);
-    if (redraw) Bangle.drawWidgets();
+      }, BTN3, {edge:"rising"}) ];
+    // if we have widgets loaded *and* visible at the top, add a back widget (see #3788)
+    if (global.WIDGETS && Bangle.appRect.y) {
+      // add our own touch handler for touching in the left
+      var touchHandler = function(z) {
+        if (z==1) {
+          E.stopEventPropagation(); // stop subsequent touch handlers from being called
+          options.back();
+        }
+      };
+      Bangle.prependListener("touch", touchHandler);
+      // add widget - 'remove' function will remove the widgets
+      WIDGETS = Object.assign({back:{ // Object.assign({back..}) ensures this is always the FIRST widget
+        area:"tl", width:24,
+        draw:e=>g.reset().setColor("#f00").drawImage(atob("GBiBAAAYAAH/gAf/4A//8B//+D///D///H/P/n+H/n8P/n4f/vwAP/wAP34f/n8P/n+H/n/P/j///D///B//+A//8Af/4AH/gAAYAA=="),e.x,e.y),
+        remove:function(noclear){
+          var w = WIDGETS.back;
+          if (w.area!="tl") noclear=true; // area="" is set by widget_utils.hide, so avoid drawing
+          Bangle.removeListener("touch", touchHandler);
+          if (!noclear) g.reset().clearRect({x:w.x, y:w.y, w:24,h:24});
+          delete WIDGETS.back;
+          if (!noclear) Bangle.drawWidgets();
+        }
+      }},global.WIDGETS)
+      if (!hadBackWidget) Bangle.drawWidgets();
+    }
   }
 })

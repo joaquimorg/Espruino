@@ -13,6 +13,13 @@
  */
 #include "jsvar.h"
 
+#ifndef LINUX
+#define JS_DIR_BUF_SIZE 64
+#else
+#define JS_DIR_BUF_SIZE 256
+#define FR_OK (0)
+#endif
+
 JsVar *jswrap_fs_readdir(JsVar *path);
 bool jswrap_fs_writeOrAppendFile(JsVar *path, JsVar *data, bool append);
 JsVar *jswrap_fs_readFile(JsVar *path);
@@ -20,3 +27,5 @@ bool jswrap_fs_unlink(JsVar *path);
 JsVar *jswrap_fs_stat(JsVar *path);
 bool jswrap_fs_mkdir(JsVar *path);
 void jswrap_fs_sync();
+JsVar *jswrap_fs_getfree(JsVar *path);
+bool jswrap_fs_mkfs();

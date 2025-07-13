@@ -34,7 +34,7 @@ JsVar *jswrap_global() {
 }
 A reference to the global scope, where everything is defined.
 
-`global` is used in Node.js. Consider using the identical `globalThis` as it was introduced in the ECMAScript spec.
+`global` is used in Node.js. Later on the ECMAScript spec introduced `globalThis` which is available in-browser too.
 */
 /*JSON{
   "type" : "variable",
@@ -163,7 +163,7 @@ Evaluate a string containing JavaScript code
 JsVar *jswrap_eval(JsVar *v) {
   if (!v) return 0;
   JsVar *s = jsvAsString(v); // get as a string
-  JsVar *result = jspEvaluateVar(s, 0, 0); // don't set scope, so we use the current scope
+  JsVar *result = jspEvaluateVar(s, 0, "eval"); // don't set scope, so we use the current scope
   jsvUnLock(s);
   return result;
 }
@@ -661,3 +661,19 @@ Implemented in Espruino as an alias of `console.log`
 }
 Implemented in Espruino as an alias of `console.log`
  */
+
+ /*JSON{
+  "type" : "staticmethod",
+  "class" : "console",
+  "name" : "trace",
+  "ifndef" : "SAVE_ON_FLASH",
+  "generate" : "jswrap_console_trace",
+  "params" : [
+    ["text","JsVarArray","One or more arguments to print"]
+  ]
+}
+*/
+void jswrap_console_trace(JsVar *v) {
+  if (v) jswrap_print(v);
+  jslPrintStackTrace(vcbprintf_callback_jsiConsolePrintString, NULL, lex);
+}

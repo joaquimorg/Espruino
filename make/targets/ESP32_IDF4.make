@@ -5,15 +5,23 @@ CMAKEFILE = $(BINDIR)/main/CMakeLists.txt
 INCLUDE_WITHOUT_GEN = $(subst -Igen,,$(INCLUDE)) -I$(ROOT)/gen
 
 ifeq ($(CHIP),ESP32C3)
-SDKCONFIG = sdkconfig_c3
-PORT ?= /dev/ttyACM0
+	SDKCONFIG = sdkconfig_c3
+	FMW_BIN_NAME = espruino-esp32c3
+	PORT ?= /dev/ttyACM0
 else 
-ifeq ($(CHIP),ESP32)
-SDKCONFIG = sdkconfig
-PORT ?= /dev/ttyUSB0
-else 
-$(error Unknown ESP32 chip)
-endif
+	ifeq ($(CHIP),ESP32)
+		SDKCONFIG = sdkconfig
+		FMW_BIN_NAME = espruino-esp32
+		PORT ?= /dev/ttyUSB0
+	else
+		ifeq ($(CHIP),ESP32S3)
+			SDKCONFIG = sdkconfig_s3
+			FMW_BIN_NAME = espruino-esp32s3
+			PORT ?= /dev/ttyUSB0
+		else
+			$(error Unknown ESP32 chip)
+		endif
+	endif
 endif
 
 $(CMAKEFILE):
@@ -43,15 +51,26 @@ $(CMAKEFILE):
 
 
 $(PROJ_NAME).bin: $(CMAKEFILE) $(PLATFORM_CONFIG_FILE) $(PININFOFILE).h $(PININFOFILE).c $(WRAPPERFILE)
-	cp ${ROOT}/targets/esp32/IDF4/${SDKCONFIG} $(BINDIR)/sdkconfig
-	cp ${ROOT}/targets/esp32/IDF4/CMakeLists.txt $(BINDIR)
-	cp ${ROOT}/targets/esp32/IDF4/partitions.csv $(BINDIR)
+	$(Q)cp ${ROOT}/targets/esp32/IDF4/${SDKCONFIG} $(BINDIR)/sdkconfig
+	$(Q)cp ${ROOT}/targets/esp32/IDF4/CMakeLists.txt $(BINDIR)
+	$(Q)cp ${ROOT}/targets/esp32/IDF4/partitions.csv $(BINDIR)
 	cd $(BINDIR) && idf.py build
+	$(Q)cp $(BINDIR)/build/espruino.bin $(PROJ_NAME).bin
 
-#$(ESP_ZIP): $(PROJ_NAME).bin
+$(ESP_ZIP): $(PROJ_NAME).bin
+	$(Q)rm -rf $(PROJ_NAME)
+	$(Q)mkdir -p $(PROJ_NAME)
+	$(Q)cp $(PROJ_NAME).bin $(PROJ_NAME)/$(FMW_BIN_NAME).bin
+	$(Q)cp $(BINDIR)/build/partition_table/partition-table.bin $(PROJ_NAME)/partition-table.bin
+	$(Q)cp $(BINDIR)/build/bootloader/bootloader.bin $(PROJ_NAME)/bootloader.bin
+	$(Q)cp targets/esp32/README_flash.txt $(PROJ_NAME)
+	$(Q)cp targets/esp32/README_flash_C3.txt $(PROJ_NAME)
+	$(Q)cp targets/esp32/README_flash_S3.txt $(PROJ_NAME)
+	$(Q)$(TAR) -zcf $(ESP_ZIP) $(PROJ_NAME) --transform='s/$(BINDIR)\///g'
+	@echo "Created $(ESP_ZIP)"
 
-proj: $(PROJ_NAME).bin
-#depend on $(ESP_ZIP)
+proj: $(ESP_ZIP)
+#depend on $(PROJ_NAME).bin
 
 flash: $(PROJ_NAME).bin
 	cd $(BINDIR) && idf.py flash -p $(PORT)
